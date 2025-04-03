@@ -22,5 +22,5 @@ class ItemSearchCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         def signal_handler(sig: int, _):
-            asyncio.create_task(self.item_db.close(sig))
+            asyncio.create_task(self.item_db.close())
 
