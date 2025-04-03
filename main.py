@@ -2,10 +2,18 @@ import disnake
 from disnake.ext import commands
 import signal
 import asyncio
+import logging
 
 from modules import asyncreqs
 
 import constants
+
+
+logger = logging.getLogger('disnake')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='disnake.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+logger.addHandler(handler)
 
 
 bot = commands.InteractionBot(
