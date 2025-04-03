@@ -163,8 +163,18 @@ class ItemSearchCog(commands.Cog):
         name="itemdb",
         description="Commands that use the RagingEnby item database"
     )
-    async def itemdb_cmd(self, inter: disnake.AppCmdInter):
+    async def itemdb(self, inter: disnake.AppCmdInter):
         await inter.response.defer()
+
+    @itemdb.sub_command(
+        name="clay-search",
+        description="Search for a Builder's Clay item"
+    )
+    async def clay_search_cmd(self, inter: disnake.AppCmdInter, edition: int):
+        return await self.do_search_command(inter, {
+            "itemId": "DUECES_BUILDER_CLAY",
+            "edition": edition
+        })
 
     @commands.Cog.listener()
     async def on_ready(self):
