@@ -1,1 +1,1 @@
-from itemdb import ItemSearchCog
+from .itemdb import ItemSearchCog
