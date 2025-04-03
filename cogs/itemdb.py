@@ -5,6 +5,7 @@ import asyncio
 
 from modules import mongodb
 from modules import mojang
+from modules import utils
 
 import constants
 
@@ -142,6 +143,21 @@ class ItemSearchCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.item_db = mongodb.Collection("SkyBlock", "items")
         self.bot = bot
+
+    async def do_search_command(self, inter: disnake.AppCmdInter, query: dict[str, Any], limit: int = 1):
+        results = await self.item_db.search(query, limit=limit)
+        if not results:
+            return await inter.send(embed=utils.make_error(
+                "No Results Found",
+                "Your search yielded no items. Try broadening your search."
+            ))
+        elif len(results) > 1:
+            return await inter.send(embed=utils.make_error(
+                "Multiple Results Found",
+                "Your search request yielded multiple items. Pages are not yet supported, so for now you gotta be more specific."
+            ))
+        embed = await make_item_embed(results[0])
+        return await inter.send(embed=embed)
 
     @commands.slash_command(
         name="itemdb",
