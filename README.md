@@ -1,7 +1,7 @@
 # What Is Skypixel
 Skypixel is a Discord bot I have worked on and off on for a couple years now. It's made to assist with item collecting in Hypixel SkyBlock.
 
-Originally, Skypixel was made as a frontend to search through spreadsheets from [iTEM](https://tem.cx/). However, over time it evolved into much more.
+Originally, Skypixel was made as a frontend to search through spreadsheets from [iTEM](https://tem.cx/) in the same style as [TEMBot](https://discord.com/users/937105508320546896)'s `/spook-search` command. However, over time it evolved into much more.
 
 # History
 - SkypixelV1 was HORRIBLY coded with abysmal performance, near constant crashes, and a level beyond spagetti code.
