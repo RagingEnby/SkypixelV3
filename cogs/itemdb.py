@@ -2,6 +2,7 @@ from typing import Any
 import disnake
 from disnake.ext import commands
 import asyncio
+import json
 
 from modules import mongodb
 from modules import mojang
@@ -17,7 +18,7 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     the item to ENSURE that it is not one of those.
     """
     # these all come from one update query where i intended to convert unix -> timestamp obj's
-    if item['previousOwners'].get('$map'):
+    if isinstance(item['previousOwners'], dict):
         item['previousOwners'] = []
     if isinstance(item.get('lastChecked'), dict):
         item['lastChecked'] = 1
@@ -30,10 +31,11 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
 
 async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     item = fix_item(item)
-    previous_owners = item['previousOwners'][:5]
+    print(json.dumps(item, indent=2))
+    previous_owners = list(reversed(item['previousOwners']))[:5]
     players = await mojang.bulk(
-        item['currentOwner']['playerUuid'] + 
-        [po['playerUuid'] for po in previous_owners]
+        [item['currentOwner']['playerUuid']] + 
+        [po['owner']['playerUuid'] for po in previous_owners]
     )
     
     embed = disnake.Embed(
@@ -51,13 +53,13 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     
     embed.add_field(
         name="UUID",
-        value=item['_id'],
+        value=f"{item['_id']}\n-# **Cofl UID:** {item['coflUid']}",
         inline=True
     )
     
     embed.add_field(
         name="Current Owner",
-        value=f"{owner_name} (<t:since {item['start'] // 1000}:d>)\n-# Item last seen <t:{item['lastChecked'] // 1000}:d>",
+        value=f"{owner_name} (since <t:{item['start'] // 1000}:d>)\n-# Item last seen <t:{item['lastChecked'] // 1000}:d>",
         inline=True
     )
     
@@ -66,8 +68,8 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         # but because of how i get players from mojang that is not possible💔
         lines = []
         for po in previous_owners:
-            player = players.get(po['playerUuid'])
-            player_name = player.name if player else po['playerUuid']
+            player = players.get(po['owner']['playerUuid'])
+            player_name = player.name if player else po['owner']['playerUuid']
             lines.append(f"{player_name} (<t:{po['start'] // 1000}:d> - <t:{po['end'] // 1000}:d>)")
         embed.add_field(
             name=f"Previous {len(previous_owners)} Owners",
@@ -100,6 +102,13 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
             value='\n'.join(attributes_text),
             inline=False
         )
+
+    # 'line break' (seperates the inlines)
+    embed.add_field(
+        name="",
+        value=" ",
+        inline=False
+    )
         
     if item.get('createdAt'):
         embed.add_field(
@@ -141,10 +150,11 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
 
 class ItemSearchCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
-        self.item_db = mongodb.Collection("SkyBlock", "items")
+        self.item_db = mongodb.Collection("SkyBlock", "itemdb")
         self.bot = bot
 
     async def do_search_command(self, inter: disnake.AppCmdInter, query: dict[str, Any], limit: int = 1):
+        print('searching item db for:', json.dumps(query, indent=2))
         results = await self.item_db.search(query, limit=limit)
         if not results:
             return await inter.send(embed=utils.make_error(
@@ -166,6 +176,19 @@ class ItemSearchCog(commands.Cog):
     async def itemdb(self, inter: disnake.AppCmdInter):
         await inter.response.defer()
 
+    @commands.slash_command(
+        name="search",
+        description="**ADMIN ONLY** Search the item database using json params"
+    )
+    async def search(self, inter: disnake.AppCmdInter, query: str):
+        try:
+            return await self.do_search_command(inter, json.loads(query))
+        except json.JSONDecodeError as e:
+            return await inter.send(embed=utils.make_error(
+                "Invalid JSON",
+                e
+            ))
+
     @itemdb.sub_command(
         name="clay-search",
         description="Search for a Builder's Clay item"
@@ -173,7 +196,7 @@ class ItemSearchCog(commands.Cog):
     async def clay_search_cmd(self, inter: disnake.AppCmdInter, edition: int):
         return await self.do_search_command(inter, {
             "itemId": "DUECES_BUILDER_CLAY",
-            "edition": edition
+            "extraAttributes.edition": edition
         })
 
     @commands.Cog.listener()
