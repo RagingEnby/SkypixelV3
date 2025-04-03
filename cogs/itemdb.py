@@ -1,3 +1,4 @@
+from typing import Any
 import disnake
 from disnake.ext import commands
 import asyncio
@@ -33,13 +34,14 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         item['currentOwner']['playerUuid'] + 
         [po['playerUuid'] for po in previous_owners]
     )
-    owner = players.get(item['currentOwner']['playerUuid'])
-    owner_name = owner.name if owner else item['currentOwner']['playerUuid']
     
     embed = disnake.Embed(
         title=item.get('friendlyName', item['itemId']),
         color=constants.RARITY_COLORS.get(item['rarity'], constants.DEFAULT_EMBED_COLOR)
     )
+
+    owner = players.get(item['currentOwner']['playerUuid'])
+    owner_name = owner.name if owner else item['currentOwner']['playerUuid']
     embed.set_author(
         name=owner_name,
         icon_url=owner.avatar if owner else None,
