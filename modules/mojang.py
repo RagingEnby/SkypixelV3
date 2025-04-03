@@ -1,6 +1,7 @@
 from typing_extensions import TypedDict
 from typing import Any, Optional
 from datetime import datetime
+import json
 
 from modules import asyncreqs
 
@@ -72,7 +73,7 @@ async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
         json={"identifiers": [i.replace('-', '') for i in identifiers]}
     )
     data = await response.json()
-    players = [MojangPlayer.from_dict(player) for player in data]
+    players = [MojangPlayer.from_dict(player) for player in data['players']]
     return {
         (player.id if player.id in identifiers else player.name.lower()): player
         for player in players
