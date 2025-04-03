@@ -64,3 +64,16 @@ async def get(identifier: str) -> MojangPlayer:
         return MojangPlayer.from_dict(data)  # type: ignore
     except ValueError as e:
         raise PlayerNotFound(f"{identifier} - {e}")
+
+
+async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
+    response = await asyncreqs.post(
+        url="https://api.ragingenby.dev/players",
+        json={"identifiers": [i.replace('-', '') for i in identifiers]}
+    )
+    data = await response.json()
+    players = [MojangPlayer.from_dict(player) for player in data]
+    return {
+        (player.id if player.id in identifiers else player.name.lower()): player
+        for player in players
+    }
