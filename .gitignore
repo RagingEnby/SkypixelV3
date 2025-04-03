@@ -166,3 +166,6 @@ attached_assets/*
 
 # Holds bot secrets:
 scrts.py
+
+# Misc:
+disnake.log
