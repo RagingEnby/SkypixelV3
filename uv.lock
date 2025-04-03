@@ -109,17 +109,6 @@ wheels = [
 ]
 
 [[package]]
-name = "disnake-bot"
-version = "0.0.1"
-source = { virtual = "." }
-dependencies = [
-    { name = "disnake" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "disnake" }]
-
-[[package]]
 name = "frozenlist"
 version = "1.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -323,6 +312,17 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/8f/50ad8599399d1861b4d2b6b45271f0ef6af1b09b0a2386a46dbaf19c9535/propcache-0.3.1-cp313-cp313t-win_amd64.whl", hash = "sha256:e7fb9a84c9abbf2b2683fa3e7b0d7da4d8ecf139a1c635732a8bda29c5214b0e", size = 46757 },
     { url = "https://files.pythonhosted.org/packages/b8/d3/c3cb8f1d6ae3b37f83e1de806713a9b3642c5895f0215a62e1a4bd6e5e34/propcache-0.3.1-py3-none-any.whl", hash = "sha256:9a8ecf38de50a7f518c21568c80f985e776397b902f1ce0b01f799aba1608b40", size = 12376 },
 ]
+
+[[package]]
+name = "skypixelv3"
+version = "3.0.0a1"
+source = { virtual = "." }
+dependencies = [
+    { name = "disnake" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "disnake" }]
 
 [[package]]
 name = "yarl"
