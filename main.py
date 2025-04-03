@@ -5,6 +5,7 @@ import asyncio
 import logging
 
 from modules import asyncreqs
+from cogs import ItemSearchCog
 
 import constants
 
@@ -19,6 +20,7 @@ logger.addHandler(handler)
 bot = commands.InteractionBot(
     owner_id=constants.OWNER_ID,
 )
+bot.add_cog(ItemSearchCog(bot))
 constants.BOT = bot
 
 
