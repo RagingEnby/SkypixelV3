@@ -189,6 +189,12 @@ class ItemSearchCog(commands.Cog):
         self.bot = bot
 
     async def do_search_command(self, inter: disnake.AppCmdInter, query: dict[str, Any], limit: int = 1):
+        query = {k: v for k, v in query.items() if v is not None}
+        if len(query) == 1 and query.get('itemId'):
+            return await inter.send(embed=utils.make_error(
+                "Invalid Query",
+                "You must provide search arguments!"
+            ))
         print('searching item db for:', json.dumps(query, indent=2))
         results = await self.item_db.search(query, limit=limit)
         if not results:
@@ -226,12 +232,28 @@ class ItemSearchCog(commands.Cog):
 
     @itemdb.sub_command(
         name="clay-search",
-        description="Search for a Builder's Clay item"
+        description="Search itemdb for a Builder's Clay item"
     )
-    async def clay_search_cmd(self, inter: disnake.AppCmdInter, edition: int):
+    async def clay_search_cmd(self, inter: disnake.AppCmdInter,
+                              edition: int | None = None, sender_name: str | None = None,
+                              recipient_name: str | None = None):
         return await self.do_search_command(inter, {
-            "itemId": "DUECES_BUILDER_CLAY",
-            "extraAttributes.edition": edition
+           "itemId": "DUECES_BUILDER_CLAY",
+           "extraAttributes.edition": edition,
+           "extraAttributes.sender": make_in_regex(sender_name) if sender_name else None,
+           "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None,
+       })
+
+    @itemdb.sub_command(
+        name="basket-search",
+        description="Search the itemdb for a Basket of Hope"
+    )
+    async def basket_search_cmd(self, inter: disnake.AppCmdInter,
+                                edition: int | None = None, basket_player_name: str | None = None):
+        return await self.do_search_command(inter, {
+            "itemId": "POTATO_BASKET",
+            "extraAttributes.basket_edition": edition,
+            "extraAttributes.basket_player_name": basket_player_name
         })
 
     @commands.Cog.listener()
