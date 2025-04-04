@@ -163,7 +163,7 @@ class ItemSearchCog(commands.Cog):
             ))
         elif len(results) > 1:
             return await inter.send(embed=utils.make_error(
-                "Multiple Results Found",
+                f"Multiple Results Found ({len(results)})",
                 "Your search request yielded multiple items. Pages are not yet supported, so for now you gotta be more specific."
             ))
         embed = await make_item_embed(results[0])
@@ -176,7 +176,7 @@ class ItemSearchCog(commands.Cog):
     async def itemdb(self, inter: disnake.AppCmdInter):
         await inter.response.defer()
 
-    @commands.slash_command(
+    @itemdb.sub_command(
         name="search",
         description="**ADMIN ONLY** Search the item database using json params"
     )
