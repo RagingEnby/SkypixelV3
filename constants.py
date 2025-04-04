@@ -10,6 +10,7 @@ OWNER_ID: int = 447861538095759365
 
 
 # Constants
+ITEM_IMAGE: str = "https://sky.shiiyu.moe/item/{}"
 DEFAULT_EMBED_COLOR: int = 0x00AA00
 RARITY_COLORS: dict[str, int] = {
   "COMMON": 16777215,

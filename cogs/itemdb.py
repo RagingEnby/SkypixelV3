@@ -42,6 +42,9 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         title=item.get('friendlyName', item['itemId']),
         color=constants.RARITY_COLORS.get(item['rarity'], constants.DEFAULT_EMBED_COLOR)
     )
+    # as of now, skycrypt has discontinued this endpoint
+    # it's still here in hopes they bring it back 3:
+    embed.set_thumbnail(url=constants.ITEM_IMAGE.format(item['itemId']))
 
     owner = players.get(item['currentOwner']['playerUuid'])
     owner_name = owner.name if owner else item['currentOwner']['playerUuid']
