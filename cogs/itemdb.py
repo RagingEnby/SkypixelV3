@@ -253,7 +253,7 @@ class ItemSearchCog(commands.Cog):
         return await self.do_search_command(inter, {
             "itemId": "POTATO_BASKET",
             "extraAttributes.basket_edition": edition,
-            "extraAttributes.basket_player_name": basket_player_name
+            "extraAttributes.basket_player_name": make_in_regex(basket_player_name) if basket_player_name else None
         })
 
     @commands.Cog.listener()
