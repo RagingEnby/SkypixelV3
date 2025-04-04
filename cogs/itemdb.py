@@ -76,6 +76,13 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
             value='\n'.join(lines),
             inline=False
         )
+    else:
+        # 'linebreak' field
+        embed.add_field(
+            name=" ",
+            value=" ",
+            inline=True
+        )
         
     if item.get('extraAttributes'):
         extra_attributes_text = '\n'.join([f"{k}: {v}" for k, v in item['extraAttributes'].items()])
