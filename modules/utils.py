@@ -1,6 +1,7 @@
 import disnake
 import re
 
+
 def make_error(title: str, *args) -> disnake.Embed:
     return disnake.Embed(
         title=title,
