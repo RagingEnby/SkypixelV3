@@ -60,7 +60,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     embed.set_thumbnail(url=get_item_image(item))
 
     owner = players.get(item['currentOwner']['playerUuid'])
-    owner_name = utils.esc_mrkdwn(owner.name) if owner else item['currentOwner']['playerUuid']
+    owner_name = owner.name if owner else item['currentOwner']['playerUuid']
     embed.set_author(
         name=owner_name,
         icon_url=owner.avatar if owner else None,
@@ -75,7 +75,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     
     embed.add_field(
         name="Current Owner",
-        value=f"{owner_name} (since <t:{item['start'] // 1000}:d>)\n-# Item last seen <t:{item['lastChecked'] // 1000}:d>",
+        value=f"{utils.esc_mrkdwn(owner.name)} (since <t:{item['start'] // 1000}:d>)\n-# Item last seen <t:{item['lastChecked'] // 1000}:d>",
         inline=True
     )
     
