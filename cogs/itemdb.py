@@ -275,14 +275,45 @@ class ItemSearchCog(commands.Cog):
         description="Search the itemdb for a Memento"
     )
     async def memento_search_cmd(self, inter: disnake.AppCmdInter,
-                                memento: hypixel.Memento | None = None,
-                                edition: int | None = None, recipient_name: str | None = None,
+                                 memento: hypixel.Memento | None = None,
+                                 edition: int | None = None, recipient_name: str | None = None,
                                  recipient_id: str | None = None):
         return await self.do_search_command(inter, {
             "itemId": memento if memento else {"$in": hypixel.MEMENTOS},
             "extraAttributes.edition": edition,
             "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None,
             "extraAttributes.recipient_id": recipient_id
+        })
+
+    @itemdb.sub_command(
+        name="racinghelm-search",
+        description="Search the itemdb for a Racing Helmet"
+    )
+    async def racinghelm_search_cmd(self, inter: disnake.AppCmdInter,
+                                    edition: int | None = None, auction: int | None = None,
+                                    bid: int | None = None, price: int | None = None,
+                                    buyer: str | None = None):
+        return await self.do_search_command(inter, {
+            "itemId": "RACING_HELMET",
+            "extraAttributes.edition": edition,
+            "extraAttributes.auction": auction,
+            "extraAttributes.bid": bid,
+            "extraAttributes.price": price,
+            "extraAttributes.player": make_in_regex(buyer) if buyer else None
+        })
+
+    @itemdb.sub_command(
+        name="spacehelm-search",
+        description="Search the itemdb for a (Dctr) Space Helmet"
+    )
+    async def spacehelm_search_cmd(self, inter: disnake.AppCmdInter,
+                                   edition: int | None = None, sender_name: str | None = None,
+                                   recipient_name: str | None = None):
+        return await self.do_search_command(inter, {
+            "itemId": "DCTR_SPACE_HELM",
+            "extraAttributes.edition": edition,
+            "extraAttributes.sender_name": make_in_regex(sender_name) if sender_name else None,
+            "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None
         })
 
     @commands.Cog.listener()
