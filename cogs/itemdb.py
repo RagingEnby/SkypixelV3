@@ -261,14 +261,29 @@ class ItemSearchCog(commands.Cog):
         description="Search the itemdb for an Ancient Elevator"
     )
     async def elevator_search_cmd(self, inter: disnake.AppCmdInter,
-                                    edition: int | None = None, sender_name: str | None = None,
-                                    recipient_name: str | None = None):
+                                  edition: int | None = None, sender_name: str | None = None,
+                                  recipient_name: str | None = None):
         return await self.do_search_command(inter, {
            "itemId": "ANCIENT_ELEVATOR",
            "extraAttributes.edition": edition,
            "extraAttributes.sender": make_in_regex(sender_name) if sender_name else None,
            "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None,
        })
+
+    @itemdb.sub_command(
+        name="memento-search",
+        description="Search the itemdb for a Memento"
+    )
+    async def memento_search_cmd(self, inter: disnake.AppCmdInter,
+                                memento: hypixel.Memento | None = None,
+                                edition: int | None = None, recipient_name: str | None = None,
+                                 recipient_id: str | None = None):
+        return await self.do_search_command(inter, {
+            "itemId": memento if memento else {"$in": hypixel.MEMENTOS},
+            "extraAttributes.edition": edition,
+            "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None,
+            "extraAttributes.recipient_id": recipient_id
+        })
 
     @commands.Cog.listener()
     async def on_ready(self):
