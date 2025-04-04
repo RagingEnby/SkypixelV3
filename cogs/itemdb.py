@@ -26,6 +26,9 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
         item['start'] = 1
     if isinstance(item.get('createdAt'), dict):
         item['createdAt'] = 1
+    # throwback to the time my dumbass fucked up capitaliation
+    if item.get('createdAt'):
+        item['created_at'] = item.pop('createdAt')
     return item
 
 
@@ -141,10 +144,10 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
             inline=False
         )
             
-    if item.get('createdAt'):
+    if item.get('created_at'):
         embed.add_field(
             name="Creation Time",
-            value=f"<t:{item['createdAt']}:F>",
+            value=f"<t:{item['created_at']}:F>",
             inline=True
         )
 
