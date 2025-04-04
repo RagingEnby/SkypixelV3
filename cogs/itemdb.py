@@ -4,7 +4,7 @@ from disnake.ext import commands
 import asyncio
 import json
 
-from modules import mongodb
+from modules import hypixel, mongodb
 from modules import mojang
 from modules import utils
 
@@ -27,6 +27,21 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     if isinstance(item.get('createdAt'), dict):
         item['createdAt'] = 1
     return item
+
+
+def get_item_image(item: dict[str, Any]) -> str:
+    default = constants.ITEM_IMAGE.format(item['itemId'])
+    if not item.get('colour'):
+        return default
+    try:
+        material = hypixel.get_material(item['itemId'])
+    except KeyError as e:
+        print('unable to find material for item:', e)
+        return default
+    if not material.startswith('LEATHER_'):
+        return default
+    armor_type = material.replace('LEATHER_', '').lower()
+    return constants.LEATHER_IMAGE.format(armor_type, item['colour'])
     
 
 async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
@@ -39,10 +54,10 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     )
     
     embed = disnake.Embed(
-        title=item.get('friendlyName', item['itemId']),
+        title=utils.remove_color_codes(item.get('friendlyName', item['itemId'])),
         color=constants.RARITY_COLORS.get(item['rarity'], constants.DEFAULT_EMBED_COLOR)
     )
-    embed.set_thumbnail(url=constants.ITEM_IMAGE.format(item['itemId']))
+    embed.set_thumbnail(url=get_item_image(item))
 
     owner = players.get(item['currentOwner']['playerUuid'])
     owner_name = owner.name if owner else item['currentOwner']['playerUuid']
@@ -110,14 +125,14 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
             value='\n'.join(attributes_text),
             inline=False
         )
-
-    # 'line break' (seperates the inlines)
-    embed.add_field(
-        name="",
-        value=" ",
-        inline=False
-    )
-        
+    else:
+        # 'line break' (seperates the inlines)
+        embed.add_field(
+            name="",
+            value=" ",
+            inline=False
+        )
+            
     if item.get('createdAt'):
         embed.add_field(
             name="Creation Time",
