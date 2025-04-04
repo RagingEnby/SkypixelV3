@@ -232,7 +232,7 @@ class ItemSearchCog(commands.Cog):
 
     @itemdb.sub_command(
         name="clay-search",
-        description="Search itemdb for a Builder's Clay item"
+        description="Search the itemdb for a Builder's Clay"
     )
     async def clay_search_cmd(self, inter: disnake.AppCmdInter,
                               edition: int | None = None, sender_name: str | None = None,
@@ -255,6 +255,20 @@ class ItemSearchCog(commands.Cog):
             "extraAttributes.basket_edition": edition,
             "extraAttributes.basket_player_name": make_in_regex(basket_player_name) if basket_player_name else None
         })
+
+    @itemdb.sub_command(
+        name="elevator-search",
+        description="Search the itemdb for an Ancient Elevator"
+    )
+    async def elevator_search_cmd(self, inter: disnake.AppCmdInter,
+                                    edition: int | None = None, sender_name: str | None = None,
+                                    recipient_name: str | None = None):
+        return await self.do_search_command(inter, {
+           "itemId": "ANCIENT_ELEVATOR",
+           "extraAttributes.edition": edition,
+           "extraAttributes.sender": make_in_regex(sender_name) if sender_name else None,
+           "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None,
+       })
 
     @commands.Cog.listener()
     async def on_ready(self):
