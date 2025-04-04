@@ -60,7 +60,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     embed.set_thumbnail(url=get_item_image(item))
 
     owner = players.get(item['currentOwner']['playerUuid'])
-    owner_name = owner.name if owner else item['currentOwner']['playerUuid']
+    owner_name = utils.esc_mrkdwn(owner.name) if owner else item['currentOwner']['playerUuid']
     embed.set_author(
         name=owner_name,
         icon_url=owner.avatar if owner else None,
@@ -85,7 +85,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         lines = []
         for po in previous_owners:
             player = players.get(po['owner']['playerUuid'])
-            player_name = player.name if player else po['owner']['playerUuid']
+            player_name = utils.esc_mrkdwn(player.name) if player else po['owner']['playerUuid']
             lines.append(f"{player_name} (<t:{po['start'] // 1000}:d> - <t:{po['end'] // 1000}:d>)")
         embed.add_field(
             name=f"Previous {len(previous_owners)} Owners",
@@ -122,7 +122,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         attributes_text = '\n'.join([f"{k}: {v}" for k, v in item['attributes'].items()])
         embed.add_field(
             name="Attributes",
-            value='\n'.join(attributes_text),
+            value=f"```\n{attributes_text}```",
             inline=False
         )
     else:
@@ -130,6 +130,14 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         embed.add_field(
             name="",
             value=" ",
+            inline=False
+        )
+
+    if item.get('lore'):
+        lore_text = '\n'.join([utils.remove_color_codes(line) for line in item['lore']])[:1010]
+        embed.add_field(
+            name="Lore",
+            value=f"```\n{lore_text}```",
             inline=False
         )
             
