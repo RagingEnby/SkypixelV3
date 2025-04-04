@@ -290,12 +290,10 @@ class ItemSearchCog(commands.Cog):
         description="Search the itemdb for a Racing Helmet"
     )
     async def racinghelm_search_cmd(self, inter: disnake.AppCmdInter,
-                                    edition: int | None = None, auction: int | None = None,
-                                    bid: int | None = None, price: int | None = None,
-                                    buyer: str | None = None):
+                                    auction: int | None = None, bid: int | None = None,
+                                    price: int | None = None, buyer: str | None = None):
         return await self.do_search_command(inter, {
             "itemId": "RACING_HELMET",
-            "extraAttributes.edition": edition,
             "extraAttributes.auction": auction,
             "extraAttributes.bid": bid,
             "extraAttributes.price": price,
