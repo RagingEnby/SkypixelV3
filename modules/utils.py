@@ -11,3 +11,8 @@ def make_error(title: str, *args) -> disnake.Embed:
 
 def remove_color_codes(string: str) -> str:
     return re.sub(r"§[0-9a-fA-Fklmnor]", "", string)
+
+
+def esc_mrkdwn(string: str) -> str:
+    return disnake.utils.escape_markdown(string)
+    
