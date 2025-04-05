@@ -357,7 +357,7 @@ class ItemSearchCog(commands.Cog):
             title=utils.remove_color_codes(item.get('friendlyName', item['itemId'])),
             description=f"```\n{lore}```",
             color=constants.DEFAULT_EMBED_COLOR
-        ))
+        ), ephemeral=True)
 
     @commands.Cog.listener()
     async def on_ready(self):
