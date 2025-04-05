@@ -136,14 +136,6 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
             inline=False
         )
 
-    if item.get('lore'):
-        lore_text = '\n'.join([utils.remove_color_codes(line) for line in item['lore']])[:1010]
-        embed.add_field(
-            name="Lore",
-            value=f"```\n{lore_text}```",
-            inline=False
-        )
-            
     if item.get('created_at'):
         embed.add_field(
             name="Creation Time",
