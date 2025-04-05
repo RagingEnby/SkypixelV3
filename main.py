@@ -6,6 +6,7 @@ import logging
 
 from modules import asyncreqs
 from cogs import ItemSearchCog
+from cogs import VersionTrackerCog
 
 import constants
 
@@ -21,6 +22,7 @@ bot = commands.InteractionBot(
     owner_id=constants.OWNER_ID,
 )
 bot.add_cog(ItemSearchCog(bot))
+bot.add_cog(VersionTrackerCog(bot))
 constants.BOT = bot
 
 

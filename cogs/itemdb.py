@@ -226,12 +226,10 @@ class ItemSearchCog(commands.Cog):
     )
     async def search(self, inter: disnake.AppCmdInter, query: str):
         try:
-            return await self.do_search_command(inter, json.loads(query))
+            parsed_query = json.loads(query)
         except json.JSONDecodeError as e:
-            return await inter.send(embed=utils.make_error(
-                "Invalid JSON",
-                e
-            ))
+            parsed_query = {"_id": query}
+        return await self.do_search_command(inter, parsed_query)
 
     @itemdb.sub_command(
         name="clay-search",
