@@ -21,11 +21,11 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     if isinstance(item['previousOwners'], dict):
         item['previousOwners'] = []
     if isinstance(item.get('lastChecked'), dict):
-        item['lastChecked'] = 1
+        item['lastChecked'] = 0
     if isinstance(item.get('start'), dict):
-        item['start'] = 1
+        item['start'] = 0
     if isinstance(item.get('createdAt'), dict):
-        item['createdAt'] = 1
+        item['createdAt'] = 0
     # throwback to the time my dumbass fucked up capitaliation
     if item.get('createdAt'):
         item['created_at'] = item.pop('createdAt')
