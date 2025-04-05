@@ -182,6 +182,26 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     return embed
 
 
+def make_item_view(item: dict[str, Any]) -> disnake.ui.View:
+    view = disnake.ui.View()
+    view.add_item(
+        disnake.ui.Button(
+            label="View Raw Data",
+            url="https://api.ragingenby.dev/items/" + item['_id'],
+            style=disnake.ButtonStyle.link
+        )
+    )
+    if item.get('lore'):
+        view.add_item(
+            disnake.ui.Button(
+                label="View Lore",
+                style=disnake.ButtonStyle.primary,
+                custom_id="view_lore|" + item['_id']
+            )
+        )
+    return view
+
+
 def make_in_regex(playername: str) -> dict[str, str]:
     return {"$regex": playername, "$options": "i"}
 
@@ -205,13 +225,16 @@ class ItemSearchCog(commands.Cog):
                 "No Results Found",
                 "Your search yielded no items. Try broadening your search."
             ))
-        """elif len(results) > 1:
+        """
+        elif len(results) > 1:
             return await inter.send(embed=utils.make_error(
                 f"Multiple Results Found ({len(results)})",
                 "Your search request yielded multiple items. Pages are not yet supported, so for now you gotta be more specific."
-            ))"""
+            ))
+        """
         embed = await make_item_embed(results[0])
-        return await inter.send(embed=embed)
+        view = make_item_view(results[0])
+        return await inter.send(embed=embed, view=view)
 
     @commands.slash_command(
         name="itemdb",
