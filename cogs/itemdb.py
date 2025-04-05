@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 import disnake
 from disnake.ext import commands
 import asyncio
@@ -204,6 +204,14 @@ class ItemSearchCog(commands.Cog):
         self.bot = bot
         self.item_cache: dict[str, dict[str, Any]] = {}
 
+    async def get_item_from_uuid(self, uuid: str) -> Optional[dict[str, Any]]:
+        if self.item_cache.get(uuid):
+            return self.item_cache[uuid]
+        item = await self.item_db.find_one({"_id": uuid})
+        if item:
+            self.item_cache[uuid] = item
+        return item
+
     async def do_search_command(self, inter: disnake.AppCmdInter, query: dict[str, Any], limit: int = 1):
         query = {k: v for k, v in query.items() if v is not None}
         if len(query) == 1 and query.get('itemId'):
@@ -331,6 +339,25 @@ class ItemSearchCog(commands.Cog):
             "extraAttributes.sender_name": make_in_regex(sender_name) if sender_name else None,
             "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None
         })
+
+    @commands.Cog.listener()
+    async def on_button_click(self, inter: disnake.MessageInteraction):
+        button_id = inter.component.custom_id
+        if not button_id or not button_id.startswith("view_lore|"):
+            return
+        uuid = button_id.split('|')[1]
+        item = await self.get_item_from_uuid(uuid)
+        if not item:
+            return await inter.send(embed=utils.make_error(
+                "Item Not Found",
+                "The item was not found in my databsae. This seems bad:bangbang:"
+            ))
+        lore = '\n'.join([utils.remove_color_codes(line) for line in item['lore']])
+        return await inter.send(embed=disnake.Embed(
+            title=utils.remove_color_codes(item.get('friendlyName', item['itemId'])),
+            description=f"```\n{lore}```",
+            color=constants.DEFAULT_EMBED_COLOR
+        ))
 
     @commands.Cog.listener()
     async def on_ready(self):
