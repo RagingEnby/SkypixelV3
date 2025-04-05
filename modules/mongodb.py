@@ -13,6 +13,7 @@ class Collection:
         self.db = self.client[self.db_name]
         self.collection = self.db[self.collection_name]
         self.find = self.collection.find
+        self.find_one = self.collection.find_one
 
     async def close(self):
         return self.client.close()
