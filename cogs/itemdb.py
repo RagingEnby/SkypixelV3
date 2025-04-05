@@ -202,6 +202,7 @@ class ItemSearchCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.item_db = mongodb.Collection("SkyBlock", "itemdb")
         self.bot = bot
+        self.item_cache: dict[str, dict[str, Any]] = {}
 
     async def do_search_command(self, inter: disnake.AppCmdInter, query: dict[str, Any], limit: int = 1):
         query = {k: v for k, v in query.items() if v is not None}
@@ -224,6 +225,7 @@ class ItemSearchCog(commands.Cog):
                 "Your search request yielded multiple items. Pages are not yet supported, so for now you gotta be more specific."
             ))
         """
+        self.item_cache.update({item['_id']: item for item in results})
         embed = await make_item_embed(results[0])
         view = make_item_view(results[0])
         return await inter.send(embed=embed, view=view)
