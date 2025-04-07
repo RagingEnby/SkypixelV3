@@ -1,9 +1,10 @@
 from typing_extensions import TypedDict
 from typing import Any, Optional
 from datetime import datetime
-import json
 
 from modules import asyncreqs
+
+import constants
 
 
 class PlayerNotFound(KeyError):
@@ -33,7 +34,7 @@ class MojangPlayer:
 
     @property
     def avatar(self) -> str:
-        return f"https://cravatar.eu/helmavatar/{self.id}/600.png"
+        return constants.MC_HEAD_IMAGE.format(self.id)
 
     def to_dict(self) -> MojangPlayerDict:
         return {
