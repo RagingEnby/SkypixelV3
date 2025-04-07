@@ -3,6 +3,8 @@ import re
 import aiofiles
 import json
 
+import constants
+
 
 async def write_json(file_path: str, data: dict, indent: int = 2):
     async with aiofiles.open(file_path, 'w') as file:
@@ -10,11 +12,11 @@ async def write_json(file_path: str, data: dict, indent: int = 2):
 
 
 def make_error(title: str, *args) -> disnake.Embed:
-    return disnake.Embed(
+    return add_footer(disnake.Embed(
         title=title,
         description='\n'.join([str(arg) for arg in args]),
         color=disnake.Color.red()
-    )
+    ))
 
 
 def remove_color_codes(string: str) -> str:
@@ -23,4 +25,16 @@ def remove_color_codes(string: str) -> str:
 
 def esc_mrkdwn(string: str) -> str:
     return disnake.utils.escape_markdown(string)
+
+
+def add_footer(embed: disnake.Embed) -> disnake.Embed:
+    # TODO: make this change the embed footer to a watermark
+    return embed
+
+
+async def send_to_channel(channel_id: int, *args, **kwargs) -> disnake.Message | None:
+    channel = constants.BOT.get_channel(channel_id)
+    if not channel:
+        return
+    return await channel.send(*args, **kwargs)  # type: ignore
     

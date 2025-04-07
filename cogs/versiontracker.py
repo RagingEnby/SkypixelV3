@@ -5,6 +5,7 @@ import traceback
 
 from modules import asyncreqs
 from modules import datamanager
+from modules import utils
 
 import constants
 
@@ -30,18 +31,26 @@ class VersionTrackerCog(commands.Cog):
 
     async def on_version_change(self, before: str, after: str):
         embed = disnake.Embed(
+            title="SkyBlock has updated!",
+            description=f"`{before}` ➡ `{after}`",
             color=constants.DEFAULT_EMBED_COLOR
+        )
+        embed = utils.add_footer(embed)
+        await utils.send_to_channel(
+            constants.VERSION_TRACKER_CHANNEL,
+            constants.VERSION_TRACKER_PING,
+            embed=embed
         )
 
     async def main(self):
         while True:
             try:
                 version = await get_version()
-                if version != self.data['version']:
-                    await self.on_version_change(self.data['version'], version)
+                if version != self.data.get('version'):
+                    await self.on_version_change(self.data.get('version'), version)
                     self.data['version'] = version
                     await self.data.save()
-                await asyncio.sleep(60)
-            except Exception as e:
+                await asyncio.sleep(120)
+            except Exception:
                 print("version tracker error:", traceback.format_exc())
     

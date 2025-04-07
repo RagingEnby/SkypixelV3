@@ -56,10 +56,10 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         [po['owner']['playerUuid'] for po in previous_owners]
     )
     
-    embed = disnake.Embed(
+    embed = utils.add_footer(disnake.Embed(
         title=utils.remove_color_codes(item.get('friendlyName', item['itemId'])),
         color=constants.RARITY_COLORS.get(item['rarity'], constants.DEFAULT_EMBED_COLOR)
-    )
+    ))
     embed.set_thumbnail(url=get_item_image(item))
 
     owner = players.get(item['currentOwner']['playerUuid'])
