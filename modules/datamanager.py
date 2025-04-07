@@ -33,5 +33,11 @@ class JsonWrapper:
     def get(self, key: str, default: Any = None) -> Any:
         return self.data.get(key, default)
 
+    def update(self, data: dict[str, Any]):
+        return self.data.update(data)
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.data
+
     async def save(self, indent: int = 2):
         await utils.write_json(self.file_path, self.data, indent)
