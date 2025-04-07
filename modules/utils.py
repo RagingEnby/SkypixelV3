@@ -2,6 +2,7 @@ import disnake
 import re
 import aiofiles
 import json
+import random
 
 import constants
 
@@ -28,8 +29,8 @@ def esc_mrkdwn(string: str) -> str:
 
 
 def add_footer(embed: disnake.Embed) -> disnake.Embed:
-    # TODO: make this change the embed footer to a watermark
-    return embed
+    text = random.choice(list(constants.CREDIT_FOOTERS))
+    return embed.set_footer(text=text, icon_url=constants.OWNER_PFP)
 
 
 async def send_to_channel(channel_id: int, *args, **kwargs) -> disnake.Message | None:
