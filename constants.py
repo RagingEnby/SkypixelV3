@@ -27,10 +27,25 @@ FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1256338710971158659: "<@&1358904280165126434>", # RagingEnby's Dev Server
 }
+RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
+    "admin": {
+        1269021399985422468: "<@&1122272183733977249>", # RagingEnby's Dev Server
+    },
+    "gm": {
+        1269021571897491690: "<@&1122272183733977249>", # RagingEnby's Dev Server
+    },
+    "youtube": {
+        1269021598447571168: "<@&1122272183733977249>", # RagingEnby's Dev Server
+    },
+    "special": {
+        1269021624338878464: "<@&1122272183733977249>", # RagingEnby's Dev Server
+    }
+}
 
 # Constants
 ITEM_IMAGE: str = "https://sky.shiiyu.moe/api/item/{}"
 LEATHER_IMAGE: str = "https://api.tem.cx/leather/{}/{}"
+MC_HEAD_IMAGE: str = "https://cravatar.eu/helmavatar/{}/600.png"
 DEFAULT_EMBED_COLOR: int = 0x00AA00
 RARITY_COLORS: dict[str, int] = {
   "COMMON": 16777215,
@@ -44,6 +59,12 @@ RARITY_COLORS: dict[str, int] = {
   "SPECIAL": 16733525,
   "VERY_SPECIAL": 16733525,
   "ADMIN": 11141120
+}
+RANK_COLORS: dict[str, int] = {
+    "youtube": 0xFF5555,
+    "admin": 0xFF5555,
+    "gm": 0x00AA00,
+    "special": DEFAULT_EMBED_COLOR
 }
 
 
