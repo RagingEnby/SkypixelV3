@@ -33,7 +33,7 @@ class FireSaleTrackerCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
         self.task: asyncio.Task | None = None
-        self.data = datamanager.JsonWrapper("storage/fire_sales.json")
+        self.data = datamanager.JsonWrapper("storage/firesales.json")
 
     async def on_fire_sale(self, item_id: str, sale: dict[str, Any]):
         embed = utils.add_footer(disnake.Embed(
