@@ -7,6 +7,14 @@ from scrts import (
 
 # Config Stuff
 OWNER_ID: int = 447861538095759365
+OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
+
+CREDIT_FOOTERS: set[str] = {
+    "Made by @ragingenby",
+    "Join my server! discord.gg/DdukMeYNdQ",
+    "Support me on Patreon! patreon.com/RagingEnby"
+}
+
 VERSION_TRACKER_CHANNEL: int = 1256322077825437756
 VERSION_TRACKER_PING: str = "<@&1139315700339593256>"
 
