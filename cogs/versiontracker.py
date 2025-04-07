@@ -27,6 +27,7 @@ async def get_version() -> str:
 class VersionTrackerCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
+        self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/version.json")
 
     async def on_version_change(self, before: str, after: str):
@@ -53,4 +54,10 @@ class VersionTrackerCog(commands.Cog):
                 await asyncio.sleep(120)
             except Exception:
                 print("version tracker error:", traceback.format_exc())
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        if self.task and not self.task.done():
+            self.task.cancel()
+        self.task = asyncio.create_task(self.main())
     
