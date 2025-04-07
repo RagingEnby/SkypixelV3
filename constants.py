@@ -15,9 +15,12 @@ CREDIT_FOOTERS: set[str] = {
     "Support me on Patreon! patreon.com/RagingEnby"
 }
 
-VERSION_TRACKER_CHANNEL: int = 1256322077825437756
-VERSION_TRACKER_PING: str = "<@&1139315700339593256>"
-
+VERSION_TRACKER_CHANNELS: dict[int, str] = {
+    1256322077825437756: "<@&1139315700339593256>", # RagingEnby's Dev Server
+}
+MOTD_TRACKER_CHANNELS: dict[int, str] = {
+    1256322740541980803: "<@&1177330036664193084>", # RagingEnby's Dev Server
+}
 
 # Constants
 ITEM_IMAGE: str = "https://sky.shiiyu.moe/api/item/{}"
