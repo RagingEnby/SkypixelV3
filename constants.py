@@ -64,7 +64,13 @@ RANK_COLORS: dict[str, int] = {
     "youtube": 0xFF5555,
     "admin": 0xFF5555,
     "gm": 0x00AA00,
-    "special": DEFAULT_EMBED_COLOR
+    "owner": 0xFF5555,
+    "pig_plus_plus_plus": 0xFF55FF,
+    "innit": 0xFF55FF,
+    "innit_plus": 0xFF55FF,
+    "events": 0xFFAA00,
+    "mojang": 0xFFAA00,
+    "mcp": 0xFF5555
 }
 
 
