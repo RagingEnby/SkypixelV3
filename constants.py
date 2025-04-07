@@ -21,6 +21,9 @@ VERSION_TRACKER_CHANNELS: dict[int, str] = {
 MOTD_TRACKER_CHANNELS: dict[int, str] = {
     1256322740541980803: "<@&1177330036664193084>", # RagingEnby's Dev Server
 }
+FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
+    1256327593200980029: "<@&1190093109938368552>", # RagingEnby's Dev Server
+}
 
 # Constants
 ITEM_IMAGE: str = "https://sky.shiiyu.moe/api/item/{}"
