@@ -169,3 +169,4 @@ scrts.py
 
 # Misc:
 disnake.log
+storage/*.json
