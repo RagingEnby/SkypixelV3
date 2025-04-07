@@ -10,6 +10,7 @@ from cogs import VersionTrackerCog
 from cogs import MotdTrackerCog
 from cogs import FireSaleTrackerCog
 from cogs import AlphaTrackerCog
+from cogs import RankTrackerCog
 
 import constants
 
@@ -20,8 +21,10 @@ handler = logging.FileHandler(filename='disnake.log', encoding='utf-8', mode='w'
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
-
+intents = disnake.Intents.default()
+intents.members = True
 bot = commands.InteractionBot(
+    intents=intents,
     owner_id=constants.OWNER_ID,
 )
 bot.add_cog(ItemSearchCog(bot))
@@ -29,6 +32,7 @@ bot.add_cog(VersionTrackerCog(bot))
 bot.add_cog(MotdTrackerCog(bot))
 bot.add_cog(FireSaleTrackerCog(bot))
 bot.add_cog(AlphaTrackerCog(bot))
+bot.add_cog(RankTrackerCog(bot))
 constants.BOT = bot
 
 
