@@ -24,6 +24,14 @@ async def get_version() -> str:
     return version
 
 
+async def send(embed: disnake.Embed):
+    tasks = [
+        utils.send_to_channel(channel_id, content, embed=embed)
+        for channel_id, content in constants.VERSION_TRACKER_CHANNELS.items()
+    ]
+    await asyncio.gather(*tasks)
+
+
 class VersionTrackerCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
@@ -31,17 +39,12 @@ class VersionTrackerCog(commands.Cog):
         self.data = datamanager.JsonWrapper("storage/version.json")
 
     async def on_version_change(self, before: str, after: str):
-        embed = disnake.Embed(
+        embed = utils.add_footer(disnake.Embed(
             title="SkyBlock has updated!",
             description=f"`{before}` ➡ `{after}`",
             color=constants.DEFAULT_EMBED_COLOR
-        )
-        embed = utils.add_footer(embed)
-        await utils.send_to_channel(
-            constants.VERSION_TRACKER_CHANNEL,
-            constants.VERSION_TRACKER_PING,
-            embed=embed
-        )
+        ))
+        await send(embed)
 
     async def main(self):
         while True:
