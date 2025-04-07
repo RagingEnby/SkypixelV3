@@ -24,6 +24,9 @@ MOTD_TRACKER_CHANNELS: dict[int, str] = {
 FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
     1256327593200980029: "<@&1190093109938368552>", # RagingEnby's Dev Server
 }
+ALPHA_TRACKER_CHANNELS: dict[int, str] = {
+    1256338710971158659: "<@&1358904280165126434>", # RagingEnby's Dev Server
+}
 
 # Constants
 ITEM_IMAGE: str = "https://sky.shiiyu.moe/api/item/{}"
