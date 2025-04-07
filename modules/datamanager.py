@@ -1,6 +1,7 @@
 from typing import Any
 from contextlib import suppress
 import json
+import os
 
 from modules import utils
 
@@ -8,6 +9,11 @@ from modules import utils
 class JsonWrapper:
     def __init__(self, file_path: str):
         self.file_path = file_path
+        
+        dir = os.path.dirname(file_path)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+            
         self.data = {}
         with suppress(FileNotFoundError), open(self.file_path) as file:
             self.data = json.load(file)
