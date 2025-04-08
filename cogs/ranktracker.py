@@ -109,13 +109,13 @@ class RankListView(disnake.ui.View):
             text=f"Page {self.page+1}/{len(self.embeds)}"
         )
 
-    @disnake.ui.button(label="Previous", style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)
+    @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)
     async def previous(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         self.page -= 1
         await self._update_buttons()
         await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
 
-    @disnake.ui.button(label="Next", style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
+    @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
     async def next(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         self.page += 1
         await self._update_buttons()
