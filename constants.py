@@ -27,6 +27,9 @@ FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1256338710971158659: "<@&1358904280165126434>", # RagingEnby's Dev Server
 }
+ZONE_TRACKER_CHANNELS: dict[int, str] = {
+    1256334830048903198: "<@&1210085254635724840>", # RagingEnby's Dev Server
+}
 RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
     "admin": {
         1269021399985422468: "<@&1122272183733977249>", # RagingEnby's Dev Server
