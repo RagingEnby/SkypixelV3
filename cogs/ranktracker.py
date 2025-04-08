@@ -1,7 +1,9 @@
+from typing import Literal
 import disnake
 from disnake.ext import commands
 import asyncio
 import traceback
+from contextlib import suppress
 
 from modules import asyncreqs
 from modules import datamanager
@@ -9,8 +11,10 @@ from modules import utils
 
 import constants
 
+SpecialRank = Literal['youtube', 'admin', 'gm', 'owner', 'pig_plus_plus_plus', 'innit', 'events', 'mojang', 'mcp']
 
 URL: str = "https://api.ragingenby.dev/ranks"
+RANK_URL: str = URL + '/{}'
 COUNTS_URL: str = URL + '/counts'
 RANKNAME_URL: str = "https://api.ragingenby.dev/rankname/{}"
 
@@ -28,12 +32,17 @@ async def get_rank_counts() -> dict[str, int]:
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
 
-async def get_rank_lists() -> dict[str, list[dict[str, str]]]:
+async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
     response = await asyncreqs.get(URL)
     return await response.json()
 
 
-async def get_player_ranks() -> dict[str, dict[str, str]]:
+async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
+    response = await asyncreqs.get(RANK_URL.format(rank))
+    return await response.json()
+
+
+async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
     data = await get_rank_lists()
     return {
         player['id']: {
@@ -44,7 +53,7 @@ async def get_player_ranks() -> dict[str, dict[str, str]]:
     }
 
 
-async def send(rank: str, embed: disnake.Embed):
+async def send(rank: Literal['special'] | SpecialRank, embed: disnake.Embed):
     if rank not in constants.RANK_TRACKER_CHANNELS:
         rank = 'special'
     tasks = [
@@ -58,7 +67,7 @@ def format_rank(rank: str) -> str:
     return '[' + rank.replace('_plus', '+').replace('_', ' ').upper() + ']'
 
 
-def make_embed(uuid: str, name: str, rank: str, title: str) -> disnake.Embed:
+def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.Embed:
     embed = utils.add_footer(disnake.Embed(
         title=title,
         color=constants.RANK_COLORS.get(rank, constants.DEFAULT_EMBED_COLOR)
@@ -69,27 +78,71 @@ def make_embed(uuid: str, name: str, rank: str, title: str) -> disnake.Embed:
     )
 
 
+class RankListView(disnake.ui.View):
+    def __init__(self, embeds: list[disnake.Embed], inter: disnake.Interaction):
+        super().__init__(timeout=180)
+        self.embeds = embeds
+        self.inter = inter
+        self.page = 0
+
+    async def interaction_check(self, interaction: disnake.Interaction) -> bool:
+        if interaction.user != self.inter.user:
+            await interaction.response.send_message(embed=utils.make_error(
+                "Not your interaction!",
+                "You cannot interact with another user's buttons."
+            ), ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self):
+        for item in self.children:
+            if isinstance(item, disnake.ui.Button):
+                item.disabled = True
+        with suppress(disnake.NotFound, disnake.HTTPException):
+            await self.inter.edit_original_message(view=self)
+
+    async def _update_buttons(self):
+        self.children[0].disabled = self.page == 0 # previous
+        self.children[1].disabled = self.page == len(self.embeds) - 1 # next
+        current_embed = self.embeds[self.page]
+        current_embed.set_footer(
+            text=f"Page {self.page+1}/{len(self.embeds)}"
+        )
+
+    @disnake.ui.button(label="Previous", style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)
+    async def previous(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+        self.page -= 1
+        await self._update_buttons()
+        await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
+
+    @disnake.ui.button(label="Next", style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
+    async def next(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+        self.page += 1
+        await self._update_buttons()
+        await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
+
+
 class RankTrackerCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/ranks.json")
 
-    async def on_rank_add(self, uuid: str, name: str, rank: str):
+    async def on_rank_add(self, uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
             uuid, name, rank,
             f"{utils.esc_mrkdwn(name)} now has {format_rank(rank)} rank!"
         )
         await send(rank, embed)
 
-    async def on_rank_remove(self, uuid: str, name: str, rank: str):
+    async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
             uuid, name, rank,
             f"{utils.esc_mrkdwn(name)} has lost {format_rank(rank)} rank"
         )
         await send(rank, embed)
         
-    async def on_name_change(self, uuid: str, before: str, after: str, rank: str):
+    async def on_name_change(self, uuid: str, before: str, after: str, rank: SpecialRank):
         embed = make_embed(
             uuid, after, rank,
             f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}"
@@ -102,21 +155,21 @@ class RankTrackerCog(commands.Cog):
                 player_ranks = await get_player_ranks()
                 for uuid, data in player_ranks.items():
                     if uuid not in self.data:
-                        await self.on_rank_add(uuid, data['name'], data['rank'])
+                        await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
                         continue
                     if self.data[uuid]['rank'] != data['rank']:
-                        await self.on_rank_add(uuid, data['name'], data['rank'])
+                        await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
                         await self.on_rank_remove(uuid, data['name'], self.data[uuid]['rank'])
                     if self.data[uuid]['name'] != data['name']:
                         await self.on_name_change(
                             uuid=uuid,
                             before=self.data[uuid]['name'],
                             after=data['name'],
-                            rank=data['rank']
+                            rank=data['rank']  # type: ignore
                         )
                 for uuid, data in self.data.data.items():
                     if uuid not in player_ranks:
-                        await self.on_rank_remove(uuid, data['name'], data['rank'])
+                        await self.on_rank_remove(uuid, data['name'], data['rank'])  # type: ignore
                         
                 self.data.data = player_ranks
                 await self.data.save()
@@ -167,4 +220,32 @@ class RankTrackerCog(commands.Cog):
             color=constants.DEFAULT_EMBED_COLOR
         ))
         return await inter.send(embed=embed)
+
+    @ranks.sub_command(
+        name="list",
+        description="Get a list of players with a specific rank"
+    )
+    async def list(self, inter: disnake.AppCmdInter, rank: SpecialRank):
+        rank_list = await get_rank_list(rank)
+        color = constants.RANK_COLORS.get(rank, constants.DEFAULT_EMBED_COLOR)
+        embeds = [disnake.Embed(
+            title=f"{format_rank(rank)} Ranks! ({len(rank_list)})",
+            description="",
+            color=color
+        )]
+        index = 0
+        for player in rank_list:
+            if len(embeds[index].description) >= 1000:
+                index += 1
+                embeds.append(disnake.Embed(
+                    title=f"{format_rank(rank)} Ranks! ({len(rank_list)})",
+                    description="",
+                    color=color
+                ))
+            embeds[index].description += f"{utils.esc_mrkdwn(player['name'])}, "
+        if len(embeds) == 1:
+            return await inter.send(embed=utils.add_footer(embeds[0]))
+        view = RankListView(embeds, inter)
+        await inter.send(embed=embeds[0], view=view)
+        await view._update_buttons()
         
