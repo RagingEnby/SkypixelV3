@@ -30,6 +30,9 @@ ALPHA_TRACKER_CHANNELS: dict[int, str] = {
 ZONE_TRACKER_CHANNELS: dict[int, str] = {
     1256334830048903198: "<@&1210085254635724840>", # RagingEnby's Dev Server
 }
+WIKI_TRACKER_CHANNELS: dict[int, str] = {
+    1287466083267121162: "", # RagingEnby's Dev Server
+}
 RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
     "admin": {
         1269021399985422468: "<@&1122272183733977249>", # RagingEnby's Dev Server
