@@ -11,6 +11,7 @@ from cogs import MotdTrackerCog
 from cogs import FireSaleTrackerCog
 from cogs import AlphaTrackerCog
 from cogs import RankTrackerCog
+from cogs import ZoneTrackerCog
 
 import constants
 
@@ -33,6 +34,7 @@ bot.add_cog(MotdTrackerCog(bot))
 bot.add_cog(FireSaleTrackerCog(bot))
 bot.add_cog(AlphaTrackerCog(bot))
 bot.add_cog(RankTrackerCog(bot))
+bot.add_cog(ZoneTrackerCog(bot))
 constants.BOT = bot
 
 
