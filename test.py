@@ -1,12 +1,11 @@
 import json
 import asyncio
 
-from cogs import alphatracker
+from cogs import wikitracker
 
 
 async def main():
-    data = await alphatracker.get_alpha_data()
-    print(json.dumps(data, indent=2))
+    data = await wikitracker.get_edits()
 
 
 if __name__ == "__main__":
