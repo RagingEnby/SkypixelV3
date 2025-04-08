@@ -66,7 +66,7 @@ class WikiTrackerCog(commands.Cog):
         verb = "Created" if edit['type'] == 'new' else "Edited"
         embed = utils.add_footer(disnake.Embed(
             title=f"{verb} {edit['title']}",
-            description=f"```{edit['parsedcomment']}```\n-# **ID:** {edit['revid']}",
+            description=f"```\n{edit['parsedcomment']}\n```\n-# **ID:** {edit['revid']}",
             url="https://hypixel.wiki/" + edit['title'].replace(' ', '_'),
             color=constants.DEFAULT_EMBED_COLOR
         ))
