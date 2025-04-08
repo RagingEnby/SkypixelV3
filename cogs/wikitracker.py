@@ -1,3 +1,4 @@
+from typing import Any
 import disnake
 from disnake.ext import commands
 import asyncio
@@ -25,6 +26,23 @@ PARAMS: dict[str, str] = {
     ]),
     "rctype": '|'.join(["categorize", "edit", "external", "log", "new"])
 }
+EDITOR_URL: str = "https://api.ragingenby.dev/wiki/user/{}"
+EDITOR_CACHE: dict[str, dict[str, Any]] = {}
+
+
+async def get_editor(name: str) -> dict[str, Any]:
+    global EDITOR_CACHE
+    if name in EDITOR_CACHE:
+        return EDITOR_CACHE[name]
+    response = await asyncreqs.get(EDITOR_URL.format(name))
+    EDITOR_CACHE[name] = await response.json()
+    return EDITOR_CACHE[name]
+
+
+async def get_edits() -> list[dict[str, Any]]:
+    response = await asyncreqs.get(URL, params=PARAMS)
+    data = await response.json()
+    return data['query']['recentchanges']
 
 
 async def send(embed: disnake.Embed):
@@ -40,19 +58,38 @@ class WikiTrackerCog(commands.Cog):
         self.bot = bot
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/wikiedits.json")
+        if not self.data.get('edits'):
+            self.data['edits'] = []
 
-    async def on_version_change(self, before: str, after: str):
+    async def on_wiki_edit(self, edit: dict[str, Any]):
+        editor = await get_editor(edit['user'])
+        verb = "Created" if edit['type'] == 'new' else "Edited"
         embed = utils.add_footer(disnake.Embed(
+            title=f"{verb} {edit['title']}",
+            description=f"```{edit['parsedcomment']}```\n-# **ID:** {edit['revid']}",
+            url="https://hypixel.wiki/" + edit['title'].replace(' ', '_'),
             color=constants.DEFAULT_EMBED_COLOR
         ))
+        embed.set_author(
+            name=editor.get('displayName') or edit['user'],
+            icon_url=editor.get('avatar'),
+            url=editor.get('link')
+        )
         await send(embed)
 
     async def main(self):
         while True:
             try:
+                edits = await get_edits()
+                for edit in edits:
+                    if edit['revid'] in self.data['edits']:
+                        continue
+                    await self.on_wiki_edit(edit)
+                    self.data['edits'].append(edit['revid'])
+                await self.data.save()
                 await asyncio.sleep(120)
             except Exception:
-                print("version tracker error:", traceback.format_exc())
+                print("wiki tracker error:", traceback.format_exc())
 
     @commands.Cog.listener()
     async def on_ready(self):
