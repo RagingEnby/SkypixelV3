@@ -3,6 +3,7 @@ import re
 import aiofiles
 import json
 import random
+from urllib.parse import quote
 
 import constants
 
@@ -21,7 +22,8 @@ def make_error(title: str, *args) -> disnake.Embed:
 
 
 def remove_color_codes(string: str) -> str:
-    return re.sub(r"§[0-9a-fA-Fklmnor]", "", string)
+    string = re.sub(r"§[0-9a-fA-Fklmnor]", "", string)
+    return re.sub(r"&[0-9a-fA-Fklmnor]", "", string)
 
 
 def esc_mrkdwn(string: str) -> str:
@@ -38,4 +40,10 @@ async def send_to_channel(channel_id: int, *args, **kwargs) -> disnake.Message |
     if not channel:
         return
     return await channel.send(*args, **kwargs)  # type: ignore
+
+
+def to_mc_text(text: str) -> str:
+    url = constants.MC_TEXT_IMAGE.format(quote(text))
+    print(text, '=>', url)
+    return url
     

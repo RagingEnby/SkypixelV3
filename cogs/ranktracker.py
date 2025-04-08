@@ -11,11 +11,30 @@ import constants
 
 
 URL: str = "https://api.ragingenby.dev/ranks"
+COUNTS_URL: str = URL + '/counts'
+RANKNAME_URL: str = "https://api.ragingenby.dev/rankname/{}"
+
+
+async def get_rankname(identifier: str) -> str:
+    response = await asyncreqs.get(RANKNAME_URL.format(identifier))
+    data = await response.json()
+    return data['rankname']
+
+
+async def get_rank_counts() -> dict[str, int]:
+    response = await asyncreqs.get(COUNTS_URL)
+    data: dict[str, int] = await response.json()
+    # sort highest -> lowest count
+    return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
+
+
+async def get_rank_lists() -> dict[str, list[dict[str, str]]]:
+    response = await asyncreqs.get(URL)
+    return await response.json()
 
 
 async def get_player_ranks() -> dict[str, dict[str, str]]:
-    response = await asyncreqs.get(URL)
-    data: dict[str, list[dict[str, str]]] = await response.json()
+    data = await get_rank_lists()
     return {
         player['id']: {
             "rank": rank,
@@ -110,3 +129,42 @@ class RankTrackerCog(commands.Cog):
         if self.task and not self.task.done():
             self.task.cancel()
         self.task = asyncio.create_task(self.main())
+
+    @commands.slash_command(
+        name="ranks",
+        description="Various utilities relating to Special Hypixel ranks!"
+    )
+    async def ranks(self, inter: disnake.AppCmdInter):
+        await inter.response.defer()
+
+    @ranks.sub_command(
+        name="update",
+        description="Update's a player's rank in my database"
+    )
+    async def update(self, inter: disnake.AppCmdInter, player: str):
+        rankname = await get_rankname(player)
+        unformatted = utils.remove_color_codes(rankname)
+        embed = embed=utils.add_footer(disnake.Embed(
+            description=f"Successfully updated `{unformatted}`",
+            color=disnake.Color.green()
+        ))
+        embed.set_image(url=utils.to_mc_text(rankname))
+        return await inter.send(embed=embed)
+
+    @ranks.sub_command(
+        name="counts",
+        description="Get the amount of players with each rank"
+    )
+    async def counts(self, inter: disnake.AppCmdInter):
+        counts = await get_rank_counts()
+        del counts['normal']
+        embed = utils.add_footer(disnake.Embed(
+            title="Rank Counts",
+            description='\n'.join([
+                f"**{format_rank(rank)}:** `{count}`"
+                for rank, count in counts.items()
+            ]),
+            color=constants.DEFAULT_EMBED_COLOR
+        ))
+        return await inter.send(embed=embed)
+        
