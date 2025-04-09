@@ -13,6 +13,7 @@ from cogs import AlphaTrackerCog
 from cogs import RankTrackerCog
 from cogs import ZoneTrackerCog
 from cogs import WikiTrackerCog
+from cogs import AuctionTrackerCog
 
 import constants
 
@@ -37,6 +38,7 @@ bot.add_cog(AlphaTrackerCog(bot))
 bot.add_cog(RankTrackerCog(bot))
 bot.add_cog(ZoneTrackerCog(bot))
 bot.add_cog(WikiTrackerCog(bot))
+bot.add_cog(AuctionTrackerCog(bot))
 constants.BOT = bot
 
 

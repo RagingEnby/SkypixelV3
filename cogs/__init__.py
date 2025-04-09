@@ -6,3 +6,4 @@ from .alphatracker import AlphaTrackerCog
 from .ranktracker import RankTrackerCog
 from .zonetracker import ZoneTrackerCog
 from .wikitracker import WikiTrackerCog
+from .auctionhouse import AuctionTrackerCog
