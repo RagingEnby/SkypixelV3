@@ -63,4 +63,19 @@ def get_item_image(item_id: str, color: str | None = None) -> str:
         return default
     armor_type = material.replace('LEATHER_', '').lower()
     return constants.LEATHER_IMAGE.format(armor_type, color)
-    
+
+
+# shout out some random guy on stack overflow for this one
+def numerize(num: int | float) -> str:
+    if num < 1_000:
+        return str(num)
+    suffixes = ["", "K", "M", "B", "T"]
+    magnitude = 0
+    while abs(num) >= 1_000 and magnitude < len(suffixes) - 1:
+        num /= 1_000
+        magnitude += 1
+    return f"{num:.2f}".rstrip("0").rstrip(".") + suffixes[magnitude]
+
+
+def add_commas(num: int | float) -> str:
+    return '{:,}'.format(num)
