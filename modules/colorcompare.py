@@ -15,10 +15,9 @@ def hex_to_lab(hex_code: str) -> tuple[float, float, float]:
     elif hex_code.startswith("#"):
         hex_code = hex_code[1:]
 
-    # Optionally, enforce the string length
     if len(hex_code) != 6:
         raise ValueError(hex_code)
-    rgb: tuple[int, int, int] = tuple(int(hex_code[i:i + 2], 16) for i in (0, 2, 4))
+    rgb: tuple[int, int, int] = tuple(int(hex_code[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore [assignment]
     xyz = rgb_to_xyz(rgb)
     lab = xyz_to_cielab(xyz)
     return lab
