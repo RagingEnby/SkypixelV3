@@ -15,6 +15,9 @@ CREDIT_FOOTERS: set[str] = {
 }
 
 # Channel ID's
+## AH Trackers
+ADMIN_SPAWNED_ITEMS_CHANNEL: int = 1359366355819823334
+
 ## Misc Trackers
 VERSION_TRACKER_CHANNELS: dict[int, str] = {
     1256322077825437756: "<@&1139315700339593256>", # RagingEnby's Dev Server
