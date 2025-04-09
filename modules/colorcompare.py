@@ -1,8 +1,8 @@
-import math
-from functools import lru_cache
-
 # this code is MOSTLY stolen i but cannot for the
 # life of me find the og source :(((
+
+import math
+from functools import lru_cache
 
 
 @lru_cache(maxsize=None)
