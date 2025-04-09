@@ -75,3 +75,11 @@ class LoggerCog(commands.Cog):
                 )
             ]
         )
+
+    @commands.slash_command(
+        name="cause-error",
+        description="this command only exists to test error logging"
+    )
+    async def cause_error(self, inter: disnake.AppCmdInter):
+        raise Exception("test error")
+        
