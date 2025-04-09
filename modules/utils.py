@@ -77,5 +77,5 @@ def numerize(num: int | float) -> str:
     return f"{num:.2f}".rstrip("0").rstrip(".") + suffixes[magnitude]
 
 
-def add_commas(num: int | float) -> str:
+def commaize(num: int | float) -> str:
     return '{:,}'.format(num)
