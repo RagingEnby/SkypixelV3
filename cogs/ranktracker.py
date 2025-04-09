@@ -3,6 +3,7 @@ import disnake
 from disnake.ext import commands
 import asyncio
 import traceback
+import requests
 from contextlib import suppress
 
 from modules import asyncreqs
@@ -17,6 +18,11 @@ URL: str = "https://api.ragingenby.dev/ranks"
 RANK_URL: str = URL + '/{}'
 COUNTS_URL: str = URL + '/counts'
 RANKNAME_URL: str = "https://api.ragingenby.dev/rankname/{}"
+POI_UUIDS: set[str] = {
+    player['id']
+    for players in requests.get(URL).json().values()
+    for player in players
+}
 
 
 async def get_rankname(identifier: str) -> str:
@@ -33,8 +39,15 @@ async def get_rank_counts() -> dict[str, int]:
 
 
 async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
+    global POI_UUIDS
     response = await asyncreqs.get(URL)
-    return await response.json()
+    data = await response.json()
+    POI_UUIDS: set[str] = {
+        player['id']
+        for players in data.values()
+        for player in players
+    }
+    return data
 
 
 async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
