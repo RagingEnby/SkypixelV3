@@ -9,6 +9,7 @@ import json
 from modules import asyncreqs, mojang
 from modules import parser
 from modules import utils
+from cogs import ranktracker
 
 import constants
 
@@ -90,6 +91,12 @@ class AuctionTrackerCog(commands.Cog):
             inline=True
         )
         await utils.send_to_channel(constants.SEMI_OG_REFORGES_CHANNEL, embed=embed)
+
+    async def on_poi_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+        rankname = utils.remove_color_codes(await ranktracker.get_rankname(auction['auctioneer']))
+        embed = await make_auction_embed(auction, item)
+        embed.author.name = rankname
+        await utils.send_to_channel(constants.POI_AUCTIONS_CHANNEL, embed=embed)
         
     async def on_auction(self, auction: dict[str, Any]):
         item = parser.decode_single(auction['item_bytes'])
@@ -102,6 +109,8 @@ class AuctionTrackerCog(commands.Cog):
             tsks.append(self.on_og_reforge_auction(auction, item))
         if 'accessories' in auction.get('categories', []) and extra_attributes.get('modifier'):
             tsks.append(self.on_semi_og_reforge_auction(auction, item))
+        if auction['auctioneer'] in ranktracker.POI_UUIDS:
+            tsks.append(self.on_poi_auction(auction, item))
         
         if tsks:
             await asyncio.gather(*tsks)
