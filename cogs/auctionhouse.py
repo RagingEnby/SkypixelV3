@@ -125,7 +125,7 @@ class AuctionTrackerCog(commands.Cog):
             tsks.append(self.on_semi_og_reforge_auction(auction, item))
         if auction['auctioneer'] in ranktracker.POI_UUIDS:
             tsks.append(self.on_poi_auction(auction, item))
-        if timestamp and timestamp <= 1575910800000:
+        if timestamp and timestamp <= 1575910800000 and auction['starting_bid'] <= 100_000_000:
             tsks.append(self.on_old_item_auction(auction, item, timestamp))
         
         if tsks:
