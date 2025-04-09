@@ -31,14 +31,13 @@ async def get_active_auctions() -> dict[str, Any]:
 async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> disnake.Embed:
     tag = item.get('tag', {})
     display = tag.get('display', {})
-    extra_attributes = tag.get('ExtraAttributes', {})
     embed = disnake.Embed(
         url=constants.AUCTION_URL.format(auction['uuid']),
         title=auction['item_name'],
         color=constants.RARITY_COLORS.get(auction.get('tier', ''), constants.DEFAULT_EMBED_COLOR)
     )
     embed.set_thumbnail(utils.get_item_image(
-        item_id=extra_attributes.get('id', 'DIRT'),
+        item_id=tag.get('ExtraAttributes', {}).get('id', 'DIRT'),
         color=f"{display['color']:06X}"[:6] if display.get('color') else None
     ))
     embed.set_footer(text="/viewauction " + auction['uuid'])
