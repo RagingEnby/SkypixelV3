@@ -18,13 +18,15 @@ ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page=0"
 
 
 async def get_active_auctions() -> dict[str, Any]:
-    response = await asyncreqs.get(ACTIVE_URL)
-    if response.status != 200:
-        print('/skyblock/auctions returned', response.status)
+    try:
+        response = await asyncreqs.get(ACTIVE_URL)
+        response.raise_for_status()
+        return await response.json()
+    except Exception as e:
+        print('error getting /skyblock/auctions:', e)
         await asyncio.sleep(5)
         return await get_active_auctions()
-    return await response.json()
-
+    
 
 async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> disnake.Embed:
     tag = item.get('tag', {})
