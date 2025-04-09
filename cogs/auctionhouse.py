@@ -34,7 +34,7 @@ async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> d
     embed = disnake.Embed(
         url=constants.AUCTION_URL.format(auction['uuid']),
         title=auction['item_name'],
-        color=constants.RARITY_COLORS.get(auction.get('tier', ''), constants.DEFAULT_EMBED_COLOR)
+        color=constants.RARITY_COLORS.get(auction.get('tier', 'COMMON'))
     )
     embed.set_thumbnail(utils.get_item_image(
         item_id=tag.get('ExtraAttributes', {}).get('id', 'DIRT'),
