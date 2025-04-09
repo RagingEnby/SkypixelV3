@@ -69,18 +69,42 @@ class AuctionTrackerCog(commands.Cog):
         embed.add_field(
             name="Origin Tag",
             value=item['tag']['ExtraAttributes']['originTag'],
-            inline=False
+            inline=True
         )
         await utils.send_to_channel(constants.ADMIN_SPAWNED_ITEMS_CHANNEL, embed=embed)
+    
+    async def on_og_reforge_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+        embed = await make_auction_embed(auction, item)
+        embed.add_field(
+            name="Reforge",
+            value=item['tag']['ExtraAttributes']['modifier'],
+            inline=True
+        )
+        await utils.send_to_channel(constants.OG_REFORGES_CHANNEL, embed=embed)
 
+    async def on_semi_og_reforge_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+        embed = await make_auction_embed(auction, item)
+        embed.add_field(
+            name="Reforge",
+            value=item['tag']['ExtraAttributes']['modifier'],
+            inline=True
+        )
+        await utils.send_to_channel(constants.SEMI_OG_REFORGES_CHANNEL, embed=embed)
+        
     async def on_auction(self, auction: dict[str, Any]):
         item = parser.decode_single(auction['item_bytes'])
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
         tsks = []
+        
         if extra_attributes.get('originTag') in ["ITEM_MENU", "ITEM_COMMAND"]:
             tsks.append(self.on_admin_spawned_auction(auction, item))
-        if 
-        await asyncio.gather(*tsks)
+        if extra_attributes.get('modifier') in ["forceful", "strong", "hurtful", "demonic", "rich", "odd"]:
+            tsks.append(self.on_og_reforge_auction(auction, item))
+        if 'accessories' in auction.get('categories', []) and extra_attributes.get('modifier'):
+            tsks.append(self.on_semi_og_reforge_auction(auction, item))
+        
+        if tsks:
+            await asyncio.gather(*tsks)
 
     async def main(self):
         last_last_updated = 0
