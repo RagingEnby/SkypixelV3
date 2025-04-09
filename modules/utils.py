@@ -3,7 +3,9 @@ import re
 import aiofiles
 import json
 import random
+from contextlib import suppress
 from urllib.parse import quote
+import datetime
 
 from modules import hypixel
 
@@ -78,3 +80,31 @@ def numerize(num: int | float) -> str:
 
 def commaize(num: int | float) -> str:
     return '{:,}'.format(num)
+
+
+def timestamp_to_unix(date_str: str) -> int:
+    if 'L' in date_str:
+        date_str = date_str.replace('L', '')
+        return int(date_str.split('L')[0])
+
+    with suppress(ValueError):
+        return int(date_str)
+
+    dt = None
+    with suppress(ValueError):
+        date_format = '%m/%d/%y %I:%M %p'
+        dt = datetime.datetime.strptime(date_str, date_format)
+    if dt is None:
+        with suppress(ValueError):
+            date_format = '%d/%m/%y %H:%M'
+            dt = datetime.datetime.strptime(date_str, date_format)
+    if dt is None:
+        raise ValueError('invalid timestamp:', date_str)
+    return int(dt.timestamp())
+
+
+def normalize_timestamp(timestamp: str | int) -> int:
+    if isinstance(timestamp, int):
+        return timestamp
+    return timestamp_to_unix(timestamp)
+    
