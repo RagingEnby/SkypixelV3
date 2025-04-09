@@ -73,13 +73,13 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     embed.add_field(
         name="UUID",
         value=f"{item['_id']}\n-# **Cofl UID:** {item['coflUid']}",
-        inline=True
+        inline=False
     )
     
     embed.add_field(
         name="Current Owner",
         value=f"{utils.esc_mrkdwn(owner_name)} (since <t:{item['start'] // 1000}:d>)\n-# Item last seen <t:{item['lastChecked'] // 1000}:d>",
-        inline=True
+        inline=False
     )
     
     if previous_owners:
@@ -94,13 +94,6 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
             name=f"Previous {len(previous_owners)} Owners",
             value='\n'.join(lines),
             inline=False
-        )
-    else:
-        # 'linebreak' field
-        embed.add_field(
-            name=" ",
-            value=" ",
-            inline=True
         )
         
     if item.get('extraAttributes'):
