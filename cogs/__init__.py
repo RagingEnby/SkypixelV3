@@ -7,4 +7,4 @@ from .ranktracker import RankTrackerCog
 from .zonetracker import ZoneTrackerCog
 from .wikitracker import WikiTrackerCog
 from .auctionhouse import AuctionTrackerCog
-from .errorhandler import ErrorHandlerCog
+from .logger import LoggerCog
