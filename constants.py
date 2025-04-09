@@ -50,7 +50,7 @@ RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
 
 # Constants
 ITEM_IMAGE: str = "https://sky.shiiyu.moe/api/item/{}"
-LEATHER_IMAGE: str = "https://api.tem.cx/leather/{}/{}"
+LEATHER_IMAGE: str = "https://api.ragingenby.dev/leather/{}/{}.png"
 MC_HEAD_IMAGE: str = "https://cravatar.eu/helmavatar/{}/600.png"
 MC_TEXT_IMAGE: str = "https://api.ragingenby.dev/render.png?text={}"
 DEFAULT_EMBED_COLOR: int = 0x00AA00
