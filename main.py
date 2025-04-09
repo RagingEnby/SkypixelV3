@@ -14,6 +14,7 @@ from cogs import RankTrackerCog
 from cogs import ZoneTrackerCog
 from cogs import WikiTrackerCog
 from cogs import AuctionTrackerCog
+from cogs import ErrorHandlerCog
 
 import constants
 
@@ -39,6 +40,7 @@ bot.add_cog(RankTrackerCog(bot))
 bot.add_cog(ZoneTrackerCog(bot))
 bot.add_cog(WikiTrackerCog(bot))
 bot.add_cog(AuctionTrackerCog(bot))
+bot.add_cog(ErrorHandlerCog(bot))
 constants.BOT = bot
 
 
