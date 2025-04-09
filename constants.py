@@ -5,16 +5,17 @@ from scrts import (
     HYPIXEL_API_KEY
 )
 
-# Config Stuff
+# Credit Footer
 OWNER_ID: int = 447861538095759365
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
-
 CREDIT_FOOTERS: set[str] = {
     "Made by @ragingenby",
     "Join my server! discord.gg/DdukMeYNdQ",
     "Support me on Patreon! patreon.com/RagingEnby"
 }
 
+# Channel ID's
+## Misc Trackers
 VERSION_TRACKER_CHANNELS: dict[int, str] = {
     1256322077825437756: "<@&1139315700339593256>", # RagingEnby's Dev Server
 }
