@@ -95,7 +95,10 @@ class AuctionTrackerCog(commands.Cog):
     async def on_poi_auction(self, auction: dict[str, Any], item: dict[str, Any]):
         rankname = utils.remove_color_codes(await ranktracker.get_rankname(auction['auctioneer']))
         embed = await make_auction_embed(auction, item)
-        embed.author.name = rankname
+        embed.set_author(
+            name=rankname,
+            icon_url=constants.MC_HEAD_IMAGE.format(auction['auctioneer'])
+        )
         await utils.send_to_channel(constants.POI_AUCTIONS_CHANNEL, embed=embed)
         
     async def on_auction(self, auction: dict[str, Any]):

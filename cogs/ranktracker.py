@@ -42,7 +42,7 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
     global POI_UUIDS
     response = await asyncreqs.get(URL)
     data = await response.json()
-    POI_UUIDS: set[str] = {
+    POI_UUIDS = {
         player['id']
         for players in data.values()
         for player in players
