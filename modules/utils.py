@@ -46,7 +46,6 @@ async def send_to_channel(channel_id: int, *args, **kwargs) -> disnake.Message |
 
 def to_mc_text(text: str) -> str:
     url = constants.MC_TEXT_IMAGE.format(quote(text))
-    print(text, '=>', url)
     return url
 
 
