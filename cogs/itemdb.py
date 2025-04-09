@@ -136,13 +136,6 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
             inline=True
         )
 
-    if item.get('location'):
-        embed.add_field(
-            name="Location",
-            value=item['location'],
-            inline=True
-        )
-
     if item.get('soulbound'):
         embed.add_field(
             name="Soulbound",
@@ -150,11 +143,25 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
             inline=False
         )
 
+    if item.get('reforge'):
+        embed.add_field(
+            name="Reforge",
+            value=item['reforge'],
+            inline=True
+        )
+
     if item.get('colour'):
         exotic_text = f" ({item['exoticType']})" if item.get('exoticType') else ""
         embed.add_field(
             name="Color",
             value='#' + item['colour'] + exotic_text,
+            inline=True
+        )
+
+    if item.get('location'):
+        embed.add_field(
+            name="Location",
+            value=item['location'],
             inline=True
         )
     return embed
