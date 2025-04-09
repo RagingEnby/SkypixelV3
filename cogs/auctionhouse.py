@@ -100,10 +100,20 @@ class AuctionTrackerCog(commands.Cog):
             icon_url=constants.MC_HEAD_IMAGE.format(auction['auctioneer'])
         )
         await utils.send_to_channel(constants.POI_AUCTIONS_CHANNEL, embed=embed)
+
+    async def on_old_item_auction(self, auction: dict[str, Any], item: dict[str, Any], timestamp: int):
+        embed = await make_auction_embed(auction, item)
+        embed.add_field(
+            name="Created At",
+            value=f"<t:{timestamp}>",
+            inline=True
+        )
+        await utils.send_to_channel(constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed)
         
     async def on_auction(self, auction: dict[str, Any]):
         item = parser.decode_single(auction['item_bytes'])
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
+        timestamp = utils.normalize_timestamp(extra_attributes['timestamp']) if extra_attributes.get('timestamp') else None
         tsks = []
         
         if extra_attributes.get('originTag') in ["ITEM_MENU", "ITEM_COMMAND"]:
@@ -114,6 +124,8 @@ class AuctionTrackerCog(commands.Cog):
             tsks.append(self.on_semi_og_reforge_auction(auction, item))
         if auction['auctioneer'] in ranktracker.POI_UUIDS:
             tsks.append(self.on_poi_auction(auction, item))
+        if timestamp and timestamp <= 1575910800000:
+            tsks.append(self.on_old_item_auction(auction, item, timestamp))
         
         if tsks:
             await asyncio.gather(*tsks)
