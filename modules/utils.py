@@ -5,6 +5,8 @@ import json
 import random
 from urllib.parse import quote
 
+from modules import hypixel
+
 import constants
 
 
@@ -46,4 +48,19 @@ def to_mc_text(text: str) -> str:
     url = constants.MC_TEXT_IMAGE.format(quote(text))
     print(text, '=>', url)
     return url
+
+
+def get_item_image(item_id: str, color: str | None = None) -> str:
+    default = constants.ITEM_IMAGE.format(item_id)
+    if not color:
+        return default
+    try:
+        material = hypixel.get_material(item_id)
+    except KeyError as e:
+        print('unable to find material for item:', e)
+        return default
+    if not material.startswith('LEATHER_'):
+        return default
+    armor_type = material.replace('LEATHER_', '').lower()
+    return constants.LEATHER_IMAGE.format(armor_type, color)
     

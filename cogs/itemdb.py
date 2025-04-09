@@ -33,18 +33,11 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def get_item_image(item: dict[str, Any]) -> str:
-    default = constants.ITEM_IMAGE.format(item['itemId'])
-    if not item.get('colour'):
-        return default
-    try:
-        material = hypixel.get_material(item['itemId'])
-    except KeyError as e:
-        print('unable to find material for item:', e)
-        return default
-    if not material.startswith('LEATHER_'):
-        return default
-    armor_type = material.replace('LEATHER_', '').lower()
-    return constants.LEATHER_IMAGE.format(armor_type, item['colour'])
+    return utils.get_item_image(
+        item_id=item['itemId'],
+        color=item.get('colour')
+    )
+    
     
 
 async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
