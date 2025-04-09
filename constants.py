@@ -53,6 +53,7 @@ ITEM_IMAGE: str = "https://sky.shiiyu.moe/api/item/{}"
 LEATHER_IMAGE: str = "https://api.ragingenby.dev/leather/{}/{}.png"
 MC_HEAD_IMAGE: str = "https://cravatar.eu/helmavatar/{}/600.png"
 MC_TEXT_IMAGE: str = "https://api.ragingenby.dev/render.png?text={}"
+AUCTION_URL: str = "https://sky.coflnet.com/auction/{}"
 DEFAULT_EMBED_COLOR: int = 0x00AA00
 RARITY_COLORS: dict[str, int] = {
   "COMMON": 16777215,
