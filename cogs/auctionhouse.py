@@ -106,7 +106,7 @@ class AuctionTrackerCog(commands.Cog):
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Created At",
-            value=f"<t:{timestamp}>",
+            value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
             inline=True
         )
         await utils.send_to_channel(constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed)
