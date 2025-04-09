@@ -214,7 +214,7 @@ class RankTrackerCog(commands.Cog):
         embed = utils.add_footer(disnake.Embed(
             title="Rank Counts",
             description='\n'.join([
-                f"**{format_rank(rank)}:** `{count}`"
+                f"**{format_rank(rank)}:** `{utils.commaize(count)}`"
                 for rank, count in counts.items()
             ]),
             color=constants.DEFAULT_EMBED_COLOR
