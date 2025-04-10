@@ -76,6 +76,7 @@ class LoggerCog(commands.Cog):
         ))
         await utils.send_to_channel(
             constants.ERROR_LOG_CHANNEL,
+            f"<@{constants.OWNER_ID}>",
             embeds=[
                 make_command_log_embed(inter),
                 utils.make_error(
