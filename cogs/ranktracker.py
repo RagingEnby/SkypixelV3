@@ -1,16 +1,16 @@
-from typing import Literal
-import disnake
-from disnake.ext import commands
 import asyncio
 import traceback
-import requests
 from contextlib import suppress
+from typing import Literal
 
+import disnake
+import requests
+from disnake.ext import commands
+
+import constants
 from modules import asyncreqs, mojang
 from modules import datamanager
 from modules import utils
-
-import constants
 
 SpecialRank = Literal['youtube', 'admin', 'gm', 'owner', 'pig_plus_plus_plus', 'innit', 'events', 'mojang', 'mcp']
 
@@ -225,7 +225,7 @@ class RankTrackerCog(commands.Cog):
     async def update(self, inter: disnake.AppCmdInter, player: str):
         rankname = await get_rankname(player)
         unformatted = utils.remove_color_codes(rankname)
-        embed = embed=utils.add_footer(disnake.Embed(
+        embed = utils.add_footer(disnake.Embed(
             description=f"Successfully updated `{unformatted}`",
             color=disnake.Color.green()
         ))
@@ -303,4 +303,3 @@ class RankTrackerCog(commands.Cog):
         view = RankListView(embeds, inter)
         await inter.send(embed=embeds[0], view=view)
         await view._update_buttons()
-        
