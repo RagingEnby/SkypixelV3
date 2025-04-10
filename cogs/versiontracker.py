@@ -1,14 +1,13 @@
-import disnake
-from disnake.ext import commands
 import asyncio
 import traceback
 
+import disnake
+from disnake.ext import commands
+
+import constants
 from modules import asyncreqs
 from modules import datamanager
 from modules import utils
-
-import constants
-
 
 URL: str = "https://api.hypixel.net/v2/resources/skyblock/skills"
 
@@ -64,4 +63,3 @@ class VersionTrackerCog(commands.Cog):
         if self.task and not self.task.done():
             self.task.cancel()
         self.task = asyncio.create_task(self.main())
-    
