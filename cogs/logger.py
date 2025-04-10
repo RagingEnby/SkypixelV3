@@ -1,11 +1,11 @@
+import traceback
+from contextlib import suppress
+
 import disnake
 from disnake.ext import commands
-from contextlib import suppress
-import traceback
-
-from modules import utils
 
 import constants
+from modules import utils
 
 
 def get_log_params(inter: disnake.AppCmdInter) -> list[str]:
@@ -64,7 +64,7 @@ class LoggerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_slash_command_error(self, inter: disnake.AppCmdInter, e: commands.CommandError):
-        err = '\n'.join(traceback.format_exception(
+        err = ''.join(traceback.format_exception(
             type(e), e, e.__traceback__
         ))
         print(f"Exception in slash command {inter.application_command.name!r}:\n{err}")
@@ -84,4 +84,3 @@ class LoggerCog(commands.Cog):
                 )
             ]
         )
-        
