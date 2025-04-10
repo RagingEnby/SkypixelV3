@@ -39,21 +39,41 @@ async def get_rank_counts() -> dict[str, int]:
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
 
+async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
+    response = await asyncreqs.get(RANK_URL.format(rank))
+    return await response.json()
+
+
+async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
+    # 'why not use get_rank_counts()?' this is called anytime updated rank info
+    # is fetched whereas get_rank_counts() has a 1h cache
+    # we dont care about specific special ranks, only the count
+    rank_data['special'] = [
+        player for key, players in rank_data.items()
+        if key not in constants.RANK_TRACKER_CHANNELS
+        for player in players
+    ]
+    tasks = []
+    for rank, players in rank_data.items():
+        channels = constants.RANK_TRACKER_CHANNELS.get(rank, constants.RANK_TRACKER_CHANNELS['special'])
+        for channel_id in channels.keys():
+            channel = constants.BOT.get_channel(channel_id)
+            if channel and channel.name.startswith(f"{rank}-"):
+                tasks.append(channel.edit(name=f"{rank}-{len(players)}"))
+    await asyncio.gather(*tasks)
+
+
 async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
     global POI_UUIDS
     response = await asyncreqs.get(URL)
     data = await response.json()
+    asyncio.create_task(edit_stat_channels(data))
     POI_UUIDS = {
         player['id']
         for players in data.values()
         for player in players
     }
     return data
-
-
-async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
-    response = await asyncreqs.get(RANK_URL.format(rank))
-    return await response.json()
 
 
 async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
@@ -256,7 +276,6 @@ class RankTrackerCog(commands.Cog):
             description=f"Now tracking `{player_obj.name}` for rank changes!",
             color=constants.DEFAULT_EMBED_COLOR
         )))
-        
 
     @ranks.sub_command(
         name="counts",
