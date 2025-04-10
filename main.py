@@ -25,7 +25,7 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 intents = disnake.Intents.default()
-intents.members = True
+intents.members = True  # noinspection PyTypeChecker
 bot = commands.InteractionBot(
     intents=intents,
     owner_id=constants.OWNER_ID,
