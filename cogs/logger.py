@@ -64,10 +64,10 @@ class LoggerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_slash_command_error(self, inter: disnake.AppCmdInter, e: commands.CommandError):
-        err = traceback.format_exception(
+        err = '\n'.join(traceback.format_exception(
             type(e), e, e.__traceback__
-        )
-        print(f"Exception in slash command {inter.application_command.name!r}:")
+        ))
+        print(f"Exception in slash command {inter.application_command.name!r}:\n{err}")
         with suppress(Exception):
             await inter.response.defer()
         await inter.send(embed=utils.make_error(
