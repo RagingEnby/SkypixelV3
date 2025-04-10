@@ -15,7 +15,3 @@ dependencies = [
     "Requests==2.32.3",
     "typing-extensions==4.13.1",
 ]
-
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
