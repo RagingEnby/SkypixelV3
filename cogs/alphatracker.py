@@ -70,9 +70,10 @@ class AlphaTrackerCog(commands.Cog):
                         await self.on_status_update(self.data.to_dict(), status)
                     self.data.update(status)
                     await self.data.save()
-                await asyncio.sleep(120)
             except Exception:
                 print("alpha tracker error:", traceback.format_exc())
+            finally:
+                await asyncio.sleep(240)
 
     @commands.Cog.listener()
     async def on_ready(self):

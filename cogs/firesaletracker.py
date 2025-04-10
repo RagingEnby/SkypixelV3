@@ -58,10 +58,10 @@ class FireSaleTrackerCog(commands.Cog):
                             await self.on_fire_sale(item_id, sale)
                         self.data[item_id] = sale
                         await self.data.save()
-                    
-                await asyncio.sleep(120)
             except Exception:
                 print("fire sale tracker error:", traceback.format_exc())
+            finally:
+                await asyncio.sleep(120)
 
     @commands.Cog.listener()
     async def on_ready(self):

@@ -150,6 +150,7 @@ class AuctionTrackerCog(commands.Cog):
                 await asyncio.sleep(time_until_update)
             except Exception:
                 print("AH tracker error:", traceback.format_exc())
+                await asyncio.sleep(15)
 
     @commands.Cog.listener()
     async def on_ready(self):

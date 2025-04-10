@@ -55,9 +55,10 @@ class MotdTrackerCog(commands.Cog):
                         await self.on_motd_update(self.data.get('motd', []), motd)
                     self.data['motd'] = motd
                     await self.data.save()
-                await asyncio.sleep(120)
             except Exception:
                 print("motd tracker error:", traceback.format_exc())
+            finally:
+                await asyncio.sleep(240)
 
     @commands.Cog.listener()
     async def on_ready(self):
