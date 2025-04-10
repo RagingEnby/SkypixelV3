@@ -79,3 +79,17 @@ class LoggerCog(commands.Cog):
                 )
             ]
         )
+
+    @commands.Cog.listener()
+    async def on_message(self, message: disnake.Message):
+        if message.author.bot or message.guild or not message.content:
+            return
+        embed = disnake.Embed(
+            description=message.content,
+            timestamp=message.created_at
+        )
+        embed.set_author(
+            name=f"{message.author.display_name} ({message.author.id})",
+            icon_url=message.author.display_avatar
+        )
+        await utils.send_to_channel(constants.DM_LOG_CHANNEL, embed=embed, attachments=message.attachments)
