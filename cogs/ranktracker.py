@@ -6,7 +6,7 @@ import traceback
 import requests
 from contextlib import suppress
 
-from modules import asyncreqs
+from modules import asyncreqs, mojang
 from modules import datamanager
 from modules import utils
 
@@ -23,6 +23,7 @@ POI_UUIDS: set[str] = {
     for players in requests.get(URL).json().values()
     for player in players
 }
+WATCH_LIST: datamanager.JsonWrapper = datamanager.JsonWrapper("storage/rankwatchlist.json")
 
 
 async def get_rankname(identifier: str) -> str:
@@ -161,10 +162,23 @@ class RankTrackerCog(commands.Cog):
             f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}"
         )
         await send(rank, embed)
+
+    async def do_watchlist(self):
+        for uuid, last_rankname in WATCH_LIST.items():
+            rankname = await get_rankname(uuid)
+            print('rank watchlist:', rankname, last_rankname)
+            if last_rankname is None:
+                WATCH_LIST[uuid] = rankname
+                await WATCH_LIST.save()
+                continue
+            if rankname != last_rankname:
+                del WATCH_LIST[uuid]
+                await WATCH_LIST.save()
         
     async def main(self):
         while True:
             try:
+                await self.do_watchlist()
                 player_ranks = await get_player_ranks()
                 for uuid, data in player_ranks.items():
                     if uuid not in self.data:
@@ -216,6 +230,33 @@ class RankTrackerCog(commands.Cog):
         ))
         embed.set_image(url=utils.to_mc_text(rankname))
         return await inter.send(embed=embed)
+
+    @ranks.sub_command(
+        name="watch",
+        description="Watch a player for rank changes closer than others"
+    )
+    async def watch(self, inter: disnake.AppCmdInter, player: str):
+        await inter.response.defer()
+        try:
+            player_obj = await mojang.get(player)
+        except mojang.PlayerNotFound:
+            return await inter.send(embed=utils.make_error(
+                "Player not found!",
+                f"I couldn't find the player `{player}`!"
+            ))
+        if player_obj.id in WATCH_LIST:
+            return await inter.send(embed=utils.make_error(
+                "Already Watching!",
+                f"`{player_obj}` is already in the watchlist."
+            ))
+        WATCH_LIST[player_obj.id] = None
+        await WATCH_LIST.save()
+        await inter.send(embed=utils.add_footer(disnake.Embed(
+            title="Added To Watchlist",
+            description=f"Now tracking `{player_obj.name}` for rank changes!",
+            color=constants.DEFAULT_EMBED_COLOR
+        )))
+        
 
     @ranks.sub_command(
         name="counts",
