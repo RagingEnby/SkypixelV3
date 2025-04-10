@@ -41,6 +41,8 @@ class GuildCog(commands.Cog):
 
     @staticmethod
     async def on_member_joinleave(member: disnake.Member, action: JoinLeave):
+        if member.guild.id != constants.DEV_SERVER_ID:
+            return
         verb = "joined" if action == 'join' else "left"
         print(f"{member.name} {verb} {member.guild.name}")
         embed = disnake.Embed(
