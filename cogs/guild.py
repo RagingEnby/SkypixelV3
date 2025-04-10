@@ -28,7 +28,7 @@ class GuildCog(commands.Cog):
             timestamp=datetime.now()
         )
         embed.set_thumbnail(guild.icon.url if guild.icon else None)
-        creation_unix = guild.created_at.timestamp()//1000
+        creation_unix = guild.created_at.timestamp()
         embed.add_field(
             name="Guild Info",
             value=f"**ID:** {guild.id}\n**Created:** <t:{creation_unix}> (<t:{creation_unix}:R>)"
@@ -37,7 +37,7 @@ class GuildCog(commands.Cog):
             name="Member Info",
             value=f"**Members:** {guild.member_count}\n**Owner:** {guild.owner.mention}"
         )
-        await utils.send_to_channel(constants.JOIN_LOG_CHANNEL, embed=embed)
+        await utils.send_to_channel(constants.INVITE_LOG_CHANNEL, embed=embed)
 
     @staticmethod
     async def on_member_joinleave(member: disnake.Member, action: JoinLeave):
