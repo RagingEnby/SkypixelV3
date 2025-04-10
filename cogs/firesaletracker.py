@@ -1,15 +1,14 @@
-from typing import Any
-import disnake
-from disnake.ext import commands
 import asyncio
 import traceback
+from typing import Any
 
+import disnake
+from disnake.ext import commands
+
+import constants
 from modules import asyncreqs
 from modules import datamanager
 from modules import utils
-
-import constants
-
 
 URL: str = "https://api.hypixel.net/v2/skyblock/firesales"
 

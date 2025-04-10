@@ -1,14 +1,14 @@
-from typing import Any, Optional
-import disnake
-from disnake.ext import commands
 import asyncio
 import json
+from typing import Any, Optional
 
+import disnake
+from disnake.ext import commands
+
+import constants
 from modules import hypixel, mongodb
 from modules import mojang
 from modules import utils
-
-import constants
 
 
 def fix_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -356,4 +356,3 @@ class ItemSearchCog(commands.Cog):
     async def on_ready(self):
         def signal_handler(sig: int, _):
             asyncio.create_task(self.item_db.close())
-

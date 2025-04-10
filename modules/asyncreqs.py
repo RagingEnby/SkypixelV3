@@ -1,8 +1,7 @@
-from typing import Optional
-from contextlib import suppress
-import aiohttp
 import asyncio
+from typing import Optional
 
+import aiohttp
 
 SESSION: Optional[aiohttp.ClientSession] = None
 

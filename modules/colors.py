@@ -1,9 +1,10 @@
 # this is honestly some of the worse/messiest code in this bot lmao
 
-from typing import Literal
-import requests
-from functools import lru_cache
 import re
+from functools import lru_cache
+from typing import Literal
+
+import requests
 
 from modules import colorcompare
 

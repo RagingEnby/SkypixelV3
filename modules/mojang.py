@@ -1,10 +1,10 @@
-from typing_extensions import TypedDict
-from typing import Any, Optional
 from datetime import datetime
+from typing import Any, Optional
 
-from modules import asyncreqs
+from typing_extensions import TypedDict
 
 import constants
+from modules import asyncreqs
 
 
 class PlayerNotFound(KeyError):

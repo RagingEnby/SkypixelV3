@@ -1,15 +1,15 @@
+import asyncio
+import traceback
 from typing import Any
+
 import disnake
 from disnake.ext import commands
 from mcstatus import JavaServer
-from mcstatus.status_response import JavaStatusResponse, RawJavaResponse
-import traceback
-import asyncio
-
-from modules import datamanager
-from modules import utils
+from mcstatus.status_response import RawJavaResponse
 
 import constants
+from modules import datamanager
+from modules import utils
 
 
 def flatten_status(status: RawJavaResponse) -> dict[str, Any]:

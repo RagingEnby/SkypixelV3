@@ -1,18 +1,16 @@
+import asyncio
+import time
+import traceback
 from typing import Any
+
 import disnake
 from disnake.ext import commands
-import asyncio
-import traceback
-import time
-import json
 
+import constants
+from cogs import ranktracker
 from modules import asyncreqs, mojang
 from modules import parser
 from modules import utils
-from cogs import ranktracker
-
-import constants
-
 
 ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page=0"
 

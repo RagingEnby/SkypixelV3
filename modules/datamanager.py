@@ -1,7 +1,7 @@
-from typing import Any, ItemsView
-from contextlib import suppress
 import json
 import os
+from contextlib import suppress
+from typing import Any, ItemsView
 
 from modules import utils
 

@@ -1,4 +1,5 @@
 from typing import Any
+
 import motor.motor_asyncio as motor
 
 import constants
@@ -21,4 +22,3 @@ class Collection:
     async def search(self, query: dict, projection: dict | None = None, limit: int = 50) -> list[dict[str, Any]]:
         cursor = self.find(query, projection=projection)
         return await cursor.to_list(length=limit)
-        
