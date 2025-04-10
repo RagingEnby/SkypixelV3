@@ -168,5 +168,5 @@ attached_assets/*
 scrts.py
 
 # Misc:
-disnake.log
+storage/disnake.log
 storage/*.json
