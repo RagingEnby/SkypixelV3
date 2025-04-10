@@ -1,23 +1,22 @@
-import disnake
-from disnake.ext import commands
-import signal
 import asyncio
 import logging
+import signal
 
-from modules import asyncreqs
-from cogs import ItemSearchCog
-from cogs import VersionTrackerCog
-from cogs import MotdTrackerCog
-from cogs import FireSaleTrackerCog
-from cogs import AlphaTrackerCog
-from cogs import RankTrackerCog
-from cogs import ZoneTrackerCog
-from cogs import WikiTrackerCog
-from cogs import AuctionTrackerCog
-from cogs import LoggerCog
+import disnake
+from disnake.ext import commands
 
 import constants
-
+from cogs import AlphaTrackerCog
+from cogs import AuctionTrackerCog
+from cogs import FireSaleTrackerCog
+from cogs import ItemSearchCog
+from cogs import LoggerCog
+from cogs import MotdTrackerCog
+from cogs import RankTrackerCog
+from cogs import VersionTrackerCog
+from cogs import WikiTrackerCog
+from cogs import ZoneTrackerCog
+from modules import asyncreqs
 
 logger = logging.getLogger('disnake')
 logger.setLevel(logging.DEBUG)
