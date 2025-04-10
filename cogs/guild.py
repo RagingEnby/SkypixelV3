@@ -28,7 +28,7 @@ class GuildCog(commands.Cog):
             timestamp=datetime.now()
         )
         embed.set_thumbnail(guild.icon.url if guild.icon else None)
-        creation_unix = guild.created_at.timestamp()
+        creation_unix = int(guild.created_at.timestamp())
         embed.add_field(
             name="Guild Info",
             value=f"**ID:** {guild.id}\n**Created:** <t:{creation_unix}> (<t:{creation_unix}:R>)"
