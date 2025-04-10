@@ -194,42 +194,6 @@ class RankTrackerCog(commands.Cog):
             if rankname != last_rankname:
                 del WATCH_LIST[uuid]
                 await WATCH_LIST.save()
-        
-    async def main(self):
-        while True:
-            try:
-                await self.do_watchlist()
-                player_ranks = await get_player_ranks()
-                if self.data.to_dict():
-                    for uuid, data in player_ranks.items():
-                        if uuid not in self.data:
-                            await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
-                            continue
-                        if self.data[uuid]['rank'] != data['rank']:
-                            await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
-                            await self.on_rank_remove(uuid, data['name'], self.data[uuid]['rank'])
-                        if self.data[uuid]['name'] != data['name']:
-                            await self.on_name_change(
-                                uuid=uuid,
-                                before=self.data[uuid]['name'],
-                                after=data['name'],
-                                rank=data['rank']  # type: ignore
-                            )
-                    for uuid, data in self.data.data.items():
-                        if uuid not in player_ranks:
-                            await self.on_rank_remove(uuid, data['name'], data['rank'])  # type: ignore
-                            
-                self.data.data = player_ranks
-                await self.data.save()
-                await asyncio.sleep(120)
-            except Exception:
-                print("rank tracker error:", traceback.format_exc())
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        if self.task and not self.task.done():
-            self.task.cancel()
-        self.task = asyncio.create_task(self.main())
 
     @commands.slash_command(
         name="ranks",
@@ -321,3 +285,40 @@ class RankTrackerCog(commands.Cog):
         view = RankListView(embeds, inter)
         await inter.send(embed=embeds[0], view=view)
         await view._update_buttons()
+
+    async def main(self):
+        while True:
+            try:
+                await self.do_watchlist()
+                player_ranks = await get_player_ranks()
+                if self.data.to_dict():
+                    for uuid, data in player_ranks.items():
+                        if uuid not in self.data:
+                            await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
+                            continue
+                        if self.data[uuid]['rank'] != data['rank']:
+                            await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
+                            await self.on_rank_remove(uuid, data['name'], self.data[uuid]['rank'])
+                        if self.data[uuid]['name'] != data['name']:
+                            await self.on_name_change(
+                                uuid=uuid,
+                                before=self.data[uuid]['name'],
+                                after=data['name'],
+                                rank=data['rank']  # type: ignore
+                            )
+                    for uuid, data in self.data.data.items():
+                        if uuid not in player_ranks:
+                            await self.on_rank_remove(uuid, data['name'], data['rank'])  # type: ignore
+
+                self.data.data = player_ranks
+                await self.data.save()
+            except Exception:
+                print("rank tracker error:", traceback.format_exc())
+            finally:
+                await asyncio.sleep(240)
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        if self.task and not self.task.done():
+            self.task.cancel()
+        self.task = asyncio.create_task(self.main())

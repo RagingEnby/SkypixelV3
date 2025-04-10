@@ -54,9 +54,10 @@ class VersionTrackerCog(commands.Cog):
                         await self.on_version_change(self.data.get('version'), version)
                     self.data['version'] = version
                     await self.data.save()
-                await asyncio.sleep(120)
             except Exception:
                 print("version tracker error:", traceback.format_exc())
+            finally:
+                await asyncio.sleep(120)
 
     @commands.Cog.listener()
     async def on_ready(self):

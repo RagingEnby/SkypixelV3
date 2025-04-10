@@ -87,9 +87,10 @@ class WikiTrackerCog(commands.Cog):
                         await self.on_wiki_edit(edit)
                     self.data['edits'].append(edit['revid'])
                 await self.data.save()
-                await asyncio.sleep(120)
             except Exception:
                 print("wiki tracker error:", traceback.format_exc())
+            finally:
+                await asyncio.sleep(90)
 
     @commands.Cog.listener()
     async def on_ready(self):

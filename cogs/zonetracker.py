@@ -52,9 +52,10 @@ class ZoneTrackerCog(commands.Cog):
                         await self.on_new_zone(new)
                     self.data['zones'].extend(new)
                     await self.data.save()
-                await asyncio.sleep(12000)
             except Exception:
                 print("version tracker error:", traceback.format_exc())
+            finally:
+                await asyncio.sleep(12000)
 
     @commands.Cog.listener()
     async def on_ready(self):
