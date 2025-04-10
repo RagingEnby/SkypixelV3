@@ -86,7 +86,8 @@ class LoggerCog(commands.Cog):
             return
         embed = disnake.Embed(
             description=message.content,
-            timestamp=message.created_at
+            timestamp=message.created_at,
+            color=message.author.color or constants.DEFAULT_EMBED_COLOR
         )
         embed.set_author(
             name=f"{message.author.display_name} ({message.author.id})",
