@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ItemsView
 from contextlib import suppress
 import json
 import os
@@ -14,9 +14,9 @@ class JsonWrapper:
         if not os.path.exists(dir):
             os.makedirs(dir)
             
-        self.data = {}
+        self.data: dict[str, Any] = {}
         with suppress(FileNotFoundError), open(self.file_path) as file:
-            self.data = json.load(file)
+            self.data: dict[str, Any] = json.load(file)
 
     def __getitem__(self, key: str) -> Any:
         return self.data[key]
@@ -29,6 +29,9 @@ class JsonWrapper:
 
     def __contains__(self, key: str) -> bool:
         return key in self.data
+
+    def items(self) -> ItemsView[str, Any]:
+        return self.data.items()
 
     def get(self, key: str, default: Any = None) -> Any:
         return self.data.get(key, default)
