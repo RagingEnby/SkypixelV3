@@ -8,22 +8,21 @@ import constants
 from modules import utils
 
 
-def get_log_params(inter: disnake.AppCmdInter) -> list[str]:
+def prettify_params(options: disnake.AppCmdInter | dict) -> list[str]:
+    if isinstance(options, disnake.AppCmdInter):
+        options = options.options
     log_params = []
-
-    # we want to first find out if this is a subcommand and if so, set the name as the first param
-    for param, value in inter.options.items():
-        if isinstance(value, dict): # the only time this will be true is if this is a subcommand or disnake breaks shit
-            log_params.append(param + ' ') # add in some padding for fanciness
-
-    for param, value in inter.filled_options.items():
-        log_params.append(f"{param}:{value}")
+    for param, value in options.items():
+        if isinstance(value, dict): # if this is a subcommand
+            log_params.append(param)
+            log_params.extend(prettify_params(value))
+        else:
+            log_params.append(f"{param}:{value}")
     return log_params
 
 
 def prettify_command(inter: disnake.AppCmdInter) -> str:
-    pretty_params = ' '.join(get_log_params(inter))
-    return f"/{inter.data.name}{pretty_params}"
+    return f"/{inter.data.name} {' '.join(prettify_params(inter))}"
 
 
 def make_command_log_embed(inter: disnake.AppCmdInter) -> disnake.Embed:
