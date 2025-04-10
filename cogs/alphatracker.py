@@ -65,8 +65,9 @@ class AlphaTrackerCog(commands.Cog):
             try:
                 status = await get_alpha_data()
                 if status != self.data.to_dict():
-                    print(status, '!=', self.data.to_dict())
-                    await self.on_status_update(self.data.to_dict(), status)
+                    if self.data.to_dict():
+                        print(status, '!=', self.data.to_dict())
+                        await self.on_status_update(self.data.to_dict(), status)
                     self.data.update(status)
                     await self.data.save()
                 await asyncio.sleep(120)
