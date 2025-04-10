@@ -64,8 +64,10 @@ class LoggerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_slash_command_error(self, inter: disnake.AppCmdInter, e: commands.CommandError):
-        err = traceback.format_exc()
-        print('command error:', err)
+        err = traceback.format_exception(
+            type(e), e, e.__traceback__
+        )
+        print(f"Exception in slash command {inter.application_command.name!r}:")
         with suppress(Exception):
             await inter.response.defer()
         await inter.send(embed=utils.make_error(
@@ -78,7 +80,7 @@ class LoggerCog(commands.Cog):
                 make_command_log_embed(inter),
                 utils.make_error(
                     "Unknown Error",
-                    str(e), f"\n```\n{err}```"
+                    str(e), f"\n```py\n{err}```"
                 )
             ]
         )
