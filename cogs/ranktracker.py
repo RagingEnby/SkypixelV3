@@ -227,7 +227,7 @@ class RankTrackerCog(commands.Cog):
         unformatted = utils.remove_color_codes(rankname)
         embed = utils.add_footer(disnake.Embed(
             description=f"Successfully updated `{unformatted}`",
-            color=disnake.Color.green()
+            color=constants.COLOR_CODES['a']
         ))
         embed.set_image(url=utils.to_mc_text(rankname))
         return await inter.send(embed=embed)

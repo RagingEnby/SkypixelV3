@@ -21,7 +21,7 @@ def make_error(title: str, *args) -> disnake.Embed:
     return add_footer(disnake.Embed(
         title=title,
         description='\n'.join([str(arg) for arg in args]),
-        color=disnake.Color.red()
+        color=constants.COLOR_CODES['c']
     ))
 
 

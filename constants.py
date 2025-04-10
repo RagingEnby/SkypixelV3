@@ -12,7 +12,6 @@ MONGODB_URI: str = MONGODB_URI
 HYPIXEL_API_KEY: str = HYPIXEL_API_KEY
 
 # Credit Footer
-OWNER_ID: int = 447861538095759365
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
 CREDIT_FOOTERS: set[str] = {
     "Made by @ragingenby",
@@ -20,7 +19,9 @@ CREDIT_FOOTERS: set[str] = {
     "Support me on Patreon! patreon.com/RagingEnby"
 }
 
-# Channel ID's
+# Discord ID's
+OWNER_ID: int = 447861538095759365
+DEV_SERVER_ID: int = 1066589212348006401
 ERROR_LOG_CHANNEL: int = 1131089040733634560
 
 ## AH Trackers
@@ -74,33 +75,41 @@ AUCTION_URL: str = "https://sky.coflnet.com/auction/{}"
 STATS_URL: str = "https://sky.shiiyu.moe/stats/{}"
 
 ## Color-related stuff
-DEFAULT_EMBED_COLOR: int = 0x00AA00
+COLOR_CODES: dict[str, int] = { # all minecraft color codes and their hex code
+    "0": 0x000000, "1": 0x0000AA, "2": 0x00AA00,
+    "3": 0x00AAAA, "4": 0xAA0000, "5": 0xAA00AA,
+    "6": 0xFFAA00, "7": 0xAAAAAA, "8": 0x555555,
+    "9": 0x5555FF, "a": 0x55FF55, "b": 0x55FFFF,
+    "c": 0xFF5555, "d": 0xFF55FF, "e": 0xFFFF55,
+    "f": 0xFFFFFF
+}
+DEFAULT_EMBED_COLOR: int = COLOR_CODES['2']
 RARITY_COLORS: dict[str, int] = {
-  "COMMON": 16777215,
-  "UNCOMMON": 5635925,
-  "RARE": 5592575,
-  "EPIC": 11141290,
-  "LEGENDARY": 16755200,
-  "MYTHIC": 16733695,
-  "DIVINE": 5636095,
-  "SUPREME": 5636095,
-  "SPECIAL": 16733525,
-  "VERY_SPECIAL": 16733525,
-  "ADMIN": 11141120
+    "COMMON": COLOR_CODES['f'],
+    "UNCOMMON": COLOR_CODES['a'],
+    "RARE": COLOR_CODES['9'],
+    "EPIC": COLOR_CODES['5'],
+    "LEGENDARY": COLOR_CODES['6'],
+    "MYTHIC": COLOR_CODES['d'],
+    "DIVINE": COLOR_CODES['b'],
+    "SPECIAL": COLOR_CODES['c'],
+    "VERY_SPECIAL": COLOR_CODES['c'],
+    "ULTIMATE": COLOR_CODES['4'],
+    "ADMIN": COLOR_CODES['4']
 }
 RANK_COLORS: dict[str, int] = {
-    "youtube": 0xFF5555,
-    "admin": 0xFF5555,
-    "gm": 0x00AA00,
-    "owner": 0xFF5555,
-    "pig_plus_plus_plus": 0xFF55FF,
-    "innit": 0xFF55FF,
-    "innit_plus": 0xFF55FF,
-    "events": 0xFFAA00,
-    "mojang": 0xFFAA00,
-    "mcp": 0xFF5555
+    "youtube": COLOR_CODES['c'],
+    "admin": COLOR_CODES['c'],
+    "gm": COLOR_CODES['2'],
+    "owner": COLOR_CODES['c'],
+    "pig_plus_plus_plus": COLOR_CODES['d'],
+    "innit": COLOR_CODES['d'],
+    "innit_plus": COLOR_CODES['d'], # future rank for if TommyInnit gets a netflix special
+    "events": COLOR_CODES['6'],
+    "mojang": COLOR_CODES['6'],
+    "mcp": COLOR_CODES['c']
 }
 
 
-# This is overwriten by main.py
+# This is overwritten by main.py
 BOT: InteractionBot
