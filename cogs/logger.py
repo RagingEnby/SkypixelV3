@@ -1,6 +1,7 @@
 import disnake
 from disnake.ext import commands
 from contextlib import suppress
+import traceback
 
 from modules import utils
 
@@ -63,7 +64,8 @@ class LoggerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_slash_command_error(self, inter: disnake.AppCmdInter, e: commands.CommandError):
-        print('command error:', e)
+        err = traceback.format_exc()
+        print('command error:', err)
         with suppress(Exception):
             await inter.response.defer()
         await inter.send(embed=utils.make_error(
@@ -76,7 +78,7 @@ class LoggerCog(commands.Cog):
                 make_command_log_embed(inter),
                 utils.make_error(
                     "Unknown Error",
-                    str(e)
+                    str(e), f"\n```\n{err}```"
                 )
             ]
         )
