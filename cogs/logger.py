@@ -61,6 +61,8 @@ class LoggerCog(commands.Cog):
     async def on_slash_command(self, inter: disnake.AppCmdInter):
         full_command = prettify_command(inter)
         print(f"{inter.author.name} used {full_command}")
+        embed = make_command_log_embed(inter)
+        await utils.send_to_channel(constants.COMMAND_LOG_CHANNEL, embed=embed)
 
     @commands.Cog.listener()
     async def on_slash_command_error(self, inter: disnake.AppCmdInter, e: commands.CommandError):
