@@ -180,24 +180,25 @@ class RankTrackerCog(commands.Cog):
             try:
                 await self.do_watchlist()
                 player_ranks = await get_player_ranks()
-                for uuid, data in player_ranks.items():
-                    if uuid not in self.data:
-                        await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
-                        continue
-                    if self.data[uuid]['rank'] != data['rank']:
-                        await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
-                        await self.on_rank_remove(uuid, data['name'], self.data[uuid]['rank'])
-                    if self.data[uuid]['name'] != data['name']:
-                        await self.on_name_change(
-                            uuid=uuid,
-                            before=self.data[uuid]['name'],
-                            after=data['name'],
-                            rank=data['rank']  # type: ignore
-                        )
-                for uuid, data in self.data.data.items():
-                    if uuid not in player_ranks:
-                        await self.on_rank_remove(uuid, data['name'], data['rank'])  # type: ignore
-                        
+                if self.data.to_dict():
+                    for uuid, data in player_ranks.items():
+                        if uuid not in self.data:
+                            await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
+                            continue
+                        if self.data[uuid]['rank'] != data['rank']:
+                            await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
+                            await self.on_rank_remove(uuid, data['name'], self.data[uuid]['rank'])
+                        if self.data[uuid]['name'] != data['name']:
+                            await self.on_name_change(
+                                uuid=uuid,
+                                before=self.data[uuid]['name'],
+                                after=data['name'],
+                                rank=data['rank']  # type: ignore
+                            )
+                    for uuid, data in self.data.data.items():
+                        if uuid not in player_ranks:
+                            await self.on_rank_remove(uuid, data['name'], data['rank'])  # type: ignore
+                            
                 self.data.data = player_ranks
                 await self.data.save()
                 await asyncio.sleep(120)

@@ -55,7 +55,8 @@ class FireSaleTrackerCog(commands.Cog):
                 sales = await get_fire_sales()
                 for item_id, sale in sales.items():
                     if item_id not in self.data:
-                        await self.on_fire_sale(item_id, sale)
+                        if self.data.to_dict():
+                            await self.on_fire_sale(item_id, sale)
                         self.data[item_id] = sale
                         await self.data.save()
                     

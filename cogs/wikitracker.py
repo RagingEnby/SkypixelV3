@@ -84,7 +84,8 @@ class WikiTrackerCog(commands.Cog):
                 for edit in edits:
                     if edit['revid'] in self.data['edits']:
                         continue
-                    await self.on_wiki_edit(edit)
+                    if self.data.get('edits'):
+                        await self.on_wiki_edit(edit)
                     self.data['edits'].append(edit['revid'])
                 await self.data.save()
                 await asyncio.sleep(120)

@@ -51,7 +51,8 @@ class MotdTrackerCog(commands.Cog):
             try:
                 motd = await get_motd()
                 if motd != self.data.get('motd'):
-                    await self.on_motd_update(self.data.get('motd', []), motd)
+                    if self.data.get('motd'):
+                        await self.on_motd_update(self.data.get('motd', []), motd)
                     self.data['motd'] = motd
                     await self.data.save()
                 await asyncio.sleep(120)

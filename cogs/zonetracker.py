@@ -49,7 +49,8 @@ class ZoneTrackerCog(commands.Cog):
                 zones = await get_zones()
                 new = {zone for zone in zones if zone not in self.data['zones']}
                 if new:
-                    await self.on_new_zone(new)
+                    if self.data.get('zones'):
+                        await self.on_new_zone(new)
                     self.data['zones'].extend(new)
                     await self.data.save()
                 await asyncio.sleep(12000)

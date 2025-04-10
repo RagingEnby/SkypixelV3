@@ -51,7 +51,8 @@ class VersionTrackerCog(commands.Cog):
             try:
                 version = await get_version()
                 if version != self.data.get('version'):
-                    await self.on_version_change(self.data.get('version'), version)
+                    if self.data.get('version'):
+                        await self.on_version_change(self.data.get('version'), version)
                     self.data['version'] = version
                     await self.data.save()
                 await asyncio.sleep(120)
