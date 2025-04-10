@@ -237,7 +237,6 @@ class RankTrackerCog(commands.Cog):
         description="Watch a player for rank changes closer than others"
     )
     async def watch(self, inter: disnake.AppCmdInter, player: str):
-        await inter.response.defer()
         try:
             player_obj = await mojang.get(player)
         except mojang.PlayerNotFound:
