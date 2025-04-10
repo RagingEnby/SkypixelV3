@@ -17,6 +17,29 @@ class GuildCog(commands.Cog):
         self.bot = bot
 
     @staticmethod
+    async def on_bot_joinleave(guild: disnake.Guild, action: JoinLeave):
+        if not guild.members:
+            # bugged server, skypixel is in 1-2
+            return
+        verb = "joined" if action == 'join' else "left"
+        embed = disnake.Embed(
+            title=f"Skypixel {verb} {guild.name}",
+            color=constants.COLOR_CODES['a'] if action == 'join' else constants.COLOR_CODES['c'],
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(guild.icon.url if guild.icon else None)
+        creation_unix = guild.created_at.timestamp()//1000
+        embed.add_field(
+            name="Guild Info",
+            value=f"**ID:** {guild.id}\n**Created:** <t:{creation_unix}> (<t:{creation_unix}:R>)"
+        )
+        embed.add_field(
+            name="Member Info",
+            value=f"**Members:** {guild.member_count}\n**Owner:** {guild.owner.mention}"
+        )
+        await utils.send_to_channel(constants.JOIN_LOG_CHANNEL, embed=embed)
+
+    @staticmethod
     async def on_member_joinleave(member: disnake.Member, action: JoinLeave):
         verb = "joined" if action == 'join' else "left"
         print(f"{member.name} {verb} {member.guild.name}")
@@ -41,3 +64,11 @@ class GuildCog(commands.Cog):
     @commands.Cog.listener()
     async def on_member_remove(self, member: disnake.Member):
         return await self.on_member_joinleave(member, 'leave')
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: disnake.Guild):
+        return await self.on_bot_joinleave(guild, 'join')
+
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild: disnake.Guild):
+        return await self.on_bot_joinleave(guild, 'leave')
