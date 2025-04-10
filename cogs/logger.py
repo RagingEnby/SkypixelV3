@@ -21,15 +21,8 @@ def get_log_params(inter: disnake.AppCmdInter) -> list[str]:
     return log_params
 
 
-
-def prettify_params(inter: disnake.AppCmdInter) -> str:
-    log_params = get_log_params(inter)
-    return (' ' if len(log_params) > 0 else '') + ' '.join(log_params)
-
-
-def prettify_command(inter: disnake.AppCmdInter, pretty_params: str | None = None) -> str:
-    if not pretty_params:
-        pretty_params = prettify_params(inter)
+def prettify_command(inter: disnake.AppCmdInter) -> str:
+    pretty_params = ' '.join(get_log_params(inter))
     return f"/{inter.data.name}{pretty_params}"
 
 
