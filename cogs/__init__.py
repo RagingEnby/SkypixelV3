@@ -1,6 +1,7 @@
 from .alphatracker import AlphaTrackerCog
 from .auctionhouse import AuctionTrackerCog
 from .firesaletracker import FireSaleTrackerCog
+from .guild import GuildCog
 from .itemdb import ItemSearchCog
 from .logger import LoggerCog
 from .motdtracker import MotdTrackerCog

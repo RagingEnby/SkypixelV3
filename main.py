@@ -9,6 +9,7 @@ import constants
 from cogs import AlphaTrackerCog
 from cogs import AuctionTrackerCog
 from cogs import FireSaleTrackerCog
+from cogs import GuildCog
 from cogs import ItemSearchCog
 from cogs import LoggerCog
 from cogs import MotdTrackerCog
@@ -30,16 +31,17 @@ bot = commands.InteractionBot(
     intents=intents,
     owner_id=constants.OWNER_ID,
 )
-bot.add_cog(ItemSearchCog(bot))
-bot.add_cog(VersionTrackerCog(bot))
-bot.add_cog(MotdTrackerCog(bot))
-bot.add_cog(FireSaleTrackerCog(bot))
 bot.add_cog(AlphaTrackerCog(bot))
-bot.add_cog(RankTrackerCog(bot))
-bot.add_cog(ZoneTrackerCog(bot))
-bot.add_cog(WikiTrackerCog(bot))
 bot.add_cog(AuctionTrackerCog(bot))
+bot.add_cog(FireSaleTrackerCog(bot))
+bot.add_cog(GuildCog(bot))
+bot.add_cog(ItemSearchCog(bot))
 bot.add_cog(LoggerCog(bot))
+bot.add_cog(MotdTrackerCog(bot))
+bot.add_cog(RankTrackerCog(bot))
+bot.add_cog(VersionTrackerCog(bot))
+bot.add_cog(WikiTrackerCog(bot))
+bot.add_cog(ZoneTrackerCog(bot))
 constants.BOT = bot
 
 
