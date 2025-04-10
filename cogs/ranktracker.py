@@ -267,7 +267,7 @@ class RankTrackerCog(commands.Cog):
         if player_obj.id in WATCH_LIST:
             return await inter.send(embed=utils.make_error(
                 "Already Watching!",
-                f"`{player_obj}` is already in the watchlist."
+                f"`{player_obj.name}` is already in the watchlist."
             ))
         WATCH_LIST[player_obj.id] = None
         await WATCH_LIST.save()
