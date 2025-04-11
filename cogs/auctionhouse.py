@@ -152,8 +152,11 @@ class AuctionTrackerCog(commands.Cog):
                 print("AH tracker error:", traceback.format_exc())
                 await asyncio.sleep(15)
 
-    @commands.Cog.listener()
-    async def on_ready(self):
+    async def close(self):
         if self.task and not self.task.done():
             self.task.cancel()
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await self.close()
         self.task = asyncio.create_task(self.main())
