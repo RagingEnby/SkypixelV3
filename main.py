@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import signal
+import sys
 
 import disnake
 from disnake.ext import commands
@@ -50,6 +51,7 @@ async def on_close(sig: int):
     if asyncreqs.SESSION and not asyncreqs.SESSION.closed:
         await asyncreqs.SESSION.close()
     await bot.close()
+    sys.exit(0)
 
 
 @bot.event
