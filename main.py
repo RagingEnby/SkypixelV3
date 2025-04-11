@@ -48,13 +48,17 @@ constants.BOT = bot
 
 async def on_close(sig: int):
     print(f"Logging out ({signal.Signals(sig).name})...")
+    asyncreqs.CLOSED = True
     if asyncreqs.SESSION and not asyncreqs.SESSION.closed:
         await asyncreqs.SESSION.close()
+    print("Closed aiohttp session")
     await asyncio.gather(*[
         cog.close() for cog in bot.cogs.values()  # type: ignore
         if hasattr(cog, 'close') and callable(cog.close)
     ])
+    print("Closed all cogs")
     await bot.close()
+    print("Closed bot")
     sys.exit(0)
 
 
