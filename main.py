@@ -27,7 +27,7 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 intents = disnake.Intents.default()
-intents.members = True  # noinspection PyTypeChecker
+intents.members = True  # type: ignore
 bot = commands.InteractionBot(
     intents=intents,
     owner_id=constants.OWNER_ID,
@@ -50,6 +50,10 @@ async def on_close(sig: int):
     print(f"Logging out ({signal.Signals(sig).name})...")
     if asyncreqs.SESSION and not asyncreqs.SESSION.closed:
         await asyncreqs.SESSION.close()
+    await asyncio.gather(*[
+        cog.close() for cog in bot.cogs.values()  # type: ignore
+        if hasattr(cog, 'close') and callable(cog.close)
+    ])
     await bot.close()
     sys.exit(0)
 
