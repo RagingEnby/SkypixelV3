@@ -20,11 +20,20 @@ from cogs import WikiTrackerCog
 from cogs import ZoneTrackerCog
 from modules import asyncreqs
 
-logger = logging.getLogger('disnake')
+# load disnake logger
+disnake_logger = logging.getLogger('disnake')
+disnake_logger.setLevel(logging.DEBUG)
+disnake_handler = logging.FileHandler(filename='storage/disnake.log', encoding='utf-8', mode='w')
+disnake_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+disnake_logger.addHandler(disnake_handler)
+
+# load Skypixel logger
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='storage/disnake.log', encoding='utf-8', mode='w')
+handler = logging.FileHandler(filename='storage/skypixel.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
+
 
 intents = disnake.Intents.default()
 intents.members = True  # type: ignore
@@ -44,21 +53,23 @@ bot.add_cog(VersionTrackerCog(bot))
 bot.add_cog(WikiTrackerCog(bot))
 bot.add_cog(ZoneTrackerCog(bot))
 constants.BOT = bot
+logger.debug("Loaded all cogs + set constants.BOT")
 
 
 async def on_close(sig: int):
-    print(f"Logging out ({signal.Signals(sig).name})...")
+    logger.info(f"Logging out ({signal.Signals(sig).name})...")
     asyncreqs.CLOSED = True
     if asyncreqs.SESSION and not asyncreqs.SESSION.closed:
+        logger.debug("valid session in asyncreqs, closing it...")
         await asyncreqs.SESSION.close()
-    print("Closed aiohttp session")
+    logger.info("Closed aiohttp session")
     await asyncio.gather(*[
         cog.close() for cog in bot.cogs.values()  # type: ignore
         if hasattr(cog, 'close') and callable(cog.close)
     ])
-    print("Closed all cogs")
+    logger.info("Closed all cogs")
     await bot.close()
-    print("Closed bot")
+    logger.info("Closed bot")
     sys.exit(0)
 
 
@@ -67,7 +78,7 @@ async def on_ready():
     def signal_handler(sig: int, _):
         asyncio.create_task(on_close(sig))
     signal.signal(signal.SIGINT, signal_handler)
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    logger.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
 
 bot.run(constants.BOT_TOKEN)

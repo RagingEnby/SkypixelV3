@@ -168,5 +168,6 @@ attached_assets/*
 scrts.py
 
 # Misc:
+storage/skypixel.log
 storage/disnake.log
 storage/*.json

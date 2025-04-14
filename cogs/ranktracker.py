@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import traceback
 from contextlib import suppress
 from typing import Literal
@@ -12,6 +13,7 @@ from modules import asyncreqs, mojang
 from modules import datamanager
 from modules import utils
 
+logger = logging.getLogger(__name__)
 SpecialRank = Literal['youtube', 'admin', 'gm', 'owner', 'pig_plus_plus_plus', 'innit', 'events', 'mojang', 'mcp']
 
 URL: str = "https://api.ragingenby.dev/ranks"
@@ -35,6 +37,7 @@ async def get_rankname(identifier: str) -> str:
 async def get_rank_counts() -> dict[str, int]:
     response = await asyncreqs.get(COUNTS_URL)
     data: dict[str, int] = await response.json()
+    logger.debug("rank counts:", data)
     # sort highest -> lowest count
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
@@ -58,8 +61,10 @@ async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
         channels = constants.RANK_TRACKER_CHANNELS.get(rank, constants.RANK_TRACKER_CHANNELS['special'])
         for channel_id in channels.keys():
             channel = constants.BOT.get_channel(channel_id)
-            if channel and channel.name.startswith(f"{rank}-"):
-                tasks.append(channel.edit(name=f"{rank}-{len(players)}"))
+            name = f"{rank}-{len(players)}"
+            if channel and channel.name.startswith(f"{rank}-") and channel.name != name:
+                logger.info(f"renaming #{channel.name} ({channel.id}) to {name}")
+                tasks.append(channel.edit(name=name))
     await asyncio.gather(*tasks)
 
 
@@ -114,6 +119,7 @@ def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.E
 
 class RankListView(disnake.ui.View):
     def __init__(self, embeds: list[disnake.Embed], inter: disnake.Interaction):
+        logger.debug("initializing RankListView()")
         super().__init__(timeout=180)
         self.embeds = embeds
         self.inter = inter
@@ -125,10 +131,13 @@ class RankListView(disnake.ui.View):
                 "Not your interaction!",
                 "You cannot interact with another user's buttons."
             ), ephemeral=True)
+            logger.debug("interaction_check() False")
             return False
+        logger.debug("interaction_check() True")
         return True
 
     async def on_timeout(self):
+        logger.debug("RankListView timed out")
         for item in self.children:
             if isinstance(item, disnake.ui.Button):
                 item.disabled = True
@@ -136,6 +145,7 @@ class RankListView(disnake.ui.View):
             await self.inter.edit_original_message(view=self)
 
     async def _update_buttons(self):
+        logger.debug("updating buttons")
         self.children[0].disabled = self.page == 0 # previous
         self.children[1].disabled = self.page == len(self.embeds) - 1 # next
         current_embed = self.embeds[self.page]
@@ -145,12 +155,14 @@ class RankListView(disnake.ui.View):
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)
     async def previous(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+        logger.debug("previous button clicked")
         self.page -= 1
         await self._update_buttons()
         await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
     async def next(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+        logger.debug("next button clicked")
         self.page += 1
         await self._update_buttons()
         await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
@@ -161,29 +173,35 @@ class RankTrackerCog(commands.Cog):
         self.bot = bot
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/ranks.json")
+        if not self.data.to_dict():
+            logger.warning("ranks.json is empty")
 
-    async def on_rank_add(self, uuid: str, name: str, rank: SpecialRank):
+    @staticmethod
+    async def on_rank_add(uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
             uuid, name, rank,
             f"{utils.esc_mrkdwn(name)} now has {format_rank(rank)} rank!"
         )
         await send(rank, embed)
 
-    async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
+    @staticmethod
+    async def on_rank_remove(uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
             uuid, name, rank,
             f"{utils.esc_mrkdwn(name)} has lost {format_rank(rank)} rank"
         )
         await send(rank, embed)
-        
-    async def on_name_change(self, uuid: str, before: str, after: str, rank: SpecialRank):
+
+    @staticmethod
+    async def on_name_change(uuid: str, before: str, after: str, rank: SpecialRank):
         embed = make_embed(
             uuid, after, rank,
             f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}"
         )
         await send(rank, embed)
 
-    async def do_watchlist(self):
+    @staticmethod
+    async def do_watchlist():
         for uuid, last_rankname in WATCH_LIST.items():
             rankname = await get_rankname(uuid)
             print('rank watchlist:', rankname, last_rankname)
@@ -191,6 +209,9 @@ class RankTrackerCog(commands.Cog):
                 WATCH_LIST[uuid] = rankname
                 await WATCH_LIST.save()
                 continue
+            # we don't need to do any processing once the
+            # rank has changed since my /rankname/ endpoint will auto
+            # update my /ranks endpoint :3
             if rankname != last_rankname:
                 del WATCH_LIST[uuid]
                 await WATCH_LIST.save()
@@ -284,36 +305,40 @@ class RankTrackerCog(commands.Cog):
             return await inter.send(embed=utils.add_footer(embeds[0]))
         view = RankListView(embeds, inter)
         await inter.send(embed=embeds[0], view=view)
-        await view._update_buttons()
+        await view._update_buttons()  # type: ignore
 
     async def main(self):
         while True:
             try:
                 await self.do_watchlist()
                 player_ranks = await get_player_ranks()
-                if self.data.to_dict():
-                    for uuid, data in player_ranks.items():
-                        if uuid not in self.data:
-                            await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
-                            continue
-                        if self.data[uuid]['rank'] != data['rank']:
-                            await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
-                            await self.on_rank_remove(uuid, data['name'], self.data[uuid]['rank'])
-                        if self.data[uuid]['name'] != data['name']:
-                            await self.on_name_change(
-                                uuid=uuid,
-                                before=self.data[uuid]['name'],
-                                after=data['name'],
-                                rank=data['rank']  # type: ignore
-                            )
-                    for uuid, data in self.data.data.items():
-                        if uuid not in player_ranks:
-                            await self.on_rank_remove(uuid, data['name'], data['rank'])  # type: ignore
+                if not self.data.to_dict():
+                    self.data.data = player_ranks
+                    await self.data.save()
+                    continue
+
+                for uuid, data in player_ranks.items():
+                    if uuid not in self.data:
+                        await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
+                        continue
+                    if self.data[uuid]['rank'] != data['rank']:
+                        await self.on_rank_add(uuid, data['name'], data['rank'])  # type: ignore
+                        await self.on_rank_remove(uuid, data['name'], self.data[uuid]['rank'])
+                    if self.data[uuid]['name'] != data['name']:
+                        await self.on_name_change(
+                            uuid=uuid,
+                            before=self.data[uuid]['name'],
+                            after=data['name'],
+                            rank=data['rank']  # type: ignore
+                        )
+                for uuid, data in self.data.data.items():
+                    if uuid not in player_ranks:
+                        await self.on_rank_remove(uuid, data['name'], data['rank'])  # type: ignore
 
                 self.data.data = player_ranks
                 await self.data.save()
             except Exception:
-                print("rank tracker error:", traceback.format_exc())
+                logger.error(traceback.format_exc())
             finally:
                 await asyncio.sleep(240)
 

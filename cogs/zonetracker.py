@@ -10,6 +10,8 @@ from modules import datamanager
 from modules import utils
 
 URL: str = "https://api.ragingenby.dev/skyblock/zones"
+import logging
+logger = logging.getLogger(__name__)
 
 
 async def get_zones() -> set[str]:
@@ -32,9 +34,12 @@ class ZoneTrackerCog(commands.Cog):
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/zones.json")
         if not self.data.get('zones'):
+            logger.warning("zones.json is empty")
             self.data['zones'] = []
 
-    async def on_new_zone(self, zones: set[str]):
+    @staticmethod
+    async def on_new_zone(zones: set[str]):
+        logger.debug("new zones detected:", zones)
         embed = utils.add_footer(disnake.Embed(
             title="New SkyBlock Zone Added!",
             description="New areas/zones have been added to SkyBlock's API.\n```\n{}\n```".format('\n'.join(zones)),
@@ -53,11 +58,12 @@ class ZoneTrackerCog(commands.Cog):
                     self.data['zones'].extend(new)
                     await self.data.save()
             except Exception:
-                print("version tracker error:", traceback.format_exc())
+                logger.error(traceback.format_exc())
             finally:
                 await asyncio.sleep(12000)
 
     async def close(self):
+        logger.debug("closing...")
         if self.task and not self.task.done():
             self.task.cancel()
 

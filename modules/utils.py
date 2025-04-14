@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 import random
 import re
 from contextlib import suppress
@@ -11,10 +12,14 @@ import disnake
 import constants
 from modules import hypixel
 
+logger = logging.getLogger(__name__)
+
 
 async def write_json(file_path: str, data: dict, indent: int = 2):
+    logger.debug(f"Writing to {file_path}...")
     async with aiofiles.open(file_path, 'w') as file:
         await file.write(json.dumps(data, indent=indent))
+    logger.debug(f"Wrote to {file_path}!")
 
 
 def make_error(title: str, *args) -> disnake.Embed:
@@ -41,8 +46,9 @@ def add_footer(embed: disnake.Embed) -> disnake.Embed:
 
 async def send_to_channel(channel_id: int, *args, **kwargs) -> disnake.Message | None:
     channel = constants.BOT.get_channel(channel_id)
+    logger.debug(f"send_to_channel({channel_id}) channel = {channel}")
     if not channel:
-        return
+        return None
     return await channel.send(*args, **kwargs)  # type: ignore
 
 
@@ -83,23 +89,31 @@ def commaize(num: int | float) -> str:
 
 
 def timestamp_to_unix(date_str: str) -> int:
+    logger.debug(f"timestamp_to_unix({date_str}) date_str = {date_str}")
     if 'L' in date_str:
+        logger.debug("timestamp detected to be a Long integer, removing L and parsing...")
         date_str = date_str.replace('L', '')
         return int(date_str.split('L')[0])
 
+    logger.debug("attempting to parse as int...")
     with suppress(ValueError):
         return int(date_str)
 
-    dt = None
-    with suppress(ValueError):
+    logger.debug("didnt work, attempting to parse as a m/d/y H:M am/pm format")
+    try:
         date_format = '%m/%d/%y %I:%M %p'
         dt = datetime.datetime.strptime(date_str, date_format)
+    except ValueError:
+        dt = None
     if dt is None:
+        logger.debug("didnt work, attempting to parse as a d/m/y H:M format")
         with suppress(ValueError):
             date_format = '%d/%m/%y %H:%M'
             dt = datetime.datetime.strptime(date_str, date_format)
     if dt is None:
+        logger.debug("didnt work, raising ValueError()")
         raise ValueError('invalid timestamp:', date_str)
+    logger.debug("returning datetime.timestamp()")
     return int(dt.timestamp())
 
 
