@@ -58,7 +58,7 @@ class AlphaTrackerCog(commands.Cog):
         for key in diff:
             embed.add_field(
                 name=key,
-                value=f"**Before:** `{before.get(key)}`\n**After:** `{after[key]}`",
+                value=f"Before: `{before.get(key)}`\nAfter: `{after[key]}`",
                 inline=False
             )
         await send(embed)
