@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import traceback
 
 import disnake
@@ -9,6 +10,7 @@ from modules import asyncreqs
 from modules import datamanager
 from modules import utils
 
+logger = logging.getLogger(__name__)
 URL: str = "https://api.hypixel.net/v2/resources/skyblock/skills"
 
 
@@ -17,9 +19,10 @@ async def get_version() -> str:
     data = await response.json()
     version = data.get('version')
     if not version:
-        print('malformed skills data:', data)
+        logger.error('malformed skills data:', data)
         await asyncio.sleep(10)
         return await get_version()
+    logger.debug("got version:", version)
     return version
 
 
@@ -36,8 +39,11 @@ class VersionTrackerCog(commands.Cog):
         self.bot = bot
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/version.json")
+        if not self.data.get('version'):
+            logger.warning("version.json is empty")
 
-    async def on_version_change(self, before: str, after: str):
+    @staticmethod
+    async def on_version_change(before: str, after: str):
         embed = utils.add_footer(disnake.Embed(
             title="SkyBlock has updated!",
             description=f"`{before}` ➡ `{after}`",
@@ -50,12 +56,13 @@ class VersionTrackerCog(commands.Cog):
             try:
                 version = await get_version()
                 if version != self.data.get('version'):
+                    logger.info("version update:", self.data.get('version'), "=>", version)
                     if self.data.get('version'):
-                        await self.on_version_change(self.data.get('version'), version)
+                        await self.on_version_change(self.data['version'], version)
                     self.data['version'] = version
                     await self.data.save()
             except Exception:
-                print("version tracker error:", traceback.format_exc())
+                logger.error(traceback.format_exc())
             finally:
                 await asyncio.sleep(120)
 

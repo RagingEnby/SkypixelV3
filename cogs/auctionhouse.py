@@ -1,7 +1,8 @@
 import asyncio
+import logging
 import time
 import traceback
-from typing import Any
+from typing import Any, Coroutine
 
 import disnake
 from disnake.ext import commands
@@ -12,6 +13,7 @@ from modules import asyncreqs, mojang
 from modules import parser
 from modules import utils
 
+logger = logging.getLogger(__name__)
 ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page=0"
 
 
@@ -21,7 +23,7 @@ async def get_active_auctions() -> dict[str, Any]:
         response.raise_for_status()
         return await response.json()
     except Exception as e:
-        print('error getting /skyblock/auctions:', e)
+        logger.error('error getting /skyblock/auctions:', e)
         await asyncio.sleep(5)
         return await get_active_auctions()
     
@@ -64,7 +66,8 @@ class AuctionTrackerCog(commands.Cog):
         self.bot = bot
         self.task: asyncio.Task | None = None
 
-    async def on_admin_spawned_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+    @staticmethod
+    async def on_admin_spawned_auction(auction: dict[str, Any], item: dict[str, Any]):
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Origin Tag",
@@ -72,8 +75,9 @@ class AuctionTrackerCog(commands.Cog):
             inline=True
         )
         await utils.send_to_channel(constants.ADMIN_SPAWNED_ITEMS_CHANNEL, embed=embed)
-    
-    async def on_og_reforge_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+
+    @staticmethod
+    async def on_og_reforge_auction(auction: dict[str, Any], item: dict[str, Any]):
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Reforge",
@@ -82,7 +86,8 @@ class AuctionTrackerCog(commands.Cog):
         )
         await utils.send_to_channel(constants.OG_REFORGES_CHANNEL, embed=embed)
 
-    async def on_semi_og_reforge_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+    @staticmethod
+    async def on_semi_og_reforge_auction(auction: dict[str, Any], item: dict[str, Any]):
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Reforge",
@@ -91,7 +96,8 @@ class AuctionTrackerCog(commands.Cog):
         )
         await utils.send_to_channel(constants.SEMI_OG_REFORGES_CHANNEL, embed=embed)
 
-    async def on_poi_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+    @staticmethod
+    async def on_poi_auction(auction: dict[str, Any], item: dict[str, Any]):
         rankname = utils.remove_color_codes(await ranktracker.get_rankname(auction['auctioneer']))
         embed = await make_auction_embed(auction, item)
         embed.set_author(
@@ -100,7 +106,8 @@ class AuctionTrackerCog(commands.Cog):
         )
         await utils.send_to_channel(constants.POI_AUCTIONS_CHANNEL, embed=embed)
 
-    async def on_old_item_auction(self, auction: dict[str, Any], item: dict[str, Any], timestamp: int):
+    @staticmethod
+    async def on_old_item_auction(auction: dict[str, Any], item: dict[str, Any], timestamp: int):
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Created At",
@@ -113,7 +120,7 @@ class AuctionTrackerCog(commands.Cog):
         item = parser.decode_single(auction['item_bytes'])
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
         timestamp = utils.normalize_timestamp(extra_attributes['timestamp']) if extra_attributes.get('timestamp') else None
-        tsks = []
+        tsks: list[Coroutine] = []
         
         if extra_attributes.get('originTag') in ["ITEM_MENU", "ITEM_COMMAND"]:
             tsks.append(self.on_admin_spawned_auction(auction, item))
@@ -139,9 +146,9 @@ class AuctionTrackerCog(commands.Cog):
                         a for a in page_0['auctions']
                         if a.get('start', 0) >= last_last_updated and a.get('item_uuid')
                     ]
-                    print(f'got {len(new_auctions)} new UUID\'ed item auctions')
+                    logger.debug(f'got {len(new_auctions)} new UUID\'ed item auctions')
                     await asyncio.gather(*[self.on_auction(a) for a in new_auctions])
-                    print('processed auctions')
+                    logger.debug('processed auctions')
                     last_last_updated = page_0['lastUpdated']
                 next_update = last_last_updated // 1000 + 60
                 time_until_update = next_update - time.time()
@@ -149,7 +156,7 @@ class AuctionTrackerCog(commands.Cog):
                     time_until_update = 1
                 await asyncio.sleep(time_until_update)
             except Exception:
-                print("AH tracker error:", traceback.format_exc())
+                logger.error("AH tracker error:", traceback.format_exc())
                 await asyncio.sleep(15)
 
     async def close(self):

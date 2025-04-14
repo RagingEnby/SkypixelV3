@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import traceback
 from typing import Any
 
@@ -11,6 +12,7 @@ import constants
 from modules import datamanager
 from modules import utils
 
+logger = logging.getLogger(__name__)
 
 def flatten_status(status: RawJavaResponse) -> dict[str, Any]:
     return {
@@ -41,7 +43,8 @@ class AlphaTrackerCog(commands.Cog):
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/alpha.json")
 
-    async def on_status_update(self, before: dict[str, Any], after: dict[str, Any]):
+    @staticmethod
+    async def on_status_update(before: dict[str, Any], after: dict[str, Any]):
         diff = [
             k for k, v in after.items()
             if v != before.get(k)
@@ -71,7 +74,7 @@ class AlphaTrackerCog(commands.Cog):
                     self.data.update(status)
                     await self.data.save()
             except Exception:
-                print("alpha tracker error:", traceback.format_exc())
+                logger.error("alpha tracker error:", traceback.format_exc())
             finally:
                 await asyncio.sleep(240)
 

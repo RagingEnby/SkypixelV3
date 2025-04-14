@@ -1,5 +1,7 @@
 # this is honestly some of the worse/messiest code in this bot lmao
+# its lowkey just roughly stolen from TGWaffles/iTEM but badly converted to Python
 
+import logging
 import re
 from functools import lru_cache
 from typing import Literal
@@ -8,16 +10,18 @@ import requests
 
 from modules import colorcompare
 
+logger = logging.getLogger(__name__)
+
 DYE_PATTERN = re.compile(r"Combinable in Anvil Changes the color of an armor piece to #([0-9A-Fa-f]+)!")
 ArmorType = Literal['helmet', 'chestplate', 'leggings', 'boots']
 
 try:
     ITEMS = requests.get('https://api.ragingenby.dev/skyblock/items').json()['items']
 except:
-    print("WARNING: USING HYPIXEL ITEMS ENDPOINT, api.ragingenby.dev IS DOWN")
+    logger.warning("WARNING: USING HYPIXEL ITEMS ENDPOINT, api.ragingenby.dev IS DOWN")
     ITEMS = requests.get('https://api.hypixel.net/v2/resources/skyblock/items').json()['items']
 
-MISC_HEXES = {
+MISC_HEXES: dict[str, str] = {
     "Bleached": "A06540",
     "Pure Red": "FF0000",
     "Pure Green": "00FF00",

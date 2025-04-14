@@ -1,5 +1,7 @@
 import asyncio
 import json
+import logging
+import signal
 from typing import Any, Optional
 
 import disnake
@@ -10,6 +12,7 @@ from modules import hypixel, mongodb
 from modules import mojang
 from modules import utils
 
+logger = logging.getLogger(__name__)
 
 def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     """
@@ -17,6 +20,7 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     Although I am in the process of fixing all of them, this function will sanitize
     the item to ENSURE that it is not one of those.
     """
+    logger.debug("fixing item:", item)
     # these all come from one update query where i intended to convert unix -> timestamp obj's
     if isinstance(item['previousOwners'], dict):
         item['previousOwners'] = []
@@ -38,11 +42,9 @@ def get_item_image(item: dict[str, Any]) -> str:
         color=item.get('colour')
     )
     
-    
 
 async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     item = fix_item(item)
-    print(json.dumps(item, indent=2))
     previous_owners = list(reversed(item['previousOwners']))[:5]
     players = await mojang.bulk(
         [item['currentOwner']['playerUuid']] + 
@@ -212,7 +214,7 @@ class ItemSearchCog(commands.Cog):
                 "Invalid Query",
                 "You must provide search arguments!"
             ))
-        print('searching item db for:', json.dumps(query, indent=2))
+        logger.info('searching item db for:', json.dumps(query, indent=2))
         results = await self.item_db.search(query, limit=limit)
         if not results:
             return await inter.send(embed=utils.make_error(
@@ -354,5 +356,6 @@ class ItemSearchCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        def signal_handler(sig: int, _):
+        def signal_handler(*_):
             asyncio.create_task(self.item_db.close())
+        signal.signal(signal.SIGINT, signal_handler)

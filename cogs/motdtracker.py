@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import traceback
 
 import disnake
@@ -9,8 +10,11 @@ import constants
 from modules import datamanager
 from modules import utils
 
+logger = logging.getLogger(__name__)
+
 
 async def get_motd() -> list[str]:
+    logger.debug("getting mc.hypixel.net motd")
     status = await JavaServer.lookup("mc.hypixel.net").async_status()
     return [l.strip() for l in status.description.split("\n")]
 
@@ -29,7 +33,8 @@ class MotdTrackerCog(commands.Cog):
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/motd.json")
 
-    async def on_motd_update(self, before: list[str], after: list[str]):
+    @staticmethod
+    async def on_motd_update(before: list[str], after: list[str]):
         embed = utils.add_footer(disnake.Embed(
             title="Hypixel MOTD update!",
             color=constants.DEFAULT_EMBED_COLOR
@@ -51,6 +56,7 @@ class MotdTrackerCog(commands.Cog):
             try:
                 motd = await get_motd()
                 if motd != self.data.get('motd'):
+                    logger.info("motd update:", self.data.get('motd'), "=>", motd)
                     if self.data.get('motd'):
                         await self.on_motd_update(self.data.get('motd', []), motd)
                     self.data['motd'] = motd

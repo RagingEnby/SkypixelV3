@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import traceback
 from typing import Any
 
@@ -10,6 +11,7 @@ from modules import asyncreqs
 from modules import datamanager
 from modules import utils
 
+logger = logging.getLogger(__name__)
 URL: str = "https://api.hypixel.net/v2/skyblock/firesales"
 
 
@@ -34,7 +36,8 @@ class FireSaleTrackerCog(commands.Cog):
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/firesales.json")
 
-    async def on_fire_sale(self, item_id: str, sale: dict[str, Any]):
+    @staticmethod
+    async def on_fire_sale(item_id: str, sale: dict[str, Any]):
         embed = utils.add_footer(disnake.Embed(
             title="New Fire Sale Added!",
             description='\n'.join([
@@ -59,7 +62,7 @@ class FireSaleTrackerCog(commands.Cog):
                         self.data[item_id] = sale
                         await self.data.save()
             except Exception:
-                print("fire sale tracker error:", traceback.format_exc())
+                logger.error("fire sale tracker error:", traceback.format_exc())
             finally:
                 await asyncio.sleep(120)
 

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import traceback
 from typing import Any
 
@@ -27,14 +28,17 @@ PARAMS: dict[str, str] = {
 }
 EDITOR_URL: str = "https://api.ragingenby.dev/wiki/user/{}"
 EDITOR_CACHE: dict[str, dict[str, Any]] = {}
+logger = logging.getLogger(__name__)
 
 
 async def get_editor(name: str) -> dict[str, Any]:
     global EDITOR_CACHE
     if name in EDITOR_CACHE:
+        logger.debug("using cached data for wiki editor", name)
         return EDITOR_CACHE[name]
     response = await asyncreqs.get(EDITOR_URL.format(name))
     EDITOR_CACHE[name] = await response.json()
+    logger.debug("cached data for wiki editor", name, EDITOR_CACHE[name])
     return EDITOR_CACHE[name]
 
 
@@ -58,9 +62,12 @@ class WikiTrackerCog(commands.Cog):
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/wikiedits.json")
         if not self.data.get('edits'):
+            logger.warning("wikiedits.json is empty")
             self.data['edits'] = []
 
-    async def on_wiki_edit(self, edit: dict[str, Any]):
+    @staticmethod
+    async def on_wiki_edit(edit: dict[str, Any]):
+        logger.debug("wiki edit:", edit)
         editor = await get_editor(edit['user'])
         verb = "Created" if edit['type'] == 'new' else "Edited"
         embed = utils.add_footer(disnake.Embed(
@@ -82,13 +89,15 @@ class WikiTrackerCog(commands.Cog):
                 edits = await get_edits()
                 for edit in edits:
                     if edit['revid'] in self.data['edits']:
+                        logger.debug("skipping already-processed edit:", edit['revid'])
                         continue
                     if self.data.get('edits'):
                         await self.on_wiki_edit(edit)
                     self.data['edits'].append(edit['revid'])
+                    logger.debug("finished processing edit:", edit['revid'])
                 await self.data.save()
             except Exception:
-                print("wiki tracker error:", traceback.format_exc())
+                logger.error(traceback.format_exc())
             finally:
                 await asyncio.sleep(90)
 

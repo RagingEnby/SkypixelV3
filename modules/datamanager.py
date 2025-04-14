@@ -1,22 +1,28 @@
 import json
+import logging
 import os
 from contextlib import suppress
 from typing import Any, ItemsView
 
 from modules import utils
 
+logger = logging.getLogger(__name__)
+
 
 class JsonWrapper:
     def __init__(self, file_path: str):
+        logger.info("initializing json wrapper for", file_path)
         self.file_path = file_path
         
         dir = os.path.dirname(file_path)
         if not os.path.exists(dir):
+            logger.info("creating directory", dir)
             os.makedirs(dir)
             
         self.data: dict[str, Any] = {}
         with suppress(FileNotFoundError), open(self.file_path) as file:
             self.data: dict[str, Any] = json.load(file)
+        logger.info("loaded data")
 
     def __getitem__(self, key: str) -> Any:
         return self.data[key]
@@ -43,4 +49,6 @@ class JsonWrapper:
         return self.data
 
     async def save(self, indent: int = 2):
+        logger.info("saving data...")
         await utils.write_json(self.file_path, self.data, indent)
+        logger.info("saved data!")

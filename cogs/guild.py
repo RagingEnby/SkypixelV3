@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Literal
 
@@ -7,6 +8,7 @@ from disnake.ext import commands
 import constants
 from modules import utils
 
+logger = logging.getLogger(__name__)
 # enum would be better but uv was fucking tweaking
 # and wouldn't let me install it so Literal works
 JoinLeave = Literal['join', 'leave']
@@ -44,7 +46,7 @@ class GuildCog(commands.Cog):
         if member.guild.id != constants.DEV_SERVER_ID:
             return
         verb = "joined" if action == 'join' else "left"
-        print(f"{member.name} {verb} {member.guild.name}")
+        logger.info(member.name, verb, member.guild.name)
         embed = disnake.Embed(
             color=constants.COLOR_CODES['a'] if action == 'join' else constants.COLOR_CODES['c'],
             timestamp=member.joined_at if action == 'left' else datetime.now()
