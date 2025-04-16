@@ -92,11 +92,11 @@ async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
     }
 
 
-async def send(rank: Literal['special'] | SpecialRank, embed: disnake.Embed):
+async def send(rank: Literal['special'] | SpecialRank, embed: disnake.Embed, ping: bool = True):
     if rank not in constants.RANK_TRACKER_CHANNELS:
         rank = 'special'
     tasks = [
-        utils.send_to_channel(channel_id, content, embed=embed)
+        utils.send_to_channel(channel_id, content if ping else '', embed=embed)
         for channel_id, content in constants.RANK_TRACKER_CHANNELS[rank].items()
     ]
     await asyncio.gather(*tasks)
@@ -198,7 +198,7 @@ class RankTrackerCog(commands.Cog):
             uuid, after, rank,
             f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}"
         )
-        await send(rank, embed)
+        await send(rank, embed, ping=False)
 
     @staticmethod
     async def do_watchlist():
