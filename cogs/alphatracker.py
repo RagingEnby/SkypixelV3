@@ -69,7 +69,7 @@ class AlphaTrackerCog(commands.Cog):
                 status = await get_alpha_data()
                 if status != self.data.to_dict():
                     if self.data.to_dict():
-                        logger.info(status, '!=', self.data.to_dict())
+                        logger.info(f"{status} != {self.data.to_dict()}")
                         await self.on_status_update(self.data.to_dict(), status)
                     self.data.update(status)
                     await self.data.save()
