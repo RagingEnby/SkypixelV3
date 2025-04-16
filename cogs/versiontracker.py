@@ -19,10 +19,10 @@ async def get_version() -> str:
     data = await response.json()
     version = data.get('version')
     if not version:
-        logger.error('malformed skills data:', data)
+        logger.error(f"malformed skills data: {data}")
         await asyncio.sleep(10)
         return await get_version()
-    logger.debug("got version:", version)
+    logger.debug(f"got version: {version}")
     return version
 
 
@@ -56,7 +56,7 @@ class VersionTrackerCog(commands.Cog):
             try:
                 version = await get_version()
                 if version != self.data.get('version'):
-                    logger.info("version update:", self.data.get('version'), "=>", version)
+                    logger.debug(f"version update: {self.data.get('version')} => {version}")
                     if self.data.get('version'):
                         await self.on_version_change(self.data['version'], version)
                     self.data['version'] = version

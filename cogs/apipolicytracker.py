@@ -19,7 +19,7 @@ URL: str = "https://api.ragingenby.dev/apipolicy"
 async def get_api_policy() -> dict[str, Any]:
     response = await asyncreqs.get(URL)
     data = await response.json()
-    logger.debug("got api policy:", data)
+    logger.debug(f"got api policy: {data}")
     return data
 
 
@@ -54,7 +54,7 @@ class ApiPolicyTrackerCog(commands.Cog):
     @staticmethod
     async def on_policy_update(before: dict[str, Any], after: dict[str, Any]):
         diff = get_diff(before, after)
-        logger.info("diff:", json.dumps(diff, indent=2))
+        logger.info(f"diff: {json.dumps(diff, indent=2)}")
 
     async def main(self):
         while True:

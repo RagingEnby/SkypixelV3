@@ -62,7 +62,7 @@ class FireSaleTrackerCog(commands.Cog):
                         self.data[item_id] = sale
                         await self.data.save()
             except Exception:
-                logger.error("fire sale tracker error:", traceback.format_exc())
+                logger.error(traceback.format_exc())
             finally:
                 await asyncio.sleep(120)
 

@@ -39,7 +39,7 @@ class ZoneTrackerCog(commands.Cog):
 
     @staticmethod
     async def on_new_zone(zones: set[str]):
-        logger.debug("new zones detected:", zones)
+        logger.debug(f"new zones detected: {zones}")
         embed = utils.add_footer(disnake.Embed(
             title="New SkyBlock Zone Added!",
             description="New areas/zones have been added to SkyBlock's API.\n```\n{}\n```".format('\n'.join(zones)),
