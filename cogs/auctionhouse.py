@@ -130,27 +130,26 @@ class AuctionTrackerCog(commands.Cog):
         self.task: asyncio.Task | None = None
 
     @staticmethod
-    async def on_auction(self, auction: dict[str, Any]):
+    async def on_auction(auction: dict[str, Any]):
         item = parser.decode_single(auction['item_bytes'])
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
-        timestamp = utils.normalize_timestamp(extra_attributes['timestamp']) if extra_attributes.get(
-            'timestamp') else None
-        tsks: list[Coroutine] = []
+        timestamp = utils.normalize_timestamp(extra_attributes['timestamp']) if extra_attributes.get('timestamp') else None
+        tasks: list[Coroutine] = []
 
         if extra_attributes.get('originTag') in ["ITEM_MENU", "ITEM_COMMAND"]:
-            tsks.append(AHListener.on_admin_spawned_auction(auction, item))
+            tasks.append(AHListener.on_admin_spawned_auction(auction, item))
         if extra_attributes.get('modifier') in ["forceful", "strong", "hurtful", "demonic", "rich", "odd"]:
-            tsks.append(AHListener.on_og_reforge_auction(auction, item))
+            tasks.append(AHListener.on_og_reforge_auction(auction, item))
         if 'accessories' in auction.get('categories', []) and extra_attributes.get('modifier'):
-            tsks.append(AHListener.on_semi_og_reforge_auction(auction, item))
+            tasks.append(AHListener.on_semi_og_reforge_auction(auction, item))
         if auction['auctioneer'] in ranktracker.POI_UUIDS:
-            tsks.append(AHListener.on_poi_auction(auction, item))
+            tasks.append(AHListener.on_poi_auction(auction, item))
         if timestamp and timestamp <= 1575910800000 and auction['starting_bid'] <= 100_000_000:
-            tsks.append(AHListener.on_old_item_auction(auction, item, timestamp))
+            tasks.append(AHListener.on_old_item_auction(auction, item, timestamp))
         if extra_attributes.get('id') in constants.SEYMOUR_IDS:
-            tsks.append(AHListener.on_seymour_auction(auction, item))
-        if tsks:
-            await asyncio.gather(*tsks)
+            tasks.append(AHListener.on_seymour_auction(auction, item))
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def main(self):
         last_last_updated = 0
