@@ -27,6 +27,9 @@ root_logger.setLevel(logging.DEBUG)
 root_handler = logging.FileHandler(filename='storage/skypixel.log', encoding='utf-8', mode='w')
 root_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 root_logger.addHandler(root_handler)
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger = logging.getLogger(__name__)
 
 # load disnake logger
@@ -35,6 +38,7 @@ disnake_logger.setLevel(logging.DEBUG)
 disnake_handler = logging.FileHandler(filename='storage/disnake.log', encoding='utf-8', mode='w')
 disnake_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 disnake_logger.addHandler(disnake_handler)
+disnake_logger.propagate = False
 
 
 intents = disnake.Intents.default()
