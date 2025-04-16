@@ -145,7 +145,7 @@ class AuctionTrackerCog(commands.Cog):
             tasks.append(AHListener.on_admin_spawned_auction(auction, item))
         if extra_attributes.get('modifier') in ["forceful", "strong", "hurtful", "demonic", "rich", "odd"]:
             tasks.append(AHListener.on_og_reforge_auction(auction, item))
-        if 'accessories' in auction.get('categories', []) and extra_attributes.get('modifier'):
+        if 'accessories' in auction.get('categories', []) and extra_attributes.get('modifier') not in [None, 'none']:
             tasks.append(AHListener.on_semi_og_reforge_auction(auction, item))
         if auction['auctioneer'] in ranktracker.POI_UUIDS:
             tasks.append(AHListener.on_poi_auction(auction, item))
