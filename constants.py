@@ -6,11 +6,6 @@ from scrts import (
     HYPIXEL_API_KEY
 )
 
-# Load Secrets (only here so IDE's don't get confused)
-BOT_TOKEN: str = BOT_TOKEN
-MONGODB_URI: str = MONGODB_URI
-HYPIXEL_API_KEY: str = HYPIXEL_API_KEY
-
 # Credit Footer
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
 CREDIT_FOOTERS: set[str] = {
@@ -27,14 +22,13 @@ ERROR_LOG_CHANNEL: int = 1131089040733634560
 INVITE_LOG_CHANNEL: int = 1150164916578299945
 COMMAND_LOG_CHANNEL: int = 1111050267975221326
 DM_LOG_CHANNEL: int = 1173328319320698941
-
 ## AH Trackers
 ADMIN_SPAWNED_ITEMS_CHANNEL: int = 1359366355819823334
 OG_REFORGES_CHANNEL: int = 1359367040091295854
 SEMI_OG_REFORGES_CHANNEL: int = 1359367058009358536
 POI_AUCTIONS_CHANNEL: int = 1359374618946699504
 OLD_ITEM_AUCTIONS_CHANNEL: int = 1359377036111511732
-
+SEYMOUR_AUCTIONS_CHANNEL: int = 1360000687668334792
 ## Misc Trackers
 VERSION_TRACKER_CHANNELS: dict[int, str] = {
     1256322077825437756: "<@&1139315700339593256>", # RagingEnby's Dev Server
@@ -80,7 +74,6 @@ MC_HEAD_IMAGE: str = "https://cravatar.eu/helmavatar/{}/600.png"
 MC_TEXT_IMAGE: str = "https://api.ragingenby.dev/render.png?text={}"
 AUCTION_URL: str = "https://sky.coflnet.com/auction/{}"
 STATS_URL: str = "https://sky.shiiyu.moe/stats/{}"
-
 ## Color-related stuff
 COLOR_CODES: dict[str, int] = { # all minecraft color codes and their hex code
     "0": 0x000000, "1": 0x0000AA, "2": 0x00AA00,
@@ -116,7 +109,18 @@ RANK_COLORS: dict[str, int] = {
     "mojang": COLOR_CODES['6'],
     "mcp": COLOR_CODES['c']
 }
+## Misc
+SEYMOUR_IDS: dict[str, 'ArmorType'] = { # type: ignore
+    "VELVET_TOP_HAT": "helmet",
+    "CASHMERE_JACKET": "chestplate",
+    "SATIN_TROUSERS": "leggings",
+    "OXFORD_SHOES": "boots"
+}
 
 
 # This is overwritten by main.py
 BOT: InteractionBot
+# Load Secrets (only here so IDE's don't get confused)
+BOT_TOKEN: str = BOT_TOKEN
+MONGODB_URI: str = MONGODB_URI
+HYPIXEL_API_KEY: str = HYPIXEL_API_KEY
