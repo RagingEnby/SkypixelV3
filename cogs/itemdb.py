@@ -20,7 +20,7 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     Although I am in the process of fixing all of them, this function will sanitize
     the item to ENSURE that it is not one of those.
     """
-    logger.debug("fixing item:", item)
+    logger.debug(f"fixing item: {item}")
     # these all come from one update query where i intended to convert unix -> timestamp obj's
     if isinstance(item['previousOwners'], dict):
         item['previousOwners'] = []
@@ -214,7 +214,7 @@ class ItemSearchCog(commands.Cog):
                 "Invalid Query",
                 "You must provide search arguments!"
             ))
-        logger.info('searching item db for:', json.dumps(query, indent=2))
+        logger.info(f'searching item db for: {json.dumps(query, indent=2)}')
         results = await self.item_db.search(query, limit=limit)
         if not results:
             return await inter.send(embed=utils.make_error(

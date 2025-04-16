@@ -12,7 +12,6 @@ CLOSED: bool = False
 
 async def get(*args, **kwargs) -> aiohttp.ClientResponse:
     global SESSION
-    logger.debug("GET", args, kwargs)
     if CLOSED:
         logger.error("asyncreqs.get() called after shutdown")
         raise RuntimeError('asyncreqs.get() called after shutdown')
@@ -23,14 +22,14 @@ async def get(*args, **kwargs) -> aiohttp.ClientResponse:
 
     try:
         async with SESSION.get(*args, **kwargs) as response:
-            logger.debug("GET", response.url, response.status)
+            logger.debug(f"GET {response.url} {response.status}")
             try:
                 await response.json()
             except:  # type: ignore
                 await response.read()
             return response
     except aiohttp.ClientHttpProxyError as e:
-        logger.error("Proxy error:", e, "retrying in 2s...")
+        logger.error(f"Proxy error: {e} retrying in 2s...")
         await asyncio.sleep(2)
         return await get(*args, **kwargs)
 

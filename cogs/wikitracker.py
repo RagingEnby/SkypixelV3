@@ -34,11 +34,11 @@ logger = logging.getLogger(__name__)
 async def get_editor(name: str) -> dict[str, Any]:
     global EDITOR_CACHE
     if name in EDITOR_CACHE:
-        logger.debug("using cached data for wiki editor", name)
+        logger.debug(f"using cached data for wiki editor: {name}")
         return EDITOR_CACHE[name]
     response = await asyncreqs.get(EDITOR_URL.format(name))
     EDITOR_CACHE[name] = await response.json()
-    logger.debug("cached data for wiki editor", name, EDITOR_CACHE[name])
+    logger.debug(f"cached data for wiki editor {name} {EDITOR_CACHE[name]}")
     return EDITOR_CACHE[name]
 
 
@@ -67,7 +67,7 @@ class WikiTrackerCog(commands.Cog):
 
     @staticmethod
     async def on_wiki_edit(edit: dict[str, Any]):
-        logger.debug("wiki edit:", edit)
+        logger.debug(f"wiki edit: {edit}")
         editor = await get_editor(edit['user'])
         verb = "Created" if edit['type'] == 'new' else "Edited"
         embed = utils.add_footer(disnake.Embed(
@@ -89,12 +89,12 @@ class WikiTrackerCog(commands.Cog):
                 edits = await get_edits()
                 for edit in edits:
                     if edit['revid'] in self.data['edits']:
-                        logger.debug("skipping already-processed edit:", edit['revid'])
+                        logger.debug(f"skipping already-processed edit: {edit['revid']}")
                         continue
                     if self.data.get('edits'):
                         await self.on_wiki_edit(edit)
                     self.data['edits'].append(edit['revid'])
-                    logger.debug("finished processing edit:", edit['revid'])
+                    logger.debug(f"finished processing edit: {edit['revid']}")
                 await self.data.save()
             except Exception:
                 logger.error(traceback.format_exc())

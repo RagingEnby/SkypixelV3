@@ -37,7 +37,7 @@ async def get_rankname(identifier: str) -> str:
 async def get_rank_counts() -> dict[str, int]:
     response = await asyncreqs.get(COUNTS_URL)
     data: dict[str, int] = await response.json()
-    logger.debug("rank counts:", data)
+    logger.debug(f"rank counts: {data}")
     # sort highest -> lowest count
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
@@ -204,7 +204,7 @@ class RankTrackerCog(commands.Cog):
     async def do_watchlist():
         for uuid, last_rankname in WATCH_LIST.items():
             rankname = await get_rankname(uuid)
-            print('rank watchlist:', rankname, last_rankname)
+            logger.info(f'rank watchlist: {last_rankname} -> {rankname}')
             if last_rankname is None:
                 WATCH_LIST[uuid] = rankname
                 await WATCH_LIST.save()

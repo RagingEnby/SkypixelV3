@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 class JsonWrapper:
     def __init__(self, file_path: str):
-        logger.info("initializing json wrapper for", file_path)
+        logger.info(f"initializing json wrapper for {file_path}")
         self.file_path = file_path
         
         dir = os.path.dirname(file_path)
         if not os.path.exists(dir):
-            logger.info("creating directory", dir)
+            logger.info(f"creating directory {dir}")
             os.makedirs(dir)
             
         self.data: dict[str, Any] = {}

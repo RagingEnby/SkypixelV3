@@ -46,7 +46,7 @@ class GuildCog(commands.Cog):
         if member.guild.id != constants.DEV_SERVER_ID:
             return
         verb = "joined" if action == 'join' else "left"
-        logger.info(member.name, verb, member.guild.name)
+        logger.info(f"{member.name} {verb} {member.guild.name}")
         embed = disnake.Embed(
             color=constants.COLOR_CODES['a'] if action == 'join' else constants.COLOR_CODES['c'],
             timestamp=member.joined_at if action == 'left' else datetime.now()

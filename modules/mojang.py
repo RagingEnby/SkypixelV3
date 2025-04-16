@@ -66,12 +66,11 @@ class MojangPlayer:
 async def get(identifier: str) -> MojangPlayer:
     logger.debug(f"getting player {identifier}...")
     response = await asyncreqs.get("https://api.ragingenby.dev/player/" + identifier)
-    logger.debug("got response:", response.status)
     if response.status == 404:
         logger.error("invalid identifier:", identifier)
         raise PlayerNotFound(identifier)
     data: RawMojangPlayerDict | dict[str, Any] = await response.json()
-    logger.debug("got data:", data)
+    logger.debug(f"got data: {data}")
     try:
         return MojangPlayer.from_dict(data)  # type: ignore
     except ValueError as e:
@@ -84,11 +83,10 @@ async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
         url="https://api.ragingenby.dev/players",
         json={"identifiers": [i.replace('-', '') for i in identifiers]}
     )
-    logger.debug("got response:", response.status)
     data = await response.json()
-    logger.debug("got data:", data)
+    logger.debug(f"got data: {data}")
     players = [MojangPlayer.from_dict(player) for player in data['players']]
-    logger.debug("got players:", players)
+    logger.debug(f"got players: {players}")
     return {
         (player.id if player.id in identifiers else player.name.lower()): player
         for player in players

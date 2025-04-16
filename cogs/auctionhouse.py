@@ -23,7 +23,7 @@ async def get_active_auctions() -> dict[str, Any]:
         response.raise_for_status()
         return await response.json()
     except Exception as e:
-        logger.error('error getting /skyblock/auctions:', e)
+        logger.error(f'error getting /skyblock/auctions: {e}')
         await asyncio.sleep(5)
         return await get_active_auctions()
     
@@ -146,7 +146,7 @@ class AuctionTrackerCog(commands.Cog):
                         a for a in page_0['auctions']
                         if a.get('start', 0) >= last_last_updated and a.get('item_uuid')
                     ]
-                    logger.debug(f'got {len(new_auctions)} new UUID\'ed item auctions')
+                    logger.debug(f"got {len(new_auctions)} new UUID'ed item auctions")
                     await asyncio.gather(*[self.on_auction(a) for a in new_auctions])
                     logger.debug('processed auctions')
                     last_last_updated = page_0['lastUpdated']
@@ -156,7 +156,7 @@ class AuctionTrackerCog(commands.Cog):
                     time_until_update = 1
                 await asyncio.sleep(time_until_update)
             except Exception:
-                logger.error("AH tracker error:", traceback.format_exc())
+                logger.error(traceback.format_exc())
                 await asyncio.sleep(15)
 
     async def close(self):

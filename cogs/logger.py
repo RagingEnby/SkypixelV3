@@ -55,7 +55,7 @@ class LoggerCog(commands.Cog):
     @commands.Cog.listener()
     async def on_slash_command(self, inter: disnake.AppCmdInter):
         full_command = prettify_command(inter)
-        logger.info(inter.author.name, 'used', full_command)
+        logger.info(f"{inter.author.name} used {full_command}")
         embed = make_command_log_embed(inter)
         await utils.send_to_channel(constants.COMMAND_LOG_CHANNEL, embed=embed)
 
@@ -87,7 +87,7 @@ class LoggerCog(commands.Cog):
     async def on_message(self, message: disnake.Message):
         if message.author.bot or message.guild or not message.content:
             return
-        logger.info("dm received:", message.author.name, message.content)
+        logger.info(f"dm received: <{message.author.name}> {message.content}")
         embed = disnake.Embed(
             description=message.content,
             timestamp=message.created_at,
