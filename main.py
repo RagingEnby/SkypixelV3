@@ -8,6 +8,7 @@ from disnake.ext import commands
 
 import constants
 from cogs import AlphaTrackerCog
+from cogs import ApiPolicyTrackerCog
 from cogs import AuctionTrackerCog
 from cogs import FireSaleTrackerCog
 from cogs import GuildCog
@@ -20,19 +21,20 @@ from cogs import WikiTrackerCog
 from cogs import ZoneTrackerCog
 from modules import asyncreqs
 
+# load Skypixel logger
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.DEBUG)
+root_handler = logging.FileHandler(filename='storage/skypixel.log', encoding='utf-8', mode='w')
+root_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+root_logger.addHandler(root_handler)
+logger = logging.getLogger(__name__)
+
 # load disnake logger
 disnake_logger = logging.getLogger('disnake')
 disnake_logger.setLevel(logging.DEBUG)
 disnake_handler = logging.FileHandler(filename='storage/disnake.log', encoding='utf-8', mode='w')
 disnake_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 disnake_logger.addHandler(disnake_handler)
-
-# load Skypixel logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='storage/skypixel.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-logger.addHandler(handler)
 
 
 intents = disnake.Intents.default()
