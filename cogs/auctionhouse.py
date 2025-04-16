@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import time
 import traceback
@@ -35,7 +36,7 @@ async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> d
     embed = disnake.Embed(
         url=constants.AUCTION_URL.format(auction['uuid']),
         title=auction['item_name'],
-        color=constants.RARITY_COLORS.get(auction.get('tier', 'COMMON'))
+        color=display.get('color') or constants.RARITY_COLORS.get(auction.get('tier', 'COMMON'))
     )
     embed.set_thumbnail(utils.get_item_image(
         item_id=tag.get('ExtraAttributes', {}).get('id', 'DIRT'),
@@ -119,8 +120,12 @@ class AHListener:
     async def on_seymour_auction(auction: dict[str, Any], item: dict[str, Any]):
         embed = await make_auction_embed(auction, item)
         armor_type = constants.SEYMOUR_IDS[item['tag']['ExtraAttributes']['id']]
-        top_5 = colors.find_closest_pieces(armor_type, item['display']['color'])
-        embed.description = '```\n' + '\n'.join([f"{k}: {v}" for k, v in top_5]) + '```'
+        color = item.get('tag', {}).get('display', {}).get('color')
+        if not color:
+            logger.error(f"no color found in seymour item: {json.dumps(item, indent=2)}")
+            return
+        top_5 = colors.get_top_5(armor_type, color)
+        embed.description = '```\n' + '\n'.join([f"{k}: {round(v, 2)}" for k, v in top_5.items()]) + '```'
         await utils.send_to_channel(constants.SEYMOUR_AUCTIONS_CHANNEL, embed=embed)
 
 
