@@ -1,7 +1,5 @@
-import asyncio
 import json
 import logging
-import signal
 from typing import Any, Optional
 
 import disnake
@@ -354,8 +352,5 @@ class ItemSearchCog(commands.Cog):
             color=constants.DEFAULT_EMBED_COLOR
         ), ephemeral=True)
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        def signal_handler(*_):
-            asyncio.create_task(self.item_db.close())
-        signal.signal(signal.SIGINT, signal_handler)
+    async def close(self):
+        await self.item_db.close()

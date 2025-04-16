@@ -29,7 +29,7 @@ root_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s:
 root_logger.addHandler(root_handler)
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+console_handler.setFormatter(logging.Formatter('[%(levelname)s:%(name)s]  %(message)s'))
 root_logger.addHandler(console_handler)
 logger = logging.getLogger(__name__)
 
@@ -64,27 +64,34 @@ constants.BOT = bot
 logger.debug("Loaded all cogs + set constants.BOT")
 
 
-async def on_close(sig: int):
-    logger.info(f"Logging out ({signal.Signals(sig).name})...")
+async def on_close():
+    logger.info(f"Logging out...")
+
     asyncreqs.CLOSED = True
-    if asyncreqs.SESSION and not asyncreqs.SESSION.closed:
-        logger.debug("valid session in asyncreqs, closing it...")
+    # use a try except loop instead of `if asyncreqs.SESSION and not
+    # asyncreqs.SESSION.closed` because sometimes .closed on aiohttp.ClientSession bugs out
+    try:
         await asyncreqs.SESSION.close()
-    logger.info("Closed aiohttp session")
+        logger.info("Closed aiohttp session")
+    except Exception as e:
+        logger.warning(f"unable to close asyncreqs session {e} (this is 99% prob ok)")
+
     await asyncio.gather(*[
         cog.close() for cog in bot.cogs.values()  # type: ignore
         if hasattr(cog, 'close') and callable(cog.close)
     ])
     logger.info("Closed all cogs")
+
     await bot.close()
     logger.info("Closed bot")
+
     sys.exit(0)
 
 
 @bot.event
 async def on_ready():
-    def signal_handler(sig: int, _):
-        asyncio.create_task(on_close(sig))
+    def signal_handler(*_):
+        asyncio.create_task(on_close())
     signal.signal(signal.SIGINT, signal_handler)
     logger.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
