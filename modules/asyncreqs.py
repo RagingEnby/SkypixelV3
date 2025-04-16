@@ -22,7 +22,7 @@ async def get(*args, **kwargs) -> aiohttp.ClientResponse:
 
     try:
         async with SESSION.get(*args, **kwargs) as response:
-            logger.debug(f"GET {response.url} {response.status}")
+            logger.info(f"GET {response.url} {response.status}")
             try:
                 await response.json()
             except:  # type: ignore
@@ -45,7 +45,7 @@ async def post(*args, **kwargs) -> aiohttp.ClientResponse:
         logger.warning('<!> asyncreqs.post() had to create a session')
 
     async with SESSION.post(*args, **kwargs) as response:
-        logger.debug("POST", response.url, response.status)
+        logger.info("POST", response.url, response.status)
         try:
             await response.json()
             logger.debug("successfully got json")
