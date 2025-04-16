@@ -19,7 +19,7 @@ def flatten_status(status: RawJavaResponse) -> dict[str, Any]:
         "MC Version": status['version']['name'],
         "Version Protocol": status['version']['protocol'],
         "Max Players": status['players']['max'],
-        "Online Players": status['players']['online'],
+        #"Online Players": status['players']['online'],
         "MOTD": status['description'],
     }
 
