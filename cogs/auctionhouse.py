@@ -10,6 +10,7 @@ from disnake.ext import commands
 import constants
 from cogs import ranktracker
 from modules import asyncreqs, mojang
+from modules import colors
 from modules import parser
 from modules import utils
 
@@ -61,10 +62,8 @@ async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> d
     return embed
 
 
-class AuctionTrackerCog(commands.Cog):
-    def __init__(self, bot: commands.InteractionBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
+class AHListener:
+
 
     @staticmethod
     async def on_admin_spawned_auction(auction: dict[str, Any], item: dict[str, Any]):
@@ -115,24 +114,41 @@ class AuctionTrackerCog(commands.Cog):
             inline=True
         )
         await utils.send_to_channel(constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed)
-        
+
+    @staticmethod
+    async def on_seymour_auction(auction: dict[str, Any], item: dict[str, Any]):
+        embed = await make_auction_embed(auction, item)
+        armor_type = constants.SEYMOUR_IDS[item['tag']['ExtraAttributes']['id']]
+        top_5 = colors.find_closest_pieces(armor_type, item['display']['color'])
+        embed.description = '```\n' + '\n'.join([f"{k}: {v}" for k, v in top_5]) + '```'
+        await utils.send_to_channel(constants.SEYMOUR_AUCTIONS_CHANNEL, embed=embed)
+
+
+class AuctionTrackerCog(commands.Cog):
+    def __init__(self, bot: commands.InteractionBot):
+        self.bot = bot
+        self.task: asyncio.Task | None = None
+
+    @staticmethod
     async def on_auction(self, auction: dict[str, Any]):
         item = parser.decode_single(auction['item_bytes'])
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
-        timestamp = utils.normalize_timestamp(extra_attributes['timestamp']) if extra_attributes.get('timestamp') else None
+        timestamp = utils.normalize_timestamp(extra_attributes['timestamp']) if extra_attributes.get(
+            'timestamp') else None
         tsks: list[Coroutine] = []
-        
+
         if extra_attributes.get('originTag') in ["ITEM_MENU", "ITEM_COMMAND"]:
-            tsks.append(self.on_admin_spawned_auction(auction, item))
+            tsks.append(AHListener.on_admin_spawned_auction(auction, item))
         if extra_attributes.get('modifier') in ["forceful", "strong", "hurtful", "demonic", "rich", "odd"]:
-            tsks.append(self.on_og_reforge_auction(auction, item))
+            tsks.append(AHListener.on_og_reforge_auction(auction, item))
         if 'accessories' in auction.get('categories', []) and extra_attributes.get('modifier'):
-            tsks.append(self.on_semi_og_reforge_auction(auction, item))
+            tsks.append(AHListener.on_semi_og_reforge_auction(auction, item))
         if auction['auctioneer'] in ranktracker.POI_UUIDS:
-            tsks.append(self.on_poi_auction(auction, item))
+            tsks.append(AHListener.on_poi_auction(auction, item))
         if timestamp and timestamp <= 1575910800000 and auction['starting_bid'] <= 100_000_000:
-            tsks.append(self.on_old_item_auction(auction, item, timestamp))
-        
+            tsks.append(AHListener.on_old_item_auction(auction, item, timestamp))
+        if extra_attributes.get('id') in constants.SEYMOUR_IDS:
+            tsks.append(AHListener.on_seymour_auction(auction, item))
         if tsks:
             await asyncio.gather(*tsks)
 

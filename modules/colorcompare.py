@@ -1,5 +1,4 @@
-# this code is MOSTLY stolen i but cannot for the
-# life of me find the og source :(((
+# this code is MOSTLY stolen from artificialair/seymoursniper
 
 import math
 from functools import lru_cache
@@ -17,7 +16,7 @@ def hex_to_lab(hex_code: str) -> tuple[float, float, float]:
 
     if len(hex_code) != 6:
         raise ValueError(hex_code)
-    rgb: tuple[int, int, int] = tuple(int(hex_code[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore [assignment]
+    rgb: tuple[int, int, int] = tuple(int(hex_code[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore[assignment]
     xyz = rgb_to_xyz(rgb)
     lab = xyz_to_cielab(xyz)
     return lab

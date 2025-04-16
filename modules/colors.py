@@ -71,11 +71,11 @@ for piece, hexes in OG_FAIRY.items():
         ARMOR_COLORS[piece][f"OG Fairy #{hex}"] = colorcompare.hex_to_lab(hex)
 
 for item in ITEMS:
-    armor_type = item['material'].replace('LEATHER_', '').lower() if item['material'].startswith('LEATHER_') else None
-    if armor_type and item.get('color'):
+    armor_type_ = item['material'].replace('LEATHER_', '').lower() if item['material'].startswith('LEATHER_') else None
+    if armor_type_ and item.get('color'):
         r, g, b = item['color'].split(',')
         rgb = (int(r), int(g), int(b))
-        ARMOR_COLORS[armor_type][item['name']] = colorcompare.rgb_to_lab(rgb)
+        ARMOR_COLORS[armor_type_][item['name']] = colorcompare.rgb_to_lab(rgb)
     dye_match = DYE_PATTERN.fullmatch(item['description']) if item.get('description') else None
     if item['id'].startswith('DYE_') and dye_match:
         ARMOR_COLORS['other'][item['name']] = colorcompare.hex_to_lab(dye_match.group(1))
