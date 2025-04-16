@@ -44,6 +44,7 @@ bot = commands.InteractionBot(
     owner_id=constants.OWNER_ID,
 )
 bot.add_cog(AlphaTrackerCog(bot))
+bot.add_cog(ApiPolicyTrackerCog(bot))
 bot.add_cog(AuctionTrackerCog(bot))
 bot.add_cog(FireSaleTrackerCog(bot))
 bot.add_cog(GuildCog(bot))
