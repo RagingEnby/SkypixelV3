@@ -1,4 +1,5 @@
 from .alphatracker import AlphaTrackerCog
+from .apipolicytracker import ApiPolicyTrackerCog
 from .auctionhouse import AuctionTrackerCog
 from .firesaletracker import FireSaleTrackerCog
 from .guild import GuildCog
