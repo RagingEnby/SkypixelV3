@@ -16,6 +16,7 @@ from cogs import ItemDBCog
 from cogs import LoggerCog
 from cogs import MotdTrackerCog
 from cogs import RankTrackerCog
+from cogs import StatusUpdaterCog
 from cogs import VersionTrackerCog
 from cogs import WikiTrackerCog
 from cogs import ZoneTrackerCog
@@ -58,6 +59,7 @@ bot.add_cog(ItemDBCog(bot))
 bot.add_cog(LoggerCog(bot))
 bot.add_cog(MotdTrackerCog(bot))
 bot.add_cog(RankTrackerCog(bot))
+bot.add_cog(StatusUpdaterCog(bot))
 bot.add_cog(VersionTrackerCog(bot))
 bot.add_cog(WikiTrackerCog(bot))
 bot.add_cog(ZoneTrackerCog(bot))

@@ -6,6 +6,7 @@ from .itemdb import ItemDBCog
 from .logger import LoggerCog
 from .motdtracker import MotdTrackerCog
 from .ranktracker import RankTrackerCog
+from .status import StatusUpdaterCog
 from .versiontracker import VersionTrackerCog
 from .wikitracker import WikiTrackerCog
 from .zonetracker import ZoneTrackerCog
