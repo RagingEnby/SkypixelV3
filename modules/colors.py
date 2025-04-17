@@ -166,6 +166,7 @@ def is_variant(item_id: str, hex_code: str) -> bool:
 
 
 def get_exotic_type(item_id: str, hex_code: str, extra_attributes: dict | None = None) -> ExoticType | None:
+    hex_code = hex_code.upper()
     if (extra_attributes and extra_attributes.get('dye_item')) or is_variant(item_id, hex_code):
         return None
     if is_glitched(item_id, hex_code):
