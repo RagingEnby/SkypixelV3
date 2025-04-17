@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Any, Optional
+import re
+from typing import Any, Optional, Literal
 
 import disnake
 from disnake.ext import commands
@@ -11,6 +12,11 @@ from modules import mojang
 from modules import utils
 
 logger = logging.getLogger(__name__)
+PrefixRank = Literal['NON', '[VIP]', '[VIP+]', '[MVP]', '[MVP+]',
+                   '[MVP++]', '[YOUTUBE]', '[PIG+++]', '[INNIT]',
+                   '[MINISTER]', '[MAYOR]', '[MOJANG]', '[EVENTS]',
+                   '[HELPER]', '[MOD]', '[GM]', '[ADMIN]', '[OWNER]']
+
 
 def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     """
@@ -187,8 +193,29 @@ def make_item_view(item: dict[str, Any]) -> disnake.ui.View:
     return view
 
 
-def make_in_regex(playername: str) -> dict[str, str]:
-    return {"$regex": playername, "$options": "i"}
+def make_playername_regex(playername: str) -> dict[str, str]:
+    color_code_pattern = "(§[0-9a-fk-or])*"
+    escaped_name = re.escape(playername)
+    return {"$regex": f"{escaped_name}{color_code_pattern}$", "$options": "i"}
+
+
+def make_rank_regex(rank: PrefixRank) -> dict:
+    if rank == "NON": # for non ranks, just find names without spaces
+        return {"$not": {"$regex": " "}}
+    color_code_pattern = "(§[0-9a-fk-or])*"
+    escaped_rank_chars = [re.escape(char) for char in rank]
+    interspersed_rank = color_code_pattern.join(escaped_rank_chars)
+    return {"$regex": f"^{color_code_pattern}{interspersed_rank}"}
+
+
+def make_player_regex(rank: PrefixRank | None = None, playername: str | None = None) -> dict[str, Any]:
+    if not rank and not playername:
+        raise ValueError("No arguments provided")
+    if rank and not playername:
+        return make_rank_regex(rank)  # type: ignore[arg-type]
+    if playername:
+        return make_playername_regex(playername)
+    return {"$and": [make_rank_regex(rank), make_playername_regex(playername)]}  # type: ignore[arg-type]
 
 
 class ItemSearchCog(commands.Cog):
@@ -196,6 +223,27 @@ class ItemSearchCog(commands.Cog):
         self.item_db = mongodb.Collection("SkyBlock", "itemdb")
         self.bot = bot
         self.item_cache: dict[str, dict[str, Any]] = {}
+
+    async def search_souls(self, query: dict) -> dict[str, int]:
+        query = {k: v for k, v in query.items() if v is not None}
+        query['itemId'] = "CAKE_SOUL"
+        if not query.get('extraAttributes.captured_player'):
+            query['extraAttributes.captured_player'] = {"$exists": True}
+        logger.info(f"searching souls for: {query}")
+        # i am FULLY aware this is unreadable and completely illegal
+        # however, i made it in mongo compass and i cba to make it
+        # readable here
+        pipeline = [
+            {"$match": query},
+            {"$addFields": {"cleaned_player_name": {"$let": {"vars": {"parts": {"$split": ["$extraAttributes.captured_player", "§"]}},"in": {"$reduce": {"input": {"$slice": ["$$parts", 1, {"$size": "$$parts"}]},"initialValue": {"$arrayElemAt": ["$$parts", 0]},"in": {"$concat": ["$$value",{"$substrCP": ["$$this",1,{"$subtract": [{"$strLenCP": "$$this"},1,]},]},]},}},}}}},
+            {"$addFields": {"captured_rank": {"$let": {"vars": {"words": {"$split": ["$cleaned_player_name", " "]}},"in": {"$cond": {"if": {"$gte": [{"$size": "$$words"}, 2]},"then": {"$arrayElemAt": ["$$words", 0]},"else": "NON",}},}}}},
+            {"$group": {"_id": "$captured_rank", "count": {"$sum": 1}}},
+            {"$group": {"_id": None,"ranks": {"$push": {"k": "$_id", "v": "$count"}}}},
+            {"$replaceRoot": {"newRoot": {"$arrayToObject": "$ranks"}}},
+        ]
+        cursor = self.item_db.collection.aggregate(pipeline)
+        results = await cursor.to_list(length=1)
+        return results[0] if results else {}
 
     async def get_item_from_uuid(self, uuid: str) -> Optional[dict[str, Any]]:
         if self.item_cache.get(uuid):
@@ -250,17 +298,50 @@ class ItemSearchCog(commands.Cog):
         return await self.do_search_command(inter, parsed_query)
 
     @itemdb.sub_command(
+        name="soul-search",
+        description="Searches the item database to see how many souls have been captured of a user"
+    )
+    async def soul_search_cmd(self, inter: disnake.AppCmdInter,
+                              captured_rank: PrefixRank | None = None, captured_player: str | None = None,
+                              captured_by_rank: PrefixRank | None = None, captured_by_name: str | None = None,
+                              cake_owner_rank: PrefixRank | None = None, cake_owner_name: str | None = None):
+        results = await self.search_souls({
+            "extraAttributes.captured_player": make_player_regex(captured_rank, captured_player) if captured_player or captured_rank else None,
+            "extraAttributes.initiator_player": make_player_regex(captured_by_rank, captured_by_name) if captured_by_name or captured_by_rank else None,
+            "extraAttributes.cake_owner": make_player_regex(cake_owner_rank, cake_owner_name) if cake_owner_name or cake_owner_rank else None
+        })
+        logger.info(json.dumps(results, indent=2))
+        if not results:
+            return await inter.send(embed=utils.make_error(
+                "No Results Found",
+                "No Cake Souls were found with this description."
+            ))
+        embed = utils.add_footer(disnake.Embed(
+            title="Soul Search Output",
+            color=constants.COLOR_CODES['c']
+        ))
+        embed.set_thumbnail(utils.get_item_image("CAKE_SOUL"))
+        for rank, count in results.items():
+            embed.add_field(
+                name=rank,
+                value=count,
+                inline=True
+            )
+        return await inter.send(embed=embed)
+
+    @itemdb.sub_command(
         name="clay-search",
         description="Search the itemdb for a Builder's Clay"
     )
     async def clay_search_cmd(self, inter: disnake.AppCmdInter,
-                              edition: int | None = None, sender_name: str | None = None,
+                              edition: int | None = None, sender_rank: PrefixRank | None = None,
+                              sender_name: str | None = None, recipient_rank: PrefixRank | None = None,
                               recipient_name: str | None = None):
         return await self.do_search_command(inter, {
            "itemId": "DUECES_BUILDER_CLAY",
            "extraAttributes.edition": edition,
-           "extraAttributes.sender": make_in_regex(sender_name) if sender_name else None,
-           "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None,
+           "extraAttributes.sender": make_player_regex(sender_rank, sender_name) if sender_name or sender_rank else None,
+           "extraAttributes.recipient_name": make_player_regex(recipient_rank, recipient_name) if recipient_name or recipient_rank else None,
        })
 
     @itemdb.sub_command(
@@ -268,11 +349,13 @@ class ItemSearchCog(commands.Cog):
         description="Search the itemdb for a Basket of Hope"
     )
     async def basket_search_cmd(self, inter: disnake.AppCmdInter,
-                                edition: int | None = None, basket_player_name: str | None = None):
+                                edition: int | None = None, basket_player_rank: PrefixRank | None = None,
+                                basket_player_name: str | None = None):
         return await self.do_search_command(inter, {
             "itemId": "POTATO_BASKET",
             "extraAttributes.basket_edition": edition,
-            "extraAttributes.basket_player_name": make_in_regex(basket_player_name) if basket_player_name else None
+            "extraAttributes.basket_player_name": make_player_regex(basket_player_rank, basket_player_name)\
+                                                  if basket_player_name or basket_player_rank else None
         })
 
     @itemdb.sub_command(
@@ -280,13 +363,14 @@ class ItemSearchCog(commands.Cog):
         description="Search the itemdb for an Ancient Elevator"
     )
     async def elevator_search_cmd(self, inter: disnake.AppCmdInter,
-                                  edition: int | None = None, sender_name: str | None = None,
+                                  edition: int | None = None, sender_rank: PrefixRank | None = None,
+                                  sender_name: str | None = None, recipient_rank: PrefixRank | None = None,
                                   recipient_name: str | None = None):
         return await self.do_search_command(inter, {
            "itemId": "ANCIENT_ELEVATOR",
            "extraAttributes.edition": edition,
-           "extraAttributes.sender": make_in_regex(sender_name) if sender_name else None,
-           "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None,
+           "extraAttributes.sender": make_player_regex(sender_rank, sender_name) if sender_name or sender_rank else None,
+           "extraAttributes.recipient_name": make_player_regex(recipient_rank, recipient_name) if recipient_name or recipient_rank else None,
        })
 
     @itemdb.sub_command(
@@ -295,12 +379,12 @@ class ItemSearchCog(commands.Cog):
     )
     async def memento_search_cmd(self, inter: disnake.AppCmdInter,
                                  memento: hypixel.Memento | None = None,
-                                 edition: int | None = None, recipient_name: str | None = None,
-                                 recipient_id: str | None = None):
+                                 edition: int | None = None, recipient_rank: PrefixRank | None = None,
+                                 recipient_name: str | None = None, recipient_id: str | None = None):
         return await self.do_search_command(inter, {
             "itemId": memento if memento else {"$in": hypixel.MEMENTOS},
             "extraAttributes.edition": edition,
-            "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None,
+            "extraAttributes.recipient_name": make_player_regex(recipient_rank, recipient_name) if recipient_name or recipient_rank else None,
             "extraAttributes.recipient_id": recipient_id
         })
 
@@ -310,13 +394,14 @@ class ItemSearchCog(commands.Cog):
     )
     async def racinghelm_search_cmd(self, inter: disnake.AppCmdInter,
                                     auction: int | None = None, bid: int | None = None,
-                                    price: int | None = None, buyer: str | None = None):
+                                    price: int | None = None, buyer_rank: PrefixRank | None = None,
+                                    buyer_name: str | None = None):
         return await self.do_search_command(inter, {
             "itemId": "RACING_HELMET",
             "extraAttributes.auction": auction,
             "extraAttributes.bid": bid,
             "extraAttributes.price": price,
-            "extraAttributes.player": make_in_regex(buyer) if buyer else None
+            "extraAttributes.player": make_player_regex(buyer_rank, buyer_name) if buyer_name or buyer_rank else None
         })
 
     @itemdb.sub_command(
@@ -324,13 +409,14 @@ class ItemSearchCog(commands.Cog):
         description="Search the itemdb for a (Dctr) Space Helmet"
     )
     async def spacehelm_search_cmd(self, inter: disnake.AppCmdInter,
-                                   edition: int | None = None, sender_name: str | None = None,
+                                   edition: int | None = None, sender_rank: PrefixRank | None = None,
+                                   sender_name: str | None = None, recipient_rank: PrefixRank | None = None,
                                    recipient_name: str | None = None):
         return await self.do_search_command(inter, {
             "itemId": "DCTR_SPACE_HELM",
             "extraAttributes.edition": edition,
-            "extraAttributes.sender_name": make_in_regex(sender_name) if sender_name else None,
-            "extraAttributes.recipient_name": make_in_regex(recipient_name) if recipient_name else None
+            "extraAttributes.sender_name": make_player_regex(sender_rank, sender_name) if sender_name or sender_rank else None,
+            "extraAttributes.recipient_name": make_player_regex(recipient_rank, recipient_name) if recipient_name or recipient_rank else None
         })
 
     @commands.Cog.listener()
