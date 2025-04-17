@@ -157,6 +157,8 @@ class AuctionTrackerCog(commands.Cog):
         hex_code = f"{color:06X}"[:6] if color else None
         exotic_type = colors.get_exotic_type(extra_attributes['id'], hex_code, extra_attributes)\
                       if extra_attributes.get('id') and hex_code else None
+        if extra_attributes.get('id') and hex_code:
+            logger.debug(f"{auction['uuid']} get_exotic_type({extra_attributes['id']}, {hex_code}) -> {exotic_type}")
         tasks: list[Coroutine] = []
 
         if extra_attributes.get('originTag') in constants.ADMIN_ORIGIN_TAGS:

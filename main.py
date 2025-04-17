@@ -24,11 +24,12 @@ from modules import asyncreqs
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.DEBUG)
 root_handler = logging.FileHandler(filename='storage/skypixel.log', encoding='utf-8', mode='w')
-root_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+root_handler.setFormatter(logging.Formatter('[%(asctime)s:%(levelname)s:%(name)s:%(lineno)d] %(message)s'))
+
 root_logger.addHandler(root_handler)
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(logging.Formatter('[%(levelname)s:%(name)s]  %(message)s'))
+console_handler.setFormatter(logging.Formatter('[%(levelname)s:%(name)s:%(lineno)d] %(message)s'))
 root_logger.addHandler(console_handler)
 logger = logging.getLogger(__name__)
 
