@@ -23,3 +23,17 @@ def get_material(item_id: str) -> str:
             raise ValueError(f"No material found for {item['id']}: {item}")
     logger.error(f"Invalid item_id: '{item_id}'- not found in item data. Raising KeyError()")
     raise KeyError(item_id)
+
+
+def get_name(item_id: str) -> str:
+    logger.debug(f"Attempting to find name for {item_id}")
+    for item in ITEMS:
+        if item_id == item.get('id'):
+            logger.debug(f"Found item: {item}")
+            if item.get('name'):
+                logger.debug(f"Found name: {item['name']}")
+                return item['name']
+            logger.error(f"No name found for item id '{item_id}', raising ValueError()")
+            raise ValueError(f"No name found for {item['id']}: {item}")
+    logger.error(f"Invalid item_id: '{item_id}'- not found in item data. Raising KeyError()")
+    raise KeyError(item_id)

@@ -12,7 +12,7 @@ from cogs import AlphaTrackerCog
 from cogs import AuctionTrackerCog
 from cogs import FireSaleTrackerCog
 from cogs import GuildCog
-from cogs import ItemSearchCog
+from cogs import ItemDBCog
 from cogs import LoggerCog
 from cogs import MotdTrackerCog
 from cogs import RankTrackerCog
@@ -54,7 +54,7 @@ bot.add_cog(AlphaTrackerCog(bot))
 bot.add_cog(AuctionTrackerCog(bot))
 bot.add_cog(FireSaleTrackerCog(bot))
 bot.add_cog(GuildCog(bot))
-bot.add_cog(ItemSearchCog(bot))
+bot.add_cog(ItemDBCog(bot))
 bot.add_cog(LoggerCog(bot))
 bot.add_cog(MotdTrackerCog(bot))
 bot.add_cog(RankTrackerCog(bot))
