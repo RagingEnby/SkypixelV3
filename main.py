@@ -2,6 +2,7 @@ import asyncio
 import logging
 import signal
 import sys
+import traceback
 
 import disnake
 from disnake.ext import commands
@@ -19,6 +20,7 @@ from cogs import VersionTrackerCog
 from cogs import WikiTrackerCog
 from cogs import ZoneTrackerCog
 from modules import asyncreqs
+from modules import utils
 
 # load Skypixel logger
 root_logger = logging.getLogger()
@@ -61,6 +63,38 @@ bot.add_cog(WikiTrackerCog(bot))
 bot.add_cog(ZoneTrackerCog(bot))
 constants.BOT = bot
 logger.debug("Loaded all cogs + set constants.BOT")
+
+
+# put here instead of a cog so it has main.py's scope
+@bot.message_command(
+    name="Execute"
+)
+async def execute(self, inter: disnake.MessageCommandInteraction, message: disnake.Message):
+    if not await self.bot.is_owner(inter.author):
+        return await inter.send(embed=utils.make_error(
+            "Not Owner",
+            "You must be the bot owner to use this command!"
+        ))
+    await inter.response.defer()
+    try:
+        tmp_dic = {}
+        executing_string = "async def temp_func():\n    {}\n".format(
+            message.content.partition("\n")[2].strip("`") \
+                .replace("\n", "    \n    ") \
+                .replace('”', '"') \
+                .replace("’", "'") \
+                .replace("‘", "'"))
+        logger.info(executing_string)
+        exec(executing_string, {**globals(), **locals()}, tmp_dic)
+        await tmp_dic['temp_func']()
+        await message.add_reaction('✅')
+    except:  # type: ignore
+        error = traceback.format_exc()
+        logger.error(error)
+        await asyncio.gather(
+            message.add_reaction('❌'),
+            inter.send(f"Error while running code:\n```py\n{error}```")
+        )
 
 
 async def on_close():
