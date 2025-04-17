@@ -141,8 +141,9 @@ class AHListener:
             inline=True
         )
         send_tasks = [utils.send_to_channel(constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed)]
-        if exotic_type in constants.EXOTIC_AUCTION_CHANNELS:
-            send_tasks.append(utils.send_to_channel(constants.EXOTIC_AUCTION_CHANNELS[exotic_type], embed=embed))
+        thread_id = constants.EXOTIC_AUCTIONS_THREADS.get(exotic_type)
+        if thread_id:
+            send_tasks.append(utils.send_to_channel(constants.EXOTIC_AUCTIONS_THREADS_PARENT, thread_id=thread_id, embed=embed))
         await asyncio.gather(*send_tasks)
 
 

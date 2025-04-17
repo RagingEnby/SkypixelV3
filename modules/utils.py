@@ -44,11 +44,17 @@ def add_footer(embed: disnake.Embed) -> disnake.Embed:
     return embed.set_footer(text=text, icon_url=constants.OWNER_PFP)
 
 
-async def send_to_channel(channel_id: int, *args, **kwargs) -> disnake.Message | None:
+async def send_to_channel(channel_id: int, *args, thread_id: int | None = None, **kwargs) -> disnake.Message | None:
     channel = constants.BOT.get_channel(channel_id)
     logger.debug(f"send_to_channel({channel_id}) channel = {channel}")
     if not channel:
         return None
+    if thread_id:
+        thread = channel.get_thread(thread_id) if hasattr(channel, 'get_thread') else None
+        logger.debug(f"send_to_channel({channel_id}, {thread_id}) thread = {thread}")
+        if not thread:
+            return None
+        return await thread.send(*args, **kwargs)
     return await channel.send(*args, **kwargs)  # type: ignore
 
 
