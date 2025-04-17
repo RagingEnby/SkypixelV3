@@ -198,7 +198,7 @@ def make_item_view(item: dict[str, Any]) -> disnake.ui.View:
 def make_playername_regex(playername: str) -> dict[str, str]:
     color_code_pattern = "(§[0-9a-fk-or])*"
     escaped_name = re.escape(playername)
-    return {"$regex": f"{escaped_name}{color_code_pattern}$", "$options": "i"}
+    return {"$regex": f"(§7| ){escaped_name}{color_code_pattern}$", "$options": "i"}
 
 
 def make_rank_regex(rank: PrefixRank) -> dict:
