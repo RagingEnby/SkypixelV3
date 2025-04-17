@@ -260,7 +260,7 @@ class SoulSearchView(disnake.ui.View):
         except StopAsyncIteration as e:
             logger.error(f"SoulSearchView() ending iteration for {self.query}: {e}")
             self.count = self.index + 1
-            await self._update_buttons()
+            await self.update_buttons()
             return None
 
     async def get_current_embed(self) -> disnake.Embed | None:
@@ -274,7 +274,7 @@ class SoulSearchView(disnake.ui.View):
         self.embed_cache[self.index] = embed
         return embed
 
-    async def _update_buttons(self):
+    async def update_buttons(self):
         logger.debug("updating buttons")
         self.children[0].disabled = self.index == 0  # type: ignore[index]
         self.children[1].disabled = self.index == self.count - 1  # type: ignore[index]
@@ -283,7 +283,7 @@ class SoulSearchView(disnake.ui.View):
     async def previous(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         logger.debug("previous button clicked")
         self.index -= 1
-        await self._update_buttons()
+        await self.update_buttons()
         embed = await self.get_current_embed()
         if not embed:
             return await interaction.response.edit_message(embeds=[self.main_embed], view=self)
@@ -293,7 +293,7 @@ class SoulSearchView(disnake.ui.View):
     async def next(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         logger.debug("next button clicked")
         self.index += 1
-        await self._update_buttons()
+        await self.update_buttons()
         embed = await self.get_current_embed()
         if not embed:
             return await interaction.response.edit_message(embeds=[self.main_embed], view=self)
@@ -416,9 +416,16 @@ class ItemSearchCog(commands.Cog):
                 value=count,
                 inline=True
             )
-        view = SoulSearchView(query=query, count=sum(results.values()), main_embed=embed, item_db=self.item_db, inter=inter)
-        item_embed = await view.get_current_embed()
-        return await inter.send(embeds=[embed, item_embed], view=view)
+        total = sum(results.values())
+        if total > 1:
+            view = SoulSearchView(query=query, count=total, main_embed=embed, item_db=self.item_db, inter=inter)
+            item_embed = await view.get_current_embed()
+            await view.update_buttons()
+            await inter.send(embeds=[embed, item_embed], view=view)
+        else:
+            result = await self.item_db.find_one(query)
+            item_embed = await make_item_embed(result)
+            await inter.send(embeds=[embed, item_embed])
 
     @itemdb.sub_command(
         name="clay-search",
