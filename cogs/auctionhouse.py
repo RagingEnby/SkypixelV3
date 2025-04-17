@@ -152,13 +152,14 @@ class AuctionTrackerCog(commands.Cog):
     async def on_auction(auction: dict[str, Any]):
         item = parser.decode_single(auction['item_bytes'])
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
+        if not extra_attributes.get('uuid'):
+            return
+        item_id = extra_attributes.get('id')
         timestamp = utils.normalize_timestamp(extra_attributes['timestamp']) if extra_attributes.get('timestamp') else None
         color = item.get('tag', {}).get('display', {}).get('color')
         hex_code = f"{color:06X}"[:6] if color else None
-        exotic_type = colors.get_exotic_type(extra_attributes['id'], hex_code, extra_attributes)\
-                      if extra_attributes.get('id') and hex_code else None
-        if extra_attributes.get('id') and hex_code:
-            logger.debug(f"{auction['uuid']} get_exotic_type({extra_attributes['id']}, {hex_code}) -> {exotic_type}")
+        exotic_type = colors.get_exotic_type(item_id, hex_code)\
+                      if item_id and hex_code and not extra_attributes.get('dye_item') else None
         tasks: list[Coroutine] = []
 
         if extra_attributes.get('originTag') in constants.ADMIN_ORIGIN_TAGS:
@@ -171,7 +172,7 @@ class AuctionTrackerCog(commands.Cog):
             tasks.append(AHListener.on_poi_auction(auction, item))
         if timestamp and timestamp <= 1575910800000 and auction['starting_bid'] <= 100_000_000:
             tasks.append(AHListener.on_old_item_auction(auction, item, timestamp))
-        if extra_attributes.get('id') in constants.SEYMOUR_IDS:
+        if item_id in constants.SEYMOUR_IDS:
             tasks.append(AHListener.on_seymour_auction(auction, item, hex_code))
         if exotic_type:
             tasks.append(AHListener.on_exotic_auction(auction, item, exotic_type, hex_code))
@@ -186,9 +187,9 @@ class AuctionTrackerCog(commands.Cog):
                 if page_0['lastUpdated'] != last_last_updated:
                     new_auctions = [
                         a for a in page_0['auctions']
-                        if a.get('start', 0) >= last_last_updated and a.get('item_uuid')
+                        if a.get('start', 0) >= last_last_updated
                     ]
-                    logger.debug(f"got {len(new_auctions)} new UUID'ed item auctions")
+                    logger.debug(f"got {len(new_auctions)} new auctions")
                     await asyncio.gather(*[self.on_auction(a) for a in new_auctions])
                     logger.debug('processed auctions')
                     last_last_updated = page_0['lastUpdated']
