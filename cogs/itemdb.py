@@ -308,7 +308,7 @@ def search_souls_query(query: dict) -> dict:
     return query
 
 
-class ItemSearchCog(commands.Cog):
+class ItemDBCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.item_db = mongodb.Collection("SkyBlock", "itemdb")
         self.bot = bot
