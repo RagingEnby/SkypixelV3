@@ -4,6 +4,10 @@ import math
 from functools import lru_cache
 
 
+def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+    return f"{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X}"
+
+
 @lru_cache(maxsize=None)
 def hex_to_lab(hex_code: str) -> tuple[float, float, float]:
     """

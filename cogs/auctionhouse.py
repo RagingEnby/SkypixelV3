@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import time
 import traceback
@@ -117,16 +116,31 @@ class AHListener:
         await utils.send_to_channel(constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed)
 
     @staticmethod
-    async def on_seymour_auction(auction: dict[str, Any], item: dict[str, Any]):
+    async def on_seymour_auction(auction: dict[str, Any], item: dict[str, Any], hex_code: str):
         embed = await make_auction_embed(auction, item)
+        embed.add_field(
+            name="Hex Code",
+            value=f"#{hex_code}",
+            inline=True
+        )
         armor_type = constants.SEYMOUR_IDS[item['tag']['ExtraAttributes']['id']]
-        color = item.get('tag', {}).get('display', {}).get('color')
-        if not color:
-            logger.error(f"no color found in seymour item: {json.dumps(item, indent=2)}")
-            return
-        top_5 = colors.get_top_5(armor_type, color)
+        top_5 = colors.get_top_5(armor_type, hex_code)
         embed.description = '```\n' + '\n'.join([f"{k}: {round(v, 2)}" for k, v in top_5.items()]) + '```'
         await utils.send_to_channel(constants.SEYMOUR_AUCTIONS_CHANNEL, embed=embed)
+
+    @staticmethod
+    async def on_exotic_auction(auction: dict[str, Any], item: dict[str, Any], exotic_type: colors.ExoticType, hex_code: str):
+        embed = await make_auction_embed(auction, item)
+        embed.add_field(
+            name="Hex Code",
+            value=f"#{hex_code}"
+        )
+        embed.add_field(
+            name="Exotic Type",
+            value=exotic_type.replace('_', ' ').title(),
+            inline=True
+        )
+        await utils.send_to_channel(constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed)
 
 
 class AuctionTrackerCog(commands.Cog):
@@ -139,20 +153,26 @@ class AuctionTrackerCog(commands.Cog):
         item = parser.decode_single(auction['item_bytes'])
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
         timestamp = utils.normalize_timestamp(extra_attributes['timestamp']) if extra_attributes.get('timestamp') else None
+        color = item.get('tag', {}).get('display', {}).get('color')
+        hex_code = f"{color:06X}"[:6] if color else None
+        exotic_type = colors.get_exotic_type(extra_attributes['id'], hex_code, extra_attributes)\
+                      if extra_attributes.get('id') and hex_code else None
         tasks: list[Coroutine] = []
 
-        if extra_attributes.get('originTag') in ["ITEM_MENU", "ITEM_COMMAND"]:
+        if extra_attributes.get('originTag') in constants.ADMIN_ORIGIN_TAGS:
             tasks.append(AHListener.on_admin_spawned_auction(auction, item))
-        if extra_attributes.get('modifier') in ["forceful", "strong", "hurtful", "demonic", "rich", "odd"]:
+        if extra_attributes.get('modifier') in constants.OG_REFORGES:
             tasks.append(AHListener.on_og_reforge_auction(auction, item))
-        if 'accessories' in auction.get('categories', []) and extra_attributes.get('modifier') not in [None, 'none']:
+        if 'accessories' in auction.get('categories', []) and extra_attributes.get('modifier', 'none') != 'none':
             tasks.append(AHListener.on_semi_og_reforge_auction(auction, item))
         if auction['auctioneer'] in ranktracker.POI_UUIDS:
             tasks.append(AHListener.on_poi_auction(auction, item))
         if timestamp and timestamp <= 1575910800000 and auction['starting_bid'] <= 100_000_000:
             tasks.append(AHListener.on_old_item_auction(auction, item, timestamp))
         if extra_attributes.get('id') in constants.SEYMOUR_IDS:
-            tasks.append(AHListener.on_seymour_auction(auction, item))
+            tasks.append(AHListener.on_seymour_auction(auction, item, hex_code))
+        if exotic_type:
+            tasks.append(AHListener.on_exotic_auction(auction, item, exotic_type, hex_code))
         if tasks:
             await asyncio.gather(*tasks)
 

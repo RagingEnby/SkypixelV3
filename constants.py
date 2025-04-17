@@ -29,6 +29,7 @@ SEMI_OG_REFORGES_CHANNEL: int = 1359367058009358536
 POI_AUCTIONS_CHANNEL: int = 1359374618946699504
 OLD_ITEM_AUCTIONS_CHANNEL: int = 1359377036111511732
 SEYMOUR_AUCTIONS_CHANNEL: int = 1360000687668334792
+EXOTIC_AUCTIONS_CHANNEL: int = 1362226845696917555
 ## Misc Trackers
 VERSION_TRACKER_CHANNELS: dict[int, str] = {
     1256322077825437756: "<@&1139315700339593256>", # RagingEnby's Dev Server
@@ -115,6 +116,25 @@ SEYMOUR_IDS: dict[str, 'ArmorType'] = { # type: ignore
     "CASHMERE_JACKET": "chestplate",
     "SATIN_TROUSERS": "leggings",
     "OXFORD_SHOES": "boots"
+}
+FAIRY_IDS: dict[str, 'ArmorType'] = { # type: ignore
+    "FAIRY_HELMET": "helmet",
+    "FAIRY_CHESTPLATE": "chestplate",
+    "FAIRY_LEGGINGS": "leggings",
+    "FAIRY_BOOTS": "boots"
+}
+CRYSTAL_IDS: set[str] = {
+    "CRYSTAL_HELMET", "CRYSTAL_CHESTPLATE",
+    "CRYSTAL_LEGGINGS", "CRYSTAL_BOOTS"
+}
+SPOOK_IDS: set[str] = {
+    "GREAT_SPOOK_HELMET", "GREAT_SPOOK_CHESTPLATE",
+    "GREAT_SPOOK_LEGGINGS", "GREAT_SPOOK_BOOTS"
+}
+ADMIN_ORIGIN_TAGS: set[str] = {"ITEM_MENU", "ITEM_COMMAND"}
+OG_REFORGES: set[str] = {
+    "forceful", "strong", "hurtful",
+    "demonic", "rich", "odd"
 }
 
 
