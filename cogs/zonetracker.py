@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import traceback
 
 import disnake
@@ -10,7 +11,6 @@ from modules import datamanager
 from modules import utils
 
 URL: str = "https://api.ragingenby.dev/skyblock/zones"
-import logging
 logger = logging.getLogger(__name__)
 
 
