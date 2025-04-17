@@ -22,7 +22,7 @@ except:
     logger.warning("WARNING: USING HYPIXEL ITEMS ENDPOINT, api.ragingenby.dev IS DOWN")
     ITEMS = requests.get('https://api.hypixel.net/v2/resources/skyblock/items').json()['items']
 DEFAULT_HEXES: dict[str, str] = {
-    i['id']: colorcompare.rgb_to_hex(tuple(i['color'].split(',')))  # type: ignore
+    i['id']: colorcompare.rgb_to_hex(tuple(map(int, i['color'].split(','))))  # type: ignore
     for i in ITEMS if i.get('id') and i.get('color') and i['material'].startswith('LEATHER_')
 }
 MISC_HEXES = {
