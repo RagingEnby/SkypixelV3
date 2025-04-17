@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import traceback
 from contextlib import suppress
@@ -98,3 +99,33 @@ class LoggerCog(commands.Cog):
             icon_url=message.author.display_avatar
         )
         await utils.send_to_channel(constants.DM_LOG_CHANNEL, embed=embed, attachments=message.attachments)
+
+    @commands.message_command(
+        name="Execute"
+    )
+    async def execute(self, inter: disnake.MessageCommandInteraction, message: disnake.Message):
+        if not await self.bot.is_owner(inter.author):
+            return await inter.send(embed=utils.make_error(
+                "Not Owner",
+                "You must be the bot owner to use this command!"
+            ))
+        await inter.response.defer()
+        try:
+            tmp_dic = {}
+            executing_string = "async def temp_func():\n    {}\n".format(
+                message.content.partition("\n")[2].strip("`") \
+                    .replace("\n", "    \n    ") \
+                    .replace('”', '"') \
+                    .replace("’", "'") \
+                    .replace("‘", "'"))
+            logger.info(executing_string)
+            exec(executing_string, {**globals(), **locals()}, tmp_dic)
+            await tmp_dic['temp_func']()
+            await message.add_reaction('✅')
+        except:  # type: ignore
+            error = traceback.format_exc()
+            logger.error(error)
+            await asyncio.gather(
+                message.add_reaction('❌'),
+                message.reply(f"Error while running code:\n```py\n{error}```")
+            )
