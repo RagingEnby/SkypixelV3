@@ -45,7 +45,7 @@ async def post(*args, **kwargs) -> aiohttp.ClientResponse:
         logger.warning('<!> asyncreqs.post() had to create a session')
 
     async with SESSION.post(*args, **kwargs) as response:
-        logger.info("POST", response.url, response.status)
+        logger.info(f"POST {response.url} {response.status}")
         try:
             await response.json()
             logger.debug("successfully got json")
