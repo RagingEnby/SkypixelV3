@@ -118,6 +118,8 @@ def timestamp_to_unix(date_str: str) -> int:
 
 
 def normalize_timestamp(timestamp: str | int) -> int:
-    if isinstance(timestamp, int):
+    if isinstance(timestamp, int) and len(str(timestamp)) == 10:
         return timestamp
+    elif isinstance(timestamp, int):
+        return timestamp // 1000
     return timestamp_to_unix(timestamp)
