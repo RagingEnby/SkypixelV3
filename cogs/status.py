@@ -41,7 +41,7 @@ class StatusUpdaterCog(commands.Cog):
     async def change_presence(self, activity_type: disnake.ActivityType, name: str):
         logger.debug(f"Changing status to {activity_type} '{name}'")
         return await self.bot.change_presence(
-            status=disnake.Status.online(),
+            status=disnake.Status.online,
             activity=disnake.Activity(
                 type=activity_type,
                 name=name
