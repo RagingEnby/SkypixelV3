@@ -5,7 +5,7 @@ from functools import lru_cache
 
 
 def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
-    return f"{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X}"
+    return f"{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X}".upper()
 
 
 @lru_cache(maxsize=None)
