@@ -140,7 +140,10 @@ class AHListener:
             value=exotic_type.replace('_', ' ').title(),
             inline=True
         )
-        await utils.send_to_channel(constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed)
+        send_tasks = [utils.send_to_channel(constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed)]
+        if exotic_type in constants.EXOTIC_AUCTION_CHANNELS:
+            send_tasks.append(utils.send_to_channel(constants.EXOTIC_AUCTION_CHANNELS[exotic_type], embed=embed))
+        await asyncio.gather(*send_tasks)
 
 
 class AuctionTrackerCog(commands.Cog):
