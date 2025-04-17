@@ -1,9 +1,11 @@
 import json
 import logging
 import re
+from contextlib import suppress
 from typing import Any, Optional, Literal
 
 import disnake
+import pymongo
 from disnake.ext import commands
 
 import constants
@@ -146,7 +148,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         embed.add_field(
             name="Soulbound",
             value=item['soulbound'],
-            inline=False
+            inline=True
         )
 
     if item.get('reforge'):
@@ -218,6 +220,94 @@ def make_player_regex(rank: PrefixRank | None = None, playername: str | None = N
     return {"$and": [make_rank_regex(rank), make_playername_regex(playername)]}  # type: ignore[arg-type]
 
 
+class SoulSearchView(disnake.ui.View):
+    def __init__(self, query: dict, count: int, main_embed: disnake.Embed, item_db: mongodb.Collection, inter: disnake.Interaction):
+        super().__init__(timeout=180)
+        self.query = query
+        self.count = count
+        self.main_embed = main_embed
+        self.item_db = item_db
+        self.inter = inter
+        self.index = 0
+        self.item_cache: dict[int, dict] = {}
+        self.embed_cache: dict[int, disnake.Embed] = {}
+
+    async def interaction_check(self, interaction: disnake.Interaction) -> bool:
+        if interaction.user != self.inter.user:
+            await interaction.response.send_message(embed=utils.make_error(
+                "Not your interaction!",
+                "You cannot interact with another user's buttons."
+            ), ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self):
+        for item in self.children:
+            if isinstance(item, disnake.ui.Button):
+                item.disabled = True
+        with suppress(disnake.NotFound, disnake.HTTPException):
+            await self.inter.edit_original_message(view=self)
+
+    async def get_current_item(self) -> dict | None:
+        if self.item_cache.get(self.index):
+            return self.item_cache[self.index]
+        cursor = self.item_db.find(self.query).sort([("extraAttributes.captured_date", pymongo.DESCENDING)])
+        cursor.skip(self.index).limit(1)
+        try:
+            item = await cursor.next()
+            self.item_cache[self.index] = item
+            return item
+        except StopAsyncIteration as e:
+            logger.error(f"SoulSearchView() ending iteration for {self.query}: {e}")
+            self.count = self.index + 1
+            await self._update_buttons()
+            return None
+
+    async def get_current_embed(self) -> disnake.Embed | None:
+        if self.embed_cache.get(self.index):
+            return self.embed_cache[self.index]
+        item = await self.get_current_item()
+        if not item:
+            return None
+        embed = await make_item_embed(item)
+        embed.set_footer(text=f"Item {self.index+1}/{self.count}")
+        self.embed_cache[self.index] = embed
+        return embed
+
+    async def _update_buttons(self):
+        logger.debug("updating buttons")
+        self.children[0].disabled = self.index == 0  # type: ignore[index]
+        self.children[1].disabled = self.index == self.count - 1  # type: ignore[index]
+
+    @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)
+    async def previous(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+        logger.debug("previous button clicked")
+        self.index -= 1
+        await self._update_buttons()
+        embed = await self.get_current_embed()
+        if not embed:
+            return await interaction.response.edit_message(embeds=[self.main_embed], view=self)
+        await interaction.response.edit_message(embeds=[self.main_embed, embed], view=self)
+
+    @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
+    async def next(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+        logger.debug("next button clicked")
+        self.index += 1
+        await self._update_buttons()
+        embed = await self.get_current_embed()
+        if not embed:
+            return await interaction.response.edit_message(embeds=[self.main_embed], view=self)
+        await interaction.response.edit_message(embeds=[self.main_embed, embed], view=self)
+
+
+def search_souls_query(query: dict) -> dict:
+    query = {k: v for k, v in query.items() if v is not None}
+    query['itemId'] = "CAKE_SOUL"
+    if not query.get('extraAttributes.captured_player'):
+        query['extraAttributes.captured_player'] = {"$exists": True}
+    return query
+
+
 class ItemSearchCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.item_db = mongodb.Collection("SkyBlock", "itemdb")
@@ -225,10 +315,7 @@ class ItemSearchCog(commands.Cog):
         self.item_cache: dict[str, dict[str, Any]] = {}
 
     async def search_souls(self, query: dict) -> dict[str, int]:
-        query = {k: v for k, v in query.items() if v is not None}
-        query['itemId'] = "CAKE_SOUL"
-        if not query.get('extraAttributes.captured_player'):
-            query['extraAttributes.captured_player'] = {"$exists": True}
+        query = search_souls_query(query)
         logger.info(f"searching souls for: {query}")
         # i am FULLY aware this is unreadable and completely illegal
         # however, i made it in mongo compass and i cba to make it
@@ -305,11 +392,13 @@ class ItemSearchCog(commands.Cog):
                               captured_rank: PrefixRank | None = None, captured_player: str | None = None,
                               captured_by_rank: PrefixRank | None = None, captured_by_name: str | None = None,
                               cake_owner_rank: PrefixRank | None = None, cake_owner_name: str | None = None):
-        results = await self.search_souls({
+        query = search_souls_query({
+            "itemId": "CAKE_SOUL",
             "extraAttributes.captured_player": make_player_regex(captured_rank, captured_player) if captured_player or captured_rank else None,
             "extraAttributes.initiator_player": make_player_regex(captured_by_rank, captured_by_name) if captured_by_name or captured_by_rank else None,
             "extraAttributes.cake_owner": make_player_regex(cake_owner_rank, cake_owner_name) if cake_owner_name or cake_owner_rank else None
         })
+        results = await self.search_souls(query)
         logger.info(json.dumps(results, indent=2))
         if not results:
             return await inter.send(embed=utils.make_error(
@@ -327,7 +416,9 @@ class ItemSearchCog(commands.Cog):
                 value=count,
                 inline=True
             )
-        return await inter.send(embed=embed)
+        view = SoulSearchView(query=query, count=sum(results.values()), main_embed=embed, item_db=self.item_db, inter=inter)
+        item_embed = await view.get_current_embed()
+        return await inter.send(embeds=[embed, item_embed], view=view)
 
     @itemdb.sub_command(
         name="clay-search",

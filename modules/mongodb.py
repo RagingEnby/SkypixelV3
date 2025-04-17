@@ -18,6 +18,7 @@ class Collection:
         self.collection = self.db[self.collection_name]
         self.find = self.collection.find
         self.find_one = self.collection.find_one
+        self.count_documents = self.collection.count_documents
 
     async def close(self):
         logger.info(f"Closing {self.db_name}.{self.collection_name}")
