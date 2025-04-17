@@ -93,8 +93,6 @@ class StatusUpdaterCog(commands.Cog):
             self.index = 0
             return await self.change_status()
 
-
-
     async def main(self):
         while True:
             try:
