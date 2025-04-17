@@ -173,7 +173,7 @@ class AuctionTrackerCog(commands.Cog):
             tasks.append(AHListener.on_semi_og_reforge_auction(auction, item))
         if auction['auctioneer'] in ranktracker.POI_UUIDS:
             tasks.append(AHListener.on_poi_auction(auction, item))
-        if timestamp and timestamp <= 1575910800000 and auction['starting_bid'] <= 100_000_000:
+        if timestamp and timestamp <= 1575910800 and auction['starting_bid'] <= 100_000_000:
             tasks.append(AHListener.on_old_item_auction(auction, item, timestamp))
         if item_id in constants.SEYMOUR_IDS:
             tasks.append(AHListener.on_seymour_auction(auction, item, hex_code))
