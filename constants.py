@@ -17,7 +17,7 @@ CREDIT_FOOTERS: set[str] = {
 # Discord ID's
 OWNER_ID: int = 447861538095759365
 DEV_SERVER_ID: int = 1066589212348006401
-JOIN_LOG_CHANNEL: int = 1359945232946303016
+JOIN_LOG_CHANNEL: int = 1340389033951629525
 ERROR_LOG_CHANNEL: int = 1131089040733634560
 INVITE_LOG_CHANNEL: int = 1150164916578299945
 COMMAND_LOG_CHANNEL: int = 1111050267975221326
@@ -42,16 +42,16 @@ EXOTIC_AUCTIONS_THREADS: dict['ExoticType', int] = { # type: ignore[name-defined
 }
 ## Misc Trackers
 VERSION_TRACKER_CHANNELS: dict[int, str] = {
-    1256322077825437756: "<@&1139315700339593256>", # RagingEnby's Dev Server
+    1172205656112123994: "<@&1139315700339593256>", # RagingEnby's Dev Server
 }
 MOTD_TRACKER_CHANNELS: dict[int, str] = {
-    1256322740541980803: "<@&1177330036664193084>", # RagingEnby's Dev Server
+    1177121432820527144: "<@&1177330036664193084>", # RagingEnby's Dev Server
 }
 FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
-    1256327593200980029: "<@&1190093109938368552>", # RagingEnby's Dev Server
+    1179543769905893416: "<@&1190093109938368552>", # RagingEnby's Dev Server
 }
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
-    1256338710971158659: "<@&1358904280165126434>", # RagingEnby's Dev Server
+    1210999395865202688: "<@&1358904280165126434>", # RagingEnby's Dev Server
 }
 ZONE_TRACKER_CHANNELS: dict[int, str] = {
     1256334830048903198: "<@&1210085254635724840>", # RagingEnby's Dev Server
@@ -63,17 +63,17 @@ API_POLICY_TRACKER_CHANNELS: dict[int, str] = {
     1361432641286439052: "", # RagingEnby's Dev Server
 }
 RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
-    "admin": {
-        1269021399985422468: "<@&1122272183733977249>", # RagingEnby's Dev Server
-    },
-    "gm": {
-        1269021571897491690: "<@&1122272183733977249>", # RagingEnby's Dev Server
-    },
     "youtube": {
-        1269021598447571168: "<@&1122272183733977249>", # RagingEnby's Dev Server
+        1121130539097784401: "<@&1122272183733977249>", # RagingEnby's Dev Server
+        1173855870568902747: "<@&1177329153607991428>"
+    },
+    "staff": {
+        1364997652323897415: "", #"<@&1122272183733977249>", # RagingEnby's Dev Server    1173855870568902747: "" #"<@&1177329153607991428>", # Derailious's RailRoad
+        1173855870568902747: "" #"<@&1177329153607991428>", # Derailious's RailRoad
     },
     "special": {
-        1269021624338878464: "<@&1122272183733977249>", # RagingEnby's Dev Server
+        1269021624338878464: "", #"<@&1122272183733977249>", # RagingEnby's Dev Server
+        1173855870568902747: "" #"<@&1177329153607991428>", # Derailious's RailRoad
     }
 }
 
@@ -110,8 +110,7 @@ RARITY_COLORS: dict[str, int] = {
 }
 RANK_COLORS: dict[str, int] = {
     "youtube": COLOR_CODES['c'],
-    "admin": COLOR_CODES['c'],
-    "gm": COLOR_CODES['2'],
+    "staff": COLOR_CODES['c'],
     "owner": COLOR_CODES['c'],
     "pig_plus_plus_plus": COLOR_CODES['d'],
     "innit": COLOR_CODES['d'],

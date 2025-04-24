@@ -14,7 +14,7 @@ from modules import datamanager
 from modules import utils
 
 logger = logging.getLogger(__name__)
-SpecialRank = Literal['youtube', 'admin', 'gm', 'owner', 'pig_plus_plus_plus', 'innit', 'events', 'mojang', 'mcp']
+SpecialRank = Literal['youtube', 'staff', 'pig_plus_plus_plus', 'innit', 'events', 'mojang', 'mcp']
 
 URL: str = "https://api.ragingenby.dev/ranks"
 RANK_URL: str = URL + '/{}'
@@ -103,6 +103,8 @@ async def send(rank: Literal['special'] | SpecialRank, embed: disnake.Embed, pin
 
 
 def format_rank(rank: str) -> str:
+    if rank.lower() == "staff":
+        return "[ዞ]"
     return '[' + rank.replace('_plus', '+').replace('_', ' ').upper() + ']'
 
 
@@ -309,12 +311,14 @@ class RankTrackerCog(commands.Cog):
 
     async def main(self):
         while True:
+            logger.info("rank tracker loop")
             try:
                 await self.do_watchlist()
                 player_ranks = await get_player_ranks()
                 if not self.data.to_dict():
                     self.data.data = player_ranks
                     await self.data.save()
+                    logger.info("wrote rank data to empty ranks.json")
                     continue
 
                 for uuid, data in player_ranks.items():
