@@ -43,28 +43,30 @@ EXOTIC_AUCTIONS_THREADS: dict['ExoticType', int] = { # type: ignore[name-defined
 ## Misc Trackers
 VERSION_TRACKER_CHANNELS: dict[int, str] = {
     1172205656112123994: "<@&1139315700339593256>", # RagingEnby's Dev Server
+    1210333444563935295: "",                        # Derailcord
 }
 MOTD_TRACKER_CHANNELS: dict[int, str] = {
     1177121432820527144: "<@&1177330036664193084>", # RagingEnby's Dev Server
+    1177328270006554826: "<@&1177329389550178354>", # Derailcord
 }
 FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
     1179543769905893416: "<@&1190093109938368552>", # RagingEnby's Dev Server
+    1190098169703448576: "use code rail :)",        # Derailcord
 }
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1210999395865202688: "<@&1358904280165126434>", # RagingEnby's Dev Server
+    1210333444563935295: "",                        # Derailcord
 }
 ZONE_TRACKER_CHANNELS: dict[int, str] = {
     1256334830048903198: "<@&1210085254635724840>", # RagingEnby's Dev Server
+    1210333444563935295: "",                        # Derailcord
 }
 WIKI_TRACKER_CHANNELS: dict[int, str] = {
     1287466083267121162: "", # RagingEnby's Dev Server
 }
-API_POLICY_TRACKER_CHANNELS: dict[int, str] = {
-    1361432641286439052: "", # RagingEnby's Dev Server
-}
 RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
     "youtube": {
-        1121130539097784401: "<@&1122272183733977249>", # RagingEnby's Dev Server
+        1121130539097784401: "<@&1122272183733977249>",  # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>",  # Derailcord
         1365021125628919898: "<@&1365021218234957884>",  # Cake Soul Hunting New Generation
     },
