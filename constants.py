@@ -65,15 +65,18 @@ API_POLICY_TRACKER_CHANNELS: dict[int, str] = {
 RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
     "youtube": {
         1121130539097784401: "<@&1122272183733977249>", # RagingEnby's Dev Server
-        1173855870568902747: "<@&1177329153607991428>"  # Derailcord
+        1173855870568902747: "<@&1177329153607991428>",  # Derailcord
+        1365021125628919898: "<@&1365021218234957884>",  # Cake Soul Hunting New Generation
     },
     "staff": {
         1364997652323897415: "<@&1122272183733977249>", # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>", # Derailcord
+        1365021125628919898: "<@&1365021218234957884>",  # Cake Soul Hunting New Generation
     },
     "special": {
         1269021624338878464: "<@&1122272183733977249>", # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>", # Derailcord
+        1365021125628919898: "<@&1365021218234957884>", # Cake Soul Hunting New Generation
     }
 }
 
