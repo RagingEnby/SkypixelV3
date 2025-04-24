@@ -18,10 +18,8 @@ class StatusUpdaterCog(commands.Cog):
         self.task: asyncio.Task | None = None
         self.index = 0
         self.rank_statuses: list[Coroutine] = [
-            self._rank_status('gm'),
-            self._rank_status('admin'),
+            self._rank_status('staff'),
             self._rank_status('youtube'),
-            self._rank_status('owner'),
             self._rank_status('pig_plus_plus_plus'),
             self._rank_status('innit'),
             self._rank_status('events'),

@@ -46,7 +46,7 @@ disnake_logger.propagate = False
 
 
 intents = disnake.Intents.default()
-intents.members = True  # type: ignore
+#intents.members = True  # type: ignore
 bot = commands.InteractionBot(
     intents=intents,
     owner_id=constants.OWNER_ID,
@@ -71,8 +71,8 @@ logger.debug("Loaded all cogs + set constants.BOT")
 @bot.message_command(
     name="Execute"
 )
-async def execute(self, inter: disnake.MessageCommandInteraction, message: disnake.Message):
-    if not await self.bot.is_owner(inter.author):
+async def execute(inter: disnake.MessageCommandInteraction, message: disnake.Message):
+    if not await bot.is_owner(inter.author):
         return await inter.send(embed=utils.make_error(
             "Not Owner",
             "You must be the bot owner to use this command!"

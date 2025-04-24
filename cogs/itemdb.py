@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 PrefixRank = Literal['NON', '[VIP]', '[VIP+]', '[MVP]', '[MVP+]',
                    '[MVP++]', '[YOUTUBE]', '[PIG+++]', '[INNIT]',
                    '[MINISTER]', '[MAYOR]', '[MOJANG]', '[EVENTS]',
-                   '[HELPER]', '[MOD]', '[GM]', '[ADMIN]', '[OWNER]']
+                   '[HELPER]', '[MOD]', '[GM]', '[ADMIN]', '[OWNER]', '[ዞ]']
 
 
 def fix_item(item: dict[str, Any]) -> dict[str, Any]:
