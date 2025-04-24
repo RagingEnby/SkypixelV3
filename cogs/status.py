@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import traceback
-from typing import Coroutine
+from typing import Coroutine, Callable
 
 import disnake
 from disnake.ext import commands
@@ -17,33 +17,36 @@ class StatusUpdaterCog(commands.Cog):
         self.bot = bot
         self.task: asyncio.Task | None = None
         self.index = 0
-        self.rank_statuses: list[Coroutine] = [
-            self._rank_status('staff'),
-            self._rank_status('youtube'),
-            self._rank_status('pig_plus_plus_plus'),
-            self._rank_status('innit'),
-            self._rank_status('events'),
-            self._rank_status('mojang'),
-            self._rank_status('mcp')
+        self.rank_statuses: list[Callable[[], Coroutine]] = [
+            lambda rank=rank: self._rank_status(rank)
+            for rank in (
+                'staff',
+                'youtube',
+                'pig_plus_plus_plus',
+                'innit',
+                'events',
+                'mojang',
+                'mcp',
+            )
         ]
-        self.item_count_statuses: list[Coroutine] = [
-            self._item_count_status('CAKE_SOUL'),
-            self._item_count_status('DUECES_BUILDER_CLAY'),
-            self._item_count_status('POTATO_BASKET'),
-            self._item_count_status('ANCIENT_ELEVATOR'),
-            self._item_count_status('WIZARD_PORTAL_MEMENTO'),
-            self._item_count_status('RACING_HELMET'),
-            self._item_count_status('DCTR_SPACE_HELM')
+        self.item_count_statuses: list[Callable[[], Coroutine]] = [
+            lambda item_id=item_id: self._item_count_status(item_id)
+            for item_id in (
+                'CAKE_SOUL',
+                'DUECES_BUILDER_CLAY',
+                'POTATO_BASKET',
+                'ANCIENT_ELEVATOR',
+                'WIZARD_PORTAL_MEMENTO',
+                'RACING_HELMET',
+                'DCTR_SPACE_HELM',
+            )
         ]
 
     async def change_presence(self, activity_type: disnake.ActivityType, name: str):
         logger.debug(f"Changing status to {activity_type} '{name}'")
         return await self.bot.change_presence(
-            status=disnake.Status.online,
-            activity=disnake.Activity(
-                type=activity_type,
-                name=name
-            )
+            status=disnake.Status.online,  # type: ignore[assignment]
+            activity=disnake.Activity(type=activity_type, name=name),
         )
 
     async def _rank_status(self, rank: str):
@@ -51,8 +54,11 @@ class StatusUpdaterCog(commands.Cog):
         if rank not in rank_counts:
             raise KeyError(rank)
         return await self.change_presence(
-            activity_type=disnake.ActivityType.listening,
-            name=f"{utils.commaize(rank_counts[rank])} {ranktracker.format_rank(rank)} ranks",
+            activity_type=disnake.ActivityType.listening,  # type: ignore[assignment]
+            name=(
+                f"{utils.commaize(rank_counts[rank])} "
+                f"{ranktracker.format_rank(rank)} ranks"
+            ),
         )
 
     async def _item_count_status(self, item_id: str):
@@ -62,11 +68,13 @@ class StatusUpdaterCog(commands.Cog):
             name = item_id
         itemdb_cog = self.bot.get_cog('ItemDBCog')
         if itemdb_cog:
-            count = await itemdb_cog.item_db.count_documents({"itemId": item_id}) # type: ignore[attr-defined]
+            count = await itemdb_cog.item_db.count_documents(
+                {'itemId': item_id}
+            )  # type: ignore[attr-defined]
         else:
             count = 0
         return await self.change_presence(
-            activity_type=disnake.ActivityType.watching,
+            activity_type=disnake.ActivityType.watching,  # type: ignore[assignment]
             name=f"{utils.commaize(count)} {name} items",
         )
 
@@ -75,18 +83,22 @@ class StatusUpdaterCog(commands.Cog):
             await self.bot.change_presence(
                 activity=disnake.Activity(
                     type=disnake.ActivityType.listening,
-                    name=f"{len(self.bot.guilds)} servers"
+                    name=f"{len(self.bot.guilds)} servers",
                 )
             )
+            return None
         elif self.index == 1:
             await self.change_presence(
-                activity_type=disnake.ActivityType.playing,
-                name="Owner: @ragingenby"
+                activity_type=disnake.ActivityType.playing,  # type: ignore[assignment]
+                name="Owner: @ragingenby",
             )
-        elif 2 <= self.index <= 10:
-            await self.rank_statuses[self.index - 2]
-        elif 11 <= self.index <= 16:
-            await self.item_count_statuses[self.index - 11]
+            return None
+        elif 2 <= self.index <= 8:
+            await self.rank_statuses[self.index - 2]()
+            return None
+        elif 9 <= self.index <= 15:
+            await self.item_count_statuses[self.index - 9]()
+            return None
         else:
             self.index = 0
             return await self.change_status()
