@@ -213,6 +213,8 @@ class AuctionTrackerCog(commands.Cog):
         while True:
             try:
                 page_0 = await get_active_auctions()
+                if not last_last_updated:
+                    last_last_updated = page_0['lastUpdated']
                 if page_0['lastUpdated'] != last_last_updated:
                     new_auctions = [
                         a for a in page_0['auctions']
