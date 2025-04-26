@@ -199,9 +199,9 @@ class AuctionTrackerCog(commands.Cog):
             tasks.append(AHListener.on_poi_auction(auction, item))
         if timestamp and timestamp <= 1575910800 and auction['starting_bid'] <= 100_000_000:
             tasks.append(AHListener.on_old_item_auction(auction, item, timestamp))
-        if item_id in constants.SEYMOUR_IDS:
+        if item_id in constants.SEYMOUR_IDS and hex_code:
             tasks.append(AHListener.on_seymour_auction(auction, item, hex_code))
-        if exotic_type:
+        if exotic_type and hex_code:
             tasks.append(AHListener.on_exotic_auction(auction, item, exotic_type, hex_code))
         if item_id == "CAKE_SOUL":
             tasks.append(AHListener.on_cake_soul_auction(auction, item))
