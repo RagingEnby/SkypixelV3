@@ -63,7 +63,9 @@ def to_mc_text(text: str) -> str:
     return url
 
 
-def get_item_image(item_id: str, color: str | None = None) -> str:
+def get_item_image(item_id: str, color: str | None = None, durability: int | None = None) -> str:
+    if item_id == "CAKE_SOUL" and durability in constants.MINECRAFT_DYES:
+        return constants.MINECRAFT_DYES[durability]['image']  # type: ignore[index]
     default = constants.ITEM_IMAGE.format(item_id)
     if not color:
         return default
