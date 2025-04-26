@@ -45,7 +45,8 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
 def get_item_image(item: dict[str, Any]) -> str:
     return utils.get_item_image(
         item_id=item['itemId'],
-        color=item.get('colour')
+        color=item.get('colour'),
+        durability=item.get('damage')
     )
     
 
