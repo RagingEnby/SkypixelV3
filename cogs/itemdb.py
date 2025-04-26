@@ -46,7 +46,7 @@ def get_item_image(item: dict[str, Any]) -> str:
     return utils.get_item_image(
         item_id=item['itemId'],
         color=item.get('colour'),
-        durability=item.get('damage')
+        durability=item['extraAttributes'].get('soul_durability')
     )
 
 
@@ -54,8 +54,13 @@ def get_item_color(item: dict[str, Any]) -> int:
     if item.get('colour'):
         return int(item['colour'], 16)
     soul_durability = item.get('extraAttributes', {}).get('soul_durability')
-    if item['itemId'] == "CAKE_SOUL" and soul_durability:
+    print('soul durability:', soul_durability)
+    if item['itemId'] == "CAKE_SOUL" and soul_durability is not None:
         return constants.MINECRAFT_DYES[soul_durability]['hex']  # type: ignore
+    else:
+        # find which one is false
+        print('itemId == CAKE_SOUL:', item['itemId'] == "CAKE_SOUL")
+        print('soul_durability:', soul_durability)
     return constants.RARITY_COLORS.get(item['rarity'], constants.DEFAULT_EMBED_COLOR)
     
 
