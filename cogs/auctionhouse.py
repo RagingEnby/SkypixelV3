@@ -186,13 +186,14 @@ class AuctionTrackerCog(commands.Cog):
         hex_code = f"{color:06X}"[:6] if color else None
         exotic_type = colors.get_exotic_type(item_id, hex_code)\
                       if item_id and hex_code and not extra_attributes.get('dye_item') else None
+        accessory = 'accessories' in auction.get('categories', [])
         tasks: list[Coroutine] = []
 
         if extra_attributes.get('originTag') in constants.ADMIN_ORIGIN_TAGS:
             tasks.append(AHListener.on_admin_spawned_auction(auction, item))
-        if extra_attributes.get('modifier') in constants.OG_REFORGES:
+        if not accessory and extra_attributes.get('modifier') in constants.OG_REFORGES:
             tasks.append(AHListener.on_og_reforge_auction(auction, item))
-        if 'accessories' in auction.get('categories', []) and extra_attributes.get('modifier', 'none') != 'none':
+        if accessory and extra_attributes.get('modifier', 'none') != 'none':
             tasks.append(AHListener.on_semi_og_reforge_auction(auction, item))
         if auction['auctioneer'] in ranktracker.POI_UUIDS:
             tasks.append(AHListener.on_poi_auction(auction, item))
