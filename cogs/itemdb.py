@@ -152,6 +152,13 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
             inline=True
         )
 
+    if item['extraAttributes'].get('captured_date'):
+        embed.add_field(
+            name="Captured At",
+            value=f"<t:{item['extraAttributes']['captured_date'] // 1000}:f>\n-# <t:{item['extraAttributes']['captured_date'] // 1000}:R>",
+            inline=True
+        )
+
     if item.get('rarity'):
         embed.add_field(
             name="Rarity",
