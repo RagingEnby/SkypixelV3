@@ -118,7 +118,7 @@ async def get(identifier: str) -> MojangPlayer:
 async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
     logger.debug(f"getting players {identifiers}...")
     to_fetch = identifiers.copy()
-    players: list[MojangPlayer] = {}
+    players: list[MojangPlayer] = []
     for identifier in identifiers:
         cached = Cache.get(identifier)
         if cached:
