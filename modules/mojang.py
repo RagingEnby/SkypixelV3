@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 
 from typing_extensions import TypedDict
 
@@ -31,7 +31,7 @@ class Cache:
         Cache.CACHE[player.name.lower()] = player
 
     @staticmethod
-    def get(key: str) -> "MojangPlayer" | None:  # type: ignore[assignment]
+    def get(key: str) -> Optional["MojangPlayer"]:  # type: ignore[assignment]
         Cache.cleanup()
         player = Cache.CACHE.get(key)
         if not player:
