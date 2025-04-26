@@ -39,6 +39,9 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     # throwback to the time my dumbass fucked up capitaliation
     if item.get('createdAt'):
         item['created_at'] = item.pop('createdAt')
+    # wrong unix format buddy
+    if len(str(item.get('created_at'))) == 10:
+        item['created_at'] *= 1000
     return item
 
 
