@@ -40,7 +40,7 @@ async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> d
     embed.set_thumbnail(utils.get_item_image(
         item_id=tag.get('ExtraAttributes', {}).get('id', 'DIRT'),
         color=f"{display['color']:06X}"[:6] if display.get('color') else None,
-        durability=tag.get('Damage')
+        durability=item.get('Damage')
     ))
     embed.set_footer(text="/viewauction " + auction['uuid'])
     embed.add_field(
@@ -155,9 +155,10 @@ class AHListener:
     @staticmethod
     async def on_cake_soul_auction(auction: dict[str, Any], item: dict[str, Any]):
         embed = await make_auction_embed(auction, item)
-        dye_data = constants.MINECRAFT_DYES.get(item.get('tag', {}).get('Damage'))
+        dye_data = constants.MINECRAFT_DYES.get(item.get('Damage'))  # type: ignore
         if dye_data:
             embed.title = dye_data['colorName'].title() + " Cake Soul"  # type: ignore[index]
+            embed.color = dye_data['hex']  # type: ignore
         await utils.send_to_channel(constants.CAKE_SOUL_AUCTIONS_CHANNEL, embed=embed)
         
 
