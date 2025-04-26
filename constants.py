@@ -30,6 +30,7 @@ POI_AUCTIONS_CHANNEL: int = 1359374618946699504
 OLD_ITEM_AUCTIONS_CHANNEL: int = 1359377036111511732
 SEYMOUR_AUCTIONS_CHANNEL: int = 1360000687668334792
 EXOTIC_AUCTIONS_CHANNEL: int = 1362226845696917555
+CAKE_SOUL_AUCTIONS_CHANNEL: int = 1365795200235999413
 EXOTIC_AUCTIONS_THREADS_PARENT: int = 1362450259120357396
 EXOTIC_AUCTIONS_THREADS: dict['ExoticType', int] = { # type: ignore[name-defined]
     "crystal": 1362450340443848826,
@@ -125,6 +126,104 @@ RANK_COLORS: dict[str, int] = {
     "events": COLOR_CODES['6'],
     "mojang": COLOR_CODES['6'],
     "mcp": COLOR_CODES['c']
+}
+MINECRAFT_DYES: dict[int, dict[str, str | int]] = {
+    0: {
+        "item": "Ink Sac",
+        "colorName": "black",
+        "hex": 0x1D1D21,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/black.png?raw=true"
+    },
+    1: {
+        "item": "Rose Red",
+        "colorName": "red",
+        "hex": 0xB02E26,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/red.png?raw=true"
+    },
+    2: {
+        "item": "Cactus Green",
+        "colorName": "dark green",
+        "hex": 0x5E7C16,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/green.png?raw=true"
+    },
+    3: {
+        "item": "Cocoa Beans",
+        "colorName": "brown",
+        "hex": 0x835432,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/brown.png?raw=true"
+    },
+    4: {
+        "item": "Lapis Lazuli",
+        "colorName": "dark blue",
+        "hex": 0x3C44AA,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/blue.png?raw=true"
+    },
+    5: {
+        "item": "Purple Dye",
+        "colorName": "purple",
+        "hex": 0x8932B8,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/purple.png?raw=true"
+    },
+    6: {
+        "item": "Cyan Dye",
+        "colorName": "cyan",
+        "hex": 0x169C9C,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/cyan.png?raw=true"
+    },
+    7: {
+        "item": "Light Gray Dye",
+        "colorName": "light gray",
+        "hex": 0x9D9D97,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/light_gray.png?raw=true"
+    },
+    8: {
+        "item": "Gray Dye",
+        "colorName": "gray",
+        "hex": 0x474F52,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/gray.png?raw=true"
+    },
+    9: {
+        "item": "Pink Dye",
+        "colorName": "pink",
+        "hex": 0xF38BAA,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/pink.png?raw=true"
+    },
+    10: {
+        "item": "Lime Dye",
+        "colorName": "lime green",
+        "hex": 0x80C71F,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/lime.png?raw=true"
+    },
+    11: {
+        "item": "Dandelion Yellow",
+        "colorName": "yellow",
+        "hex": 0xFED83D,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/yellow.png?raw=true"
+    },
+    12: {
+        "item": "Light Blue Dye",
+        "colorName": "light blue",
+        "hex": 0x3AB3DA,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/light_blue.png?raw=true"
+    },
+    13: {
+        "item": "Magenta Dye",
+        "colorName": "magenta",
+        "hex": 0xC74EBD,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/magenta.png?raw=true"
+    },
+    14: {
+        "item": "Orange Dye",
+        "colorName": "orange",
+        "hex": 0xF9801D,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/orange.png?raw=true"
+    },
+    15: {
+        "item": "Bone Meal",
+        "colorName": "white",
+        "hex": 0xF9FFFE,
+        "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/white.png?raw=true"
+    }
 }
 ## Misc
 SEYMOUR_IDS: dict[str, 'ArmorType'] = { # type: ignore
