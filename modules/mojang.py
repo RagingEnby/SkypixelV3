@@ -31,7 +31,7 @@ class Cache:
         Cache.CACHE[player.name.lower()] = player
 
     @staticmethod
-    def get(key: str) -> "MojangPlayer" | None = None:  # type: ignore[assignment]
+    def get(key: str) -> "MojangPlayer" | None:  # type: ignore[assignment]
         Cache.cleanup()
         player = Cache.CACHE.get(key)
         if not player:
