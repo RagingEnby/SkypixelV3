@@ -48,6 +48,15 @@ def get_item_image(item: dict[str, Any]) -> str:
         color=item.get('colour'),
         durability=item.get('damage')
     )
+
+
+def get_item_color(item: dict[str, Any]) -> int:
+    if item.get('colour'):
+        return int(item['colour'], 16)
+    soul_durability = item.get('extraAttributes', {}).get('soul_durability')
+    if item['itemId'] == "CAKE_SOUL" and soul_durability:
+        return constants.MINECRAFT_DYES[soul_durability]['hex']  # type: ignore
+    return constants.RARITY_COLORS.get(item['rarity'], constants.DEFAULT_EMBED_COLOR)
     
 
 async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
@@ -60,7 +69,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     
     embed = utils.add_footer(disnake.Embed(
         title=utils.remove_color_codes(item.get('friendlyName', item['itemId'])),
-        color=constants.RARITY_COLORS.get(item['rarity'], constants.DEFAULT_EMBED_COLOR)
+        color=get_item_color(item)
     ))
     embed.set_thumbnail(url=get_item_image(item))
 
