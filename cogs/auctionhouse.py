@@ -159,13 +159,12 @@ class AHListener:
         if dye_data:
             embed.title = dye_data['colorName'].title() + " Cake Soul"  # type: ignore[index]
             embed.color = dye_data['hex']  # type: ignore
-        extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
-        if extra_attributes.get('cake_owner'):
-            embed.add_field(
-                name="Cake Owner",
-                value=utils.remove_color_codes(extra_attributes['cake_owner']),
-                inline=False
-            )
+        cake_owner = item.get('tag', {}).get('ExtraAttributes', {}).get('cake_owner') or "None"
+        embed.add_field(
+            name="Cake Owner",
+            value=utils.remove_color_codes(cake_owner),
+            inline=True
+        )
         await utils.send_to_channel(constants.CAKE_SOUL_AUCTIONS_CHANNEL, embed=embed)
         
 
