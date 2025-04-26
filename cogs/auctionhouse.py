@@ -39,7 +39,8 @@ async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> d
     )
     embed.set_thumbnail(utils.get_item_image(
         item_id=tag.get('ExtraAttributes', {}).get('id', 'DIRT'),
-        color=f"{display['color']:06X}"[:6] if display.get('color') else None
+        color=f"{display['color']:06X}"[:6] if display.get('color') else None,
+        durability=tag.get('Damage')
     ))
     embed.set_footer(text="/viewauction " + auction['uuid'])
     embed.add_field(
@@ -63,8 +64,6 @@ async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> d
 
 
 class AHListener:
-
-
     @staticmethod
     async def on_admin_spawned_auction(auction: dict[str, Any], item: dict[str, Any]):
         embed = await make_auction_embed(auction, item)
@@ -140,11 +139,27 @@ class AHListener:
             value=exotic_type.replace('_', ' ').title(),
             inline=True
         )
-        send_tasks = [utils.send_to_channel(constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed)]
+        send_tasks = [utils.send_to_channel(
+            constants.EXOTIC_AUCTIONS_CHANNEL,
+            embed=embed
+        )]
         thread_id = constants.EXOTIC_AUCTIONS_THREADS.get(exotic_type)
         if thread_id:
-            send_tasks.append(utils.send_to_channel(constants.EXOTIC_AUCTIONS_THREADS_PARENT, thread_id=thread_id, embed=embed))
+            send_tasks.append(utils.send_to_channel(
+                constants.EXOTIC_AUCTIONS_THREADS_PARENT,
+                thread_id=thread_id,
+                embed=embed
+            ))
         await asyncio.gather(*send_tasks)
+
+    @staticmethod
+    async def on_cake_soul_auction(auction: dict[str, Any], item: dict[str, Any]):
+        embed = await make_auction_embed(auction, item)
+        dye_data = constants.MINECRAFT_DYES.get(item.get('tag', {}).get('Damage'))
+        if dye_data:
+            embed.title = dye_data['colorName'].title() + " Cake Soul"  # type: ignore[index]
+        await utils.send_to_channel(constants.CAKE_SOUL_AUCTIONS_CHANNEL, embed=embed)
+        
 
 
 class AuctionTrackerCog(commands.Cog):
@@ -180,6 +195,8 @@ class AuctionTrackerCog(commands.Cog):
             tasks.append(AHListener.on_seymour_auction(auction, item, hex_code))
         if exotic_type:
             tasks.append(AHListener.on_exotic_auction(auction, item, exotic_type, hex_code))
+        if item_id == "CAKE_SOUL":
+            tasks.append(AHListener.on_cake_soul_auction(auction, item))
         if tasks:
             await asyncio.gather(*tasks)
 
