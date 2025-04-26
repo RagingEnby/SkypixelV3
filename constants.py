@@ -52,6 +52,8 @@ MOTD_TRACKER_CHANNELS: dict[int, str] = {
 FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
     1179543769905893416: "<@&1190093109938368552>", # RagingEnby's Dev Server
     1190098169703448576: "use code rail :)",        # Derailcord
+    938088437200846948: "<@&937729428430151770>",   # Collector's Hub
+    1314670732374180013: "",                        # Collector's Cafe
 }
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1210999395865202688: "<@&1358904280165126434>", # RagingEnby's Dev Server
