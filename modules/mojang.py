@@ -127,7 +127,7 @@ async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
     if to_fetch:
         response = await asyncreqs.post(
             url="https://api.ragingenby.dev/players",
-            json={"identifiers": [i.replace('-', '') for i in identifiers]}
+            json={"identifiers": [i.replace('-', '') for i in to_fetch]}
         )
         data = await response.json()
         logger.debug(f"got data: {data}")
