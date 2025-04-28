@@ -167,9 +167,9 @@ class AHListener:
         )
         pings = []
         if auction['bin'] and auction['starting_bid'] <= 7_500_000 and dye_data and dye_data['colorName'] == "red":
-            pings.append(constants.CHEAP_RED_SOUL_ROLE)
+            pings.append(f"<@&{constants.CHEAP_RED_SOUL_ROLE}>")
         if auction['bin'] and auction['starting_bid'] <= 5_000_000:
-            pings.append(constants.CHEAP_SOUL_ROLE)
+            pings.append(f"<@&{constants.CHEAP_SOUL_ROLE}")
         await utils.send_to_channel(constants.CAKE_SOUL_AUCTIONS_CHANNEL, ' '.join(pings), embed=embed)
         
 
