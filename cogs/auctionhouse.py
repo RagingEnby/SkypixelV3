@@ -171,6 +171,22 @@ class AHListener:
         if auction['bin'] and auction['starting_bid'] <= 5_000_000:
             pings.append(f"<@&{constants.CHEAP_SOUL_ROLE}>")
         await utils.send_to_channel(constants.CAKE_SOUL_AUCTIONS_CHANNEL, ' '.join(pings), embed=embed)
+
+    @staticmethod
+    async def on_editioned_auction(auction: dict[str, Any], item: dict[str, Any], edition: int, timestamp: int | None):
+        embed = await make_auction_embed(auction, item)
+        embed.add_field(
+            name="Edition",
+            value=f"#{utils.commaize(edition)}",
+            inline=True
+        )
+        if timestamp:
+            embed.add_field(
+                name="Created At",
+                value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
+                inline=True
+            )
+        await utils.send_to_channel(constants.EDITIONED_AUCTIONS_CHANNEL, embed=embed)
         
 
 
@@ -191,6 +207,7 @@ class AuctionTrackerCog(commands.Cog):
         hex_code = f"{color:06X}"[:6] if color else None
         exotic_type = colors.get_exotic_type(item_id, hex_code)\
                       if item_id and hex_code and not extra_attributes.get('dye_item') else None
+        edition = extra_attributes.get('edition', extra_attributes.get('basket_edition'))
         accessory = 'accessories' in auction.get('categories', [])
         tasks: list[Coroutine] = []
 
@@ -207,9 +224,11 @@ class AuctionTrackerCog(commands.Cog):
         if item_id in constants.SEYMOUR_IDS and hex_code:
             tasks.append(AHListener.on_seymour_auction(auction, item, hex_code))
         if exotic_type and hex_code:
-            tasks.append(AHListener.on_exotic_auction(auction, item, exotic_type, hex_code))
+            tasks.append(AHListener.on_exotic_auction(auction, item, exotic_type, hex_code))  # type: ignore[assignment]
         if item_id == "CAKE_SOUL":
             tasks.append(AHListener.on_cake_soul_auction(auction, item))
+        if edition:
+            tasks.append(AHListener.on_editioned_auction(auction, item, edition, timestamp))
         if tasks:
             await asyncio.gather(*tasks)
 
