@@ -84,6 +84,7 @@ def get_item_image(item_id: str, color: str | None = None, durability: int | Non
 def numerize(num: int | float) -> str:
     if num < 1_000:
         return str(num)
+    num = round(num)
     suffixes = ["", "K", "M", "B", "T"]
     magnitude = 0
     while abs(num) >= 1_000 and magnitude < len(suffixes) - 1:
