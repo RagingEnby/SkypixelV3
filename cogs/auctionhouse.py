@@ -240,26 +240,26 @@ class AuctionTrackerCog(commands.Cog):
             await asyncio.gather(*tasks)
 
     async def main(self):
-        last_last_updated = 0
+        last_scanned = 0
         while True:
             try:
                 page_0 = await get_active_auctions()
-                if not last_last_updated:
-                    last_last_updated = page_0['lastUpdated']
-                if page_0['lastUpdated'] != last_last_updated:
+                if not last_scanned:
+                    last_scanned = page_0['lastUpdated']
+                if page_0['lastUpdated'] != last_scanned:
                     # i used to filter out non-uuied auctions
                     # here, but for some reason auction.item_uuid
                     # is missing on like 5% of auctioned items
                     # with uuids 😭
                     new_auctions = [
                         a for a in page_0['auctions']
-                        if a.get('start', 0) >= last_last_updated
+                        if a.get('start', 0) >= last_scanned
                     ]
                     logger.debug(f"got {len(new_auctions)} new auctions")
                     await asyncio.gather(*[self.on_auction(a) for a in new_auctions])
                     logger.debug('processed auctions')
-                    last_last_updated = page_0['lastUpdated']
-                next_update = last_last_updated // 1000 + 60
+                    last_scanned = page_0['lastUpdated']
+                next_update = last_scanned // 1000 + 60
                 time_until_update = next_update - time.time()
                 if time_until_update <= 0:
                     time_until_update = 1
