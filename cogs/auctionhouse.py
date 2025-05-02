@@ -180,6 +180,13 @@ class AHListener:
             value=f"#{utils.commaize(edition)}",
             inline=True
         )
+        recipient_name = item.get('tag', {}).get('ExtraAttributes', {}).get('recipient_name')
+        if recipient_name:
+            embed.add_field(
+                name="Recipient Name",
+                value=utils.esc_mrkdwn(utils.remove_color_codes(recipient_name)),
+                inline=True
+            )
         if timestamp:
             embed.add_field(
                 name="Created At",
@@ -187,7 +194,6 @@ class AHListener:
                 inline=True
             )
         await utils.send_to_channel(constants.EDITIONED_AUCTIONS_CHANNEL, embed=embed)
-        
 
 
 class AuctionTrackerCog(commands.Cog):
@@ -227,7 +233,8 @@ class AuctionTrackerCog(commands.Cog):
             tasks.append(AHListener.on_exotic_auction(auction, item, exotic_type, hex_code))  # type: ignore[assignment]
         if item_id == "CAKE_SOUL":
             tasks.append(AHListener.on_cake_soul_auction(auction, item))
-        if edition:
+        # for some reason there are mementos with edition -1 (missing)
+        if edition and edition > 0:
             tasks.append(AHListener.on_editioned_auction(auction, item, edition, timestamp))
         if tasks:
             await asyncio.gather(*tasks)
@@ -240,6 +247,10 @@ class AuctionTrackerCog(commands.Cog):
                 if not last_last_updated:
                     last_last_updated = page_0['lastUpdated']
                 if page_0['lastUpdated'] != last_last_updated:
+                    # i used to filter out non-uuied auctions
+                    # here, but for some reason auction.item_uuid
+                    # is missing on like 5% of auctioned items
+                    # with uuids 😭
                     new_auctions = [
                         a for a in page_0['auctions']
                         if a.get('start', 0) >= last_last_updated
