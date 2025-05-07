@@ -302,7 +302,7 @@ class RankTrackerCog(commands.Cog):
                     description="",
                     color=color
                 ))
-            embeds[index].description += utils.esc_mrkdwn(player['name']) + ', ' if i < len(rank_list) - 1 else ""
+            embeds[index].description += utils.esc_mrkdwn(player['name']) + (', ' if i < len(rank_list) - 1 else "")
                 
         if len(embeds) == 1:
             return await inter.send(embed=utils.add_footer(embeds[0]))
