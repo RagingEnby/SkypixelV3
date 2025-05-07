@@ -294,7 +294,7 @@ class RankTrackerCog(commands.Cog):
             color=color
         )]
         index = 0
-        for player in rank_list:
+        for i, player in enumerate(rank_list):
             if len(embeds[index].description) >= 1000:
                 index += 1
                 embeds.append(disnake.Embed(
@@ -302,7 +302,8 @@ class RankTrackerCog(commands.Cog):
                     description="",
                     color=color
                 ))
-            embeds[index].description += f"{utils.esc_mrkdwn(player['name'])}, "
+            embeds[index].description += utils.esc_mrkdwn(player['name']) + ', ' if i < len(rank_list) - 1 else ""
+                
         if len(embeds) == 1:
             return await inter.send(embed=utils.add_footer(embeds[0]))
         view = RankListView(embeds, inter)
