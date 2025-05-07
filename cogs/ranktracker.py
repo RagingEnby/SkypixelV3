@@ -18,7 +18,7 @@ SpecialRank = Literal['youtube', 'staff', 'pig_plus_plus_plus', 'innit', 'events
 
 URL: str = "https://api.ragingenby.dev/ranks"
 RANK_URL: str = URL + '/{}'
-COUNTS_URL: str = URL + '/counts'
+COUNTS_URL: str = RANK_URL.format('counts')
 RANKNAME_URL: str = "https://api.ragingenby.dev/rankname/{}"
 POI_UUIDS: set[str] = {
     player['id']
