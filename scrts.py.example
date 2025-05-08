@@ -1,0 +1,4 @@
+BOT_TOKEN: str = "MTA4ODU0MDY5NDUxMzE5MzA5Mg.realdiscordtokenfr"
+MONGODB_URI: str = "mongodb://username:password@ip:27017/"
+
+HYPIXEL_API_KEY: str = "b6d121c9-6bd3-4661-a888-3378c5f37159"
