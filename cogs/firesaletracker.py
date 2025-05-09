@@ -22,9 +22,9 @@ async def get_fire_sales() -> dict[str, dict[str, Any]]:
     return {sale.pop('item_id'): sale for sale in sales}
 
 
-async def send(embed: disnake.Embed):
+async def send(embeds: list[disnake.Embed]):
     tasks = [
-        utils.send_to_channel(channel_id, content, embed=embed)
+        utils.send_to_channel(channel_id, content, embeds=embeds)
         for channel_id, content in constants.FIRE_SALE_TRACKER_CHANNELS.items()
     ]
     await asyncio.gather(*tasks)
@@ -37,7 +37,7 @@ class FireSaleTrackerCog(commands.Cog):
         self.data = datamanager.JsonWrapper("storage/firesales.json")
 
     @staticmethod
-    async def on_fire_sale(item_id: str, sale: dict[str, Any]):
+    def make_fire_sale_embed(item_id: str, sale: dict[str, Any]) -> disnake.Embed:
         embed = utils.add_footer(disnake.Embed(
             title="New Fire Sale Added!",
             description='\n'.join([
@@ -49,18 +49,22 @@ class FireSaleTrackerCog(commands.Cog):
             ]),
             color=constants.DEFAULT_EMBED_COLOR
         ))
-        await send(embed)
+        embed.set_thumbnail(url=utils.get_item_image(item_id))
+        return embed
 
     async def main(self):
         while True:
             try:
+                embeds: list[disnake.Embed] = []
                 sales = await get_fire_sales()
                 for item_id, sale in sales.items():
                     if item_id not in self.data:
                         if self.data.to_dict():
-                            await self.on_fire_sale(item_id, sale)
+                            embeds.append(self.make_fire_sale_embed(item_id, sale))
                         self.data[item_id] = sale
-                        await self.data.save()
+                if embeds:
+                    await send(embeds)
+                    await self.data.save()
             except Exception:
                 logger.error(traceback.format_exc())
             finally:
