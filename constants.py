@@ -1,10 +1,14 @@
 from disnake.ext.commands import InteractionBot
+from aiohttp import BasicAuth
 
 from scrts import (
     BOT_TOKEN,
     MONGODB_URI,
-    HYPIXEL_API_KEY
+    HYPIXEL_API_KEY,
+    PROXY_AUTH,
+    PROXY
 )
+
 
 # Credit Footer
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
@@ -262,3 +266,5 @@ BOT: InteractionBot
 BOT_TOKEN: str = BOT_TOKEN
 MONGODB_URI: str = MONGODB_URI
 HYPIXEL_API_KEY: str = HYPIXEL_API_KEY
+PROXY: str = PROXY
+PROXY_AUTH: BasicAuth = PROXY_AUTH
