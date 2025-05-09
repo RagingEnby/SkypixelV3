@@ -4,6 +4,8 @@ from typing import Optional
 
 import aiohttp
 
+import constants
+
 logger = logging.getLogger(__name__)
 
 SESSION: Optional[aiohttp.ClientSession] = None
@@ -32,6 +34,15 @@ async def get(*args, **kwargs) -> aiohttp.ClientResponse:
         logger.error(f"Proxy error: {e} retrying in 2s...")
         await asyncio.sleep(2)
         return await get(*args, **kwargs)
+
+
+async def proxy_get(*args, **kwargs) -> aiohttp.ClientResponse:
+    return await get(
+        *args,
+        proxy=constants.PROXY,
+        proxy_auth=constants.PROXY_AUTH,
+        **kwargs
+    )
 
 
 async def post(*args, **kwargs) -> aiohttp.ClientResponse:
