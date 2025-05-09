@@ -48,8 +48,8 @@ async def proxy_get(*args, **kwargs) -> aiohttp.ClientResponse:
 async def post(*args, **kwargs) -> aiohttp.ClientResponse:
     global SESSION
     if CLOSED:
-        logger.error("asyncreqs.get() called after shutdown")
-        raise RuntimeError('asyncreqs.get() called after shutdown')
+        logger.error("asyncreqs.post() called after shutdown")
+        raise RuntimeError('asyncreqs.post() called after shutdown')
 
     if not SESSION or SESSION.closed:
         SESSION = aiohttp.ClientSession()
