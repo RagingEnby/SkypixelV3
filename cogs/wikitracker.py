@@ -11,6 +11,7 @@ from modules import asyncreqs
 from modules import datamanager
 from modules import utils
 
+API_BLOCKS_SERVER: bool = False
 URL: str = "https://wiki.hypixel.net/api.php"
 PARAMS: dict[str, str] = {
     "action": "query",
@@ -42,11 +43,22 @@ async def get_editor(name: str) -> dict[str, Any]:
     return EDITOR_CACHE[name]
 
 
-async def get_edits() -> list[dict[str, Any]]:
-    response = await asyncreqs.get(URL, params=PARAMS)
+async def get_edits(attempts: int = 0) -> list[dict[str, Any]]:
+    global API_BLOCKS_SERVER
+    if not API_BLOCKS_SERVER and attempts <= 5:
+        response = await asyncreqs.get(URL, params=PARAMS)
+        if response.status == 403:
+            logger.warning("wiki API blocked server, retrying in 5s...")
+            await asyncio.sleep(5)
+            return await get_edits(attempts+1)
+    else:
+        API_BLOCKS_SERVER = True
+        logger.warning("wiki API seems to be blocking IP, switching to proxy")
+        response = await asyncreqs.proxy_get(URL, params=PARAMS)
     data = await response.json()
     return data['query']['recentchanges']
 
+    
 
 async def send(embed: disnake.Embed):
     tasks = [
