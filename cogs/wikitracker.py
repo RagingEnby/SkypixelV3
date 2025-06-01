@@ -129,7 +129,7 @@ class WikiTrackerCog(commands.Cog):
             except Exception:
                 logger.error(traceback.format_exc())
             finally:
-                await asyncio.sleep(90)
+                await asyncio.sleep(30)
 
     async def close(self):
         if self.task and not self.task.done():
