@@ -214,7 +214,7 @@ class AuctionTrackerCog(commands.Cog):
 
     def log_auction(self, auction: dict[str, Any], item: dict[str, Any]):
         doc = auction.copy()
-        doc['_id'] = auction.pop('uuid')
+        doc['_id'] = doc.pop('uuid')
         doc['item_data'] = item
         self.db_queue.append(doc)
 
