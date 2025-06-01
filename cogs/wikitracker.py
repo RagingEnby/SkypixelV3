@@ -10,6 +10,7 @@ import constants
 from modules import asyncreqs
 from modules import datamanager
 from modules import utils
+from modules import mongodb
 
 API_BLOCKS_SERVER: bool = False
 URL: str = "https://wiki.hypixel.net/api.php"
@@ -72,14 +73,29 @@ class WikiTrackerCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
         self.task: asyncio.Task | None = None
+        self.db: mongodb.Collection | None = None
+        self.db_queue = []
         self.data = datamanager.JsonWrapper("storage/wikiedits.json")
         if not self.data.get('edits'):
             logger.warning("wikiedits.json is empty")
             self.data['edits'] = []
 
-    @staticmethod
-    async def on_wiki_edit(edit: dict[str, Any]):
+    async def upload_queue(self):
+        if not self.db_queue:
+            return
+        if not self.db:
+            self.db = mongodb.Collection('SkyBlock', 'wikiedits')
+        await self.db.insert_many(self.db_queue)
+        self.db_queue.clear()
+
+    def log_edit(self, edit: dict[str, Any]):
+        doc = edit.copy()
+        doc['_id'] = edit.pop('revid')
+        self.db_queue.append(doc)
+
+    async def on_wiki_edit(self, edit: dict[str, Any]):
         logger.debug(f"wiki edit: {edit}")
+        self.log_edit(edit)
         editor = await get_editor(edit['user'])
         verb = "Created" if edit['type'] == 'new' else "Edited"
         embed = utils.add_footer(disnake.Embed(
@@ -107,6 +123,8 @@ class WikiTrackerCog(commands.Cog):
                         await self.on_wiki_edit(edit)
                     self.data['edits'].append(edit['revid'])
                     logger.debug(f"finished processing edit: {edit['revid']}")
+                await self.upload_queue()
+                logger.debug("logged edits to mongo")
                 await self.data.save()
             except Exception:
                 logger.error(traceback.format_exc())
@@ -116,6 +134,9 @@ class WikiTrackerCog(commands.Cog):
     async def close(self):
         if self.task and not self.task.done():
             self.task.cancel()
+        if self.db:
+            await self.db.close()
+            self.db = None
 
     @commands.Cog.listener()
     async def on_ready(self):
