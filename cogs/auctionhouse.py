@@ -218,9 +218,11 @@ class AuctionTrackerCog(commands.Cog):
         doc['item_data'] = item
         self.db_queue.append(doc)
 
-    async def on_auction(self, auction: dict[str, Any]):
+    async def on_auction(self, auction: dict[str, Any], new: bool = True):
         item = parser.decode_single(auction['item_bytes'])
         self.log_auction(auction, item)
+        if not new:
+            return
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
         if not extra_attributes.get('uuid'):
             return
@@ -268,12 +270,15 @@ class AuctionTrackerCog(commands.Cog):
                     # here, but for some reason auction.item_uuid
                     # is missing on like 5% of auctioned items
                     # with uuids 😭
-                    new_auctions = [
+                    auctions = [
                         a for a in page_0['auctions']
-                        if a.get('start', 0) >= last_scanned
+                        if a.get('last_updated', a.get('start', 0)) >= last_scanned
                     ]
-                    logger.debug(f"got {len(new_auctions)} new auctions")
-                    await asyncio.gather(*[self.on_auction(a) for a in new_auctions])
+                    logger.debug(f"got {len(auctions)} auctions")
+                    await asyncio.gather(*[self.on_auction(
+                        auction=a,
+                        new=a.get('start', 0) >= last_scanned)
+                    for a in auctions])
                     logger.debug('processed auctions')
                     await self.upload_queue()
                     logger.debug('logged auctions to mongo')
