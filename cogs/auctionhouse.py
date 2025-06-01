@@ -13,6 +13,7 @@ from modules import asyncreqs, mojang
 from modules import colors
 from modules import parser
 from modules import utils
+from modules import mongodb
 
 logger = logging.getLogger(__name__)
 ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page=0"
@@ -200,10 +201,23 @@ class AuctionTrackerCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
         self.task: asyncio.Task | None = None
+        self.db: mongodb.Collection | None = None
+        self.db_queue = []
 
-    @staticmethod
-    async def on_auction(auction: dict[str, Any]):
+    async def upload_queue(self):
+        if not self.db:
+            self.db = mongodb.Collection('SkyBlock', 'auctions')
+        await self.db.insert_many(self.db_queue)
+        self.db_queue.clear()
+
+    def log_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+        doc = auction.copy()
+        doc['item_data'] = item
+        self.db_queue.append(doc)
+
+    async def on_auction(self, auction: dict[str, Any]):
         item = parser.decode_single(auction['item_bytes'])
+        self.log_auction(auction, item)
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
         if not extra_attributes.get('uuid'):
             return
@@ -258,6 +272,9 @@ class AuctionTrackerCog(commands.Cog):
                     logger.debug(f"got {len(new_auctions)} new auctions")
                     await asyncio.gather(*[self.on_auction(a) for a in new_auctions])
                     logger.debug('processed auctions')
+                    await self.upload_queue()
+                    self.db_queue.clear()
+                    logger.debug('logged auctions to mongo')
                     last_scanned = page_0['lastUpdated']
                 next_update = last_scanned // 1000 + 60
                 time_until_update = next_update - time.time()
@@ -271,6 +288,9 @@ class AuctionTrackerCog(commands.Cog):
     async def close(self):
         if self.task and not self.task.done():
             self.task.cancel()
+        if self.db:
+            await self.db.close()
+            self.db = None
 
     @commands.Cog.listener()
     async def on_ready(self):
