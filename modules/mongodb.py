@@ -20,6 +20,7 @@ class Collection:
         self.find_one = self.collection.find_one
         self.count_documents = self.collection.count_documents
         self.insert_many = self.collection.insert_many
+        self.bulk_write = self.collection.bulk_write
 
     async def close(self):
         logger.info(f"Closing {self.db_name}.{self.collection_name}")
