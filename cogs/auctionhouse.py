@@ -275,7 +275,6 @@ class AuctionTrackerCog(commands.Cog):
                     await asyncio.gather(*[self.on_auction(a) for a in new_auctions])
                     logger.debug('processed auctions')
                     await self.upload_queue()
-                    self.db_queue.clear()
                     logger.debug('logged auctions to mongo')
                     last_scanned = page_0['lastUpdated']
                 next_update = last_scanned // 1000 + 60
