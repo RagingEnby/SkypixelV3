@@ -3,6 +3,7 @@ import logging
 import time
 import traceback
 from typing import Any, Coroutine
+from pymongo import UpdateOne
 
 import disnake
 from disnake.ext import commands
@@ -209,8 +210,13 @@ class AuctionTrackerCog(commands.Cog):
             return
         if not self.db:
             self.db = mongodb.Collection('SkyBlock', 'auctions')
-        await self.db.insert_many(self.db_queue)
+        docs = self.db_queue.copy()
         self.db_queue.clear()
+        await self.db.bulk_write([UpdateOne(
+            {'_id': doc['_id']},
+            {'$set': doc},
+            upsert=True
+        ) for doc in docs])
 
     def log_auction(self, auction: dict[str, Any], item: dict[str, Any]):
         doc = auction.copy()
