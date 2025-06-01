@@ -205,6 +205,8 @@ class AuctionTrackerCog(commands.Cog):
         self.db_queue = []
 
     async def upload_queue(self):
+        if not self.db_queue:
+            return
         if not self.db:
             self.db = mongodb.Collection('SkyBlock', 'auctions')
         await self.db.insert_many(self.db_queue)
