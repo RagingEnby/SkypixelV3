@@ -210,13 +210,8 @@ class AuctionTrackerCog(commands.Cog):
             return
         if not self.db:
             self.db = mongodb.Collection('SkyBlock', 'auctions')
-        docs = self.db_queue.copy()
+        await self.db.update_many(self.db_queue)
         self.db_queue.clear()
-        await self.db.bulk_write([UpdateOne(
-            {'_id': doc['_id']},
-            {'$set': doc},
-            upsert=True
-        ) for doc in docs])
 
     def log_auction(self, auction: dict[str, Any], item: dict[str, Any]):
         doc = auction.copy()

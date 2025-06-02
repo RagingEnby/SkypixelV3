@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+from pymongo import UpdateOne
 import motor.motor_asyncio as motor
 
 import constants
@@ -21,6 +22,13 @@ class Collection:
         self.count_documents = self.collection.count_documents
         self.insert_many = self.collection.insert_many
         self.bulk_write = self.collection.bulk_write
+
+    async def update_many(self, docs: list[dict[str, Any]]):
+        return await self.db.bulk_write([UpdateOne(
+            {'_id': doc['_id']},
+            {'$set': doc},
+            upsert=True
+        ) for doc in docs])
 
     async def close(self):
         logger.info(f"Closing {self.db_name}.{self.collection_name}")
