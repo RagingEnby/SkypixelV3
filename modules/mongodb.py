@@ -24,7 +24,7 @@ class Collection:
         self.bulk_write = self.collection.bulk_write
 
     async def update_many(self, docs: list[dict[str, Any]]):
-        return await self.db.bulk_write([UpdateOne(
+        return await self.collection.bulk_write([UpdateOne(
             {'_id': doc['_id']},
             {'$set': doc},
             upsert=True
