@@ -85,7 +85,7 @@ class WikiTrackerCog(commands.Cog):
             return
         if not self.db:
             self.db = mongodb.Collection('SkyBlock', 'wikiedits')
-        await self.db.insert_many(self.db_queue)
+        await self.db.update_many(self.db_queue)
         self.db_queue.clear()
 
     def log_edit(self, edit: dict[str, Any]):
