@@ -90,7 +90,7 @@ class WikiTrackerCog(commands.Cog):
 
     def log_edit(self, edit: dict[str, Any]):
         doc = edit.copy()
-        doc['_id'] = edit.pop('revid')
+        doc['_id'] = doc.pop('revid')
         self.db_queue.append(doc)
 
     async def on_wiki_edit(self, edit: dict[str, Any]):
