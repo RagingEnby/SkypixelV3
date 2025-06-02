@@ -18,6 +18,7 @@ from modules import mongodb
 
 logger = logging.getLogger(__name__)
 ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page=0"
+ENDED_URL: str = "https://api.hypixel.net/v2/skyblock/auctions_ended"
 
 
 async def get_active_auctions() -> dict[str, Any]:
@@ -29,6 +30,17 @@ async def get_active_auctions() -> dict[str, Any]:
         logger.error(f'error getting /skyblock/auctions: {e}')
         await asyncio.sleep(5)
         return await get_active_auctions()
+
+
+async def get_ended_auctions() -> dict[str, Any]:
+    try:
+        response = await asyncreqs.get(ENDED_URL)
+        response.raise_for_status()
+        return await response.json()
+    except Exception as e:
+        logger.error(f'error getting /skyblock/auctions_ended: {e}')
+        await asyncio.sleep(5)
+        return await get_ended_auctions()
     
 
 async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> disnake.Embed:
@@ -202,22 +214,39 @@ class AuctionTrackerCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
         self.task: asyncio.Task | None = None
-        self.db: mongodb.Collection | None = None
-        self.db_queue = []
+        self.active_db: mongodb.Collection | None = None
+        self.ended_db: mongodb.Collection | None = None
+        self.active_db_queue = []
+        self.ended_db_queue = []
+        self.last_scanned_active = 0
+        self.last_scanned_ended = 0
 
     async def upload_queue(self):
-        if not self.db_queue:
-            return
-        if not self.db:
-            self.db = mongodb.Collection('SkyBlock', 'auctions')
-        await self.db.update_many(self.db_queue)
-        self.db_queue.clear()
+        if self.active_db_queue:
+            if not self.active_db:
+                self.active_db = mongodb.Collection('SkyBlock', 'auctions')
+            await self.active_db.update_many(self.active_db_queue)
+            self.active_db_queue.clear()
+            logger.debug('logged auctions to mongo')
+        if self.ended_db_queue:
+            if not self.ended_db:
+                self.ended_db = mongodb.Collection('SkyBlock', 'ended_auctions')
+            await self.ended_db.update_many(self.ended_db_queue)
+            self.ended_db_queue.clear()
+            logger.debug('logged ended auctions to mongo')
 
+    
     def log_auction(self, auction: dict[str, Any], item: dict[str, Any]):
         doc = auction.copy()
         doc['_id'] = doc.pop('uuid')
         doc['item_data'] = item
-        self.db_queue.append(doc)
+        self.active_db_queue.append(doc)
+
+    def log_ended_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+        doc = auction.copy()
+        doc['_id'] = doc.pop('auction_id')
+        doc['item_data'] = item
+        self.ended_db_queue.append(doc)
 
     async def on_auction(self, auction: dict[str, Any], new: bool = True):
         item = parser.decode_single(auction['item_bytes'])
@@ -259,36 +288,68 @@ class AuctionTrackerCog(commands.Cog):
         if tasks:
             await asyncio.gather(*tasks)
 
+    async def on_auction_end(self, auction: dict[str, Any]):
+        item = parser.decode_single(auction['item_bytes'])
+        self.log_ended_auction(auction, item)
+
+    async def active_scanner(self) -> float:
+        page_0 = await get_active_auctions()
+        if not self.last_scanned_active:
+            self.last_scanned_active = page_0['lastUpdated']
+        if page_0['lastUpdated'] != self.last_scanned_active:
+            # i used to filter out non-uuied auctions
+            # here, but for some reason auction.item_uuid
+            # is missing on like 5% of auctioned items
+            # with uuids 😭
+            auctions = [
+                a for a in page_0['auctions']
+                if a.get('last_updated', a.get('start', 0)) >= self.last_scanned_active
+            ]
+            logger.debug(f"got {len(auctions)} auctions")
+            await asyncio.gather(*[self.on_auction(
+                auction=a,
+                new=a.get('start', 0) >= self.last_scanned_active)
+            for a in auctions])
+            logger.debug('processed auctions')
+            self.last_scanned_active = page_0['lastUpdated']
+        next_update = self.last_scanned_active // 1000 + 60
+        time_until_update = next_update - time.time()
+        if time_until_update < 0:
+            return 1.0
+        return time_until_update
+
+    async def ended_scanner(self) -> float:
+        data = await get_ended_auctions()
+        if not self.last_scanned_ended:
+            self.last_scanned_ended = data['lastUpdated']
+        if data['lastUpdated'] != self.last_scanned_ended:
+            auctions = [
+                a for a in data['auctions']
+                if a.get('timestamp', 0) >= self.last_scanned_ended
+            ]
+            logger.debug(f"got {len(auctions)} ended auctions")
+            await asyncio.gather(*[
+                self.on_auction_end(auction=a)
+                for a in auctions
+            ])
+            logger.debug('processed ended auctions')
+            self.last_scanned_ended = data['lastUpdated']
+        next_update = self.last_scanned_ended // 1000 + 60
+        time_until_update = next_update - time.time()
+        if time_until_update < 0:
+            return 1.0
+        return time_until_update
+            
+
     async def main(self):
-        last_scanned = 0
         while True:
             try:
-                page_0 = await get_active_auctions()
-                if not last_scanned:
-                    last_scanned = page_0['lastUpdated']
-                if page_0['lastUpdated'] != last_scanned:
-                    # i used to filter out non-uuied auctions
-                    # here, but for some reason auction.item_uuid
-                    # is missing on like 5% of auctioned items
-                    # with uuids 😭
-                    auctions = [
-                        a for a in page_0['auctions']
-                        if a.get('last_updated', a.get('start', 0)) >= last_scanned
-                    ]
-                    logger.debug(f"got {len(auctions)} auctions")
-                    await asyncio.gather(*[self.on_auction(
-                        auction=a,
-                        new=a.get('start', 0) >= last_scanned)
-                    for a in auctions])
-                    logger.debug('processed auctions')
-                    await self.upload_queue()
-                    logger.debug('logged auctions to mongo')
-                    last_scanned = page_0['lastUpdated']
-                next_update = last_scanned // 1000 + 60
-                time_until_update = next_update - time.time()
-                if time_until_update <= 0:
-                    time_until_update = 1
-                await asyncio.sleep(time_until_update)
+                wait_for = min(await asyncio.gather(
+                    self.active_scanner(),
+                    self.ended_scanner()
+                ))
+                asyncio.create_task(self.upload_queue())
+                await asyncio.sleep(wait_for)
             except Exception:
                 logger.error(traceback.format_exc())
                 await asyncio.sleep(15)
@@ -296,9 +357,12 @@ class AuctionTrackerCog(commands.Cog):
     async def close(self):
         if self.task and not self.task.done():
             self.task.cancel()
-        if self.db:
-            await self.db.close()
-            self.db = None
+        if self.active_db:
+            await self.active_db.close()
+            self.active_db = None
+        if self.ended_db:
+            await self.ended_db.close()
+            self.ended_db = None
 
     @commands.Cog.listener()
     async def on_ready(self):
