@@ -6,7 +6,8 @@ from scrts import (
     MONGODB_URI,
     HYPIXEL_API_KEY,
     PROXY_AUTH,
-    PROXY
+    PROXY,
+    MINEFLAYER_EMAIL
 )
 
 
@@ -108,6 +109,16 @@ COLOR_CODES: dict[str, int] = { # all minecraft color codes and their hex code
     "9": 0x5555FF, "a": 0x55FF55, "b": 0x55FFFF,
     "c": 0xFF5555, "d": 0xFF55FF, "e": 0xFFFF55,
     "f": 0xFFFFFF
+}
+COLOR_CODE_NAMES: dict[str, str] = { # all minecraft color codes and their official name
+    "black": '0', "dark_blue": '1',
+    "dark_green": '2', "cyan": '3',
+    "dark_red": '4', "purple": '5',
+    "gold": '6', "gray": '7',
+    "dark_gray": '8', "blue": '9',
+    "green": 'a', "aqua": 'b',
+    "red": 'c', "pink": 'd',
+    "yellow": 'e', "white": 'f'
 }
 DEFAULT_EMBED_COLOR: int = COLOR_CODES['2']
 RARITY_COLORS: dict[str, int] = {
@@ -268,3 +279,4 @@ MONGODB_URI: str = MONGODB_URI
 HYPIXEL_API_KEY: str = HYPIXEL_API_KEY
 PROXY: str = PROXY
 PROXY_AUTH: BasicAuth = PROXY_AUTH
+MINEFLAYER_EMAIL: str = MINEFLAYER_EMAIL
