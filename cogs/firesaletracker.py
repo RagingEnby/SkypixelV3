@@ -10,6 +10,7 @@ import constants
 from modules import asyncreqs
 from modules import datamanager
 from modules import utils
+from modules import mongodb
 
 logger = logging.getLogger(__name__)
 URL: str = "https://api.hypixel.net/v2/skyblock/firesales"
@@ -35,6 +36,21 @@ class FireSaleTrackerCog(commands.Cog):
         self.bot = bot
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/firesales.json")
+        self.db: mongodb.Collection | None = None
+        self.db_queue = []
+
+    async def upload_queue(self):
+        if not self.db_queue:
+            return
+        if not self.db:
+            self.db = mongodb.Collection('SkyBlock', 'firesales')
+        await self.db.update_many(self.db_queue)
+        self.db_queue.clear()
+
+    def log_firesale(self, item_id: str, sale: dict[str, Any]):
+        doc = sale.copy()
+        doc['_id'] = item_id
+        self.db_queue.append(doc)
 
     @staticmethod
     def make_fire_sale_embed(item_id: str, sale: dict[str, Any]) -> disnake.Embed:
@@ -58,6 +74,7 @@ class FireSaleTrackerCog(commands.Cog):
                 embeds: list[disnake.Embed] = []
                 sales = await get_fire_sales()
                 for item_id, sale in sales.items():
+                    self.log_firesale(item_id, sale)
                     if item_id not in self.data:
                         if self.data.to_dict():
                             embeds.append(self.make_fire_sale_embed(item_id, sale))
@@ -65,6 +82,7 @@ class FireSaleTrackerCog(commands.Cog):
                 if embeds:
                     await send(embeds)
                     await self.data.save()
+                await self.upload_queue()
             except Exception:
                 logger.error(traceback.format_exc())
             finally:
@@ -73,6 +91,9 @@ class FireSaleTrackerCog(commands.Cog):
     async def close(self):
         if self.task and not self.task.done():
             self.task.cancel()
+        if self.db:
+            await self.db.close()
+            self.db = None
 
     @commands.Cog.listener()
     async def on_ready(self):
