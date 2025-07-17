@@ -7,3 +7,7 @@ Originally, Skypixel was made as a frontend to search through spreadsheets from 
 - SkypixelV1 was HORRIBLY coded with abysmal performance, near constant crashes, and a level beyond spagetti code.
 - SkypixelV2 was never finished as I lost interest before finishing it. Then, upon coming back to it, I realized just how bad the code was again!
 - SkypixelV3 is, hopefully, the final full recode of Skypixel made to fix all of these problems.
+
+# Future
+- Impliment a mineflayer bot to monitor when alpha opens/closes and when the kick message changes
+- Eventually, I will make SkypixelV4 which will be done fully in GOLANG.
