@@ -287,6 +287,7 @@ class RankTrackerCog(commands.Cog):
     )
     async def list(self, inter: disnake.AppCmdInter, rank: SpecialRank):
         rank_list = await get_rank_list(rank)
+        rank_list.sort(key=lambda player: player['name'].lower())
         color = constants.RANK_COLORS.get(rank, constants.DEFAULT_EMBED_COLOR)
         embeds = [disnake.Embed(
             title=f"{format_rank(rank)} Ranks! ({len(rank_list)})",
@@ -302,8 +303,7 @@ class RankTrackerCog(commands.Cog):
                     description="",
                     color=color
                 ))
-            embeds[index].description += utils.esc_mrkdwn(player['name']) + (', ' if i < len(rank_list) - 1 else "")
-                
+            embeds[index].description += utils.esc_mrkdwn(player['name']) + (', ' if i < len(rank_list) - 1 else "")            
         if len(embeds) == 1:
             return await inter.send(embed=utils.add_footer(embeds[0]))
         view = RankListView(embeds, inter)
