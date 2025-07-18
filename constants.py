@@ -67,6 +67,7 @@ FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1210999395865202688: "<@&1358904280165126434>", # RagingEnby's Dev Server
     1210333444563935295: "",                        # Derailcord
+    1382202837856944289: "",                        # Kathund's Test Server
 }
 ZONE_TRACKER_CHANNELS: dict[int, str] = {
     1256334830048903198: "<@&1210085254635724840>", # RagingEnby's Dev Server
