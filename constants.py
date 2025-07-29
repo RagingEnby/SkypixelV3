@@ -63,6 +63,7 @@ FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
     1190098169703448576: "use code rail :)",        # Derailcord
     938088437200846948: "<@&937729428430151770>",   # Collector's Hub
     1314670732374180013: "",                        # Collector's Cafe
+    1399601296931164252: "<@&1399600281422921777> use code yadi :)" # Yadi | Official Discord
 }
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1210999395865202688: "<@&1358904280165126434>", # RagingEnby's Dev Server
