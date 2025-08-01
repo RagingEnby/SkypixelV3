@@ -11,3 +11,10 @@ Originally, Skypixel was made as a frontend to search through spreadsheets from 
 # Future
 - Impliment a mineflayer bot to monitor when alpha opens/closes and when the kick message changes
 - Eventually, I will make SkypixelV4 which will be done fully in GOLANG.
+
+# Thanks to...
+- [iTEM](https://tem.cx/) for supplying much of the data used for the item database module of Skypixel and its owner [TGWaffles](https://github.com/TGWaffles/) for creating it
+- [artificialair](https://github.com/artificialair/) for helping me a LOT in the __EARLY__ days of Skypixel when I was just getting back into development and was very bad at it
+- [Antisniper](https://api.antisniper.net/) for supplying the initial rank tracker data
+- [matdev](https://matdoes.dev/) for supplying a [VERY large Minecraft player database](https://matdoes.dev/minecraft-uuids) used in the bots backend
+- [Hypixel](https://api.hypixel.net/) for making this project possible
