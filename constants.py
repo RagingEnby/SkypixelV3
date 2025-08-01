@@ -57,22 +57,26 @@ VERSION_TRACKER_CHANNELS: dict[int, str] = {
 MOTD_TRACKER_CHANNELS: dict[int, str] = {
     1177121432820527144: "<@&1177330036664193084>", # RagingEnby's Dev Server
     1177328270006554826: "<@&1177329389550178354>", # Derailcord
+    1391179788164530276: "",                        # Soul Hunters & Co.
 }
 FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
     1179543769905893416: "<@&1190093109938368552>", # RagingEnby's Dev Server
     1190098169703448576: "use code rail :)",        # Derailcord
     938088437200846948: "<@&937729428430151770>",   # Collector's Hub
     1314670732374180013: "",                        # Collector's Cafe
-    1399601296931164252: "<@&1399600281422921777> use code yadi :)" # Yadi | Official Discord
+    1399601296931164252: "<@&1399600281422921777> use code yadi :)", # Yadi | Official Discord
+    1391179788164530276: "",                        # Soul Hunters & Co.
 }
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1210999395865202688: "<@&1358904280165126434>", # RagingEnby's Dev Server
     1210333444563935295: "",                        # Derailcord
     1382202837856944289: "",                        # Kathund's Test Server
+    1391179788164530276: "",                        # Soul Hunters & Co.
 }
 ZONE_TRACKER_CHANNELS: dict[int, str] = {
     1256334830048903198: "<@&1210085254635724840>", # RagingEnby's Dev Server
     1210333444563935295: "",                        # Derailcord
+    1391179788164530276: "",                        # Soul Hunters & Co.
 }
 WIKI_TRACKER_CHANNELS: dict[int, str] = {
     1287466083267121162: "", # RagingEnby's Dev Server
@@ -81,17 +85,17 @@ RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
     "youtube": {
         1121130539097784401: "<@&1122272183733977249>",  # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>",  # Derailcord
-        1365021125628919898: "<@&1365021218234957884>",  # Cake Soul Hunting New Generation
+        1365021125628919898: "<@&1365021218234957884>",  # Soul Hunters & Co.
     },
     "staff": {
         1364997652323897415: "<@&1122272183733977249>", # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>", # Derailcord
-        1365021125628919898: "<@&1365021218234957884>", # Cake Soul Hunting New Generation
+        1365021125628919898: "<@&1365021218234957884>", # Soul Hunters & Co.
     },
     "special": {
         1269021624338878464: "<@&1122272183733977249>", # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>", # Derailcord
-        1365021125628919898: "<@&1365021218234957884>", # Cake Soul Hunting New Generation
+        1365021125628919898: "<@&1365021218234957884>", # Soul Hunters & Co.
     }
 }
 
