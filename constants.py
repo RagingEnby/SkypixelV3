@@ -53,6 +53,7 @@ EXOTIC_AUCTIONS_THREADS: dict['ExoticType', int] = { # type: ignore[name-defined
 VERSION_TRACKER_CHANNELS: dict[int, str] = {
     1172205656112123994: "<@&1139315700339593256>", # RagingEnby's Dev Server
     1210333444563935295: "",                        # Derailcord
+    1391179788164530276: "<@&1400911988305039370>", # Soul Hunters & Co.
 }
 MOTD_TRACKER_CHANNELS: dict[int, str] = {
     1177121432820527144: "<@&1177330036664193084>", # RagingEnby's Dev Server
@@ -71,7 +72,7 @@ ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1210999395865202688: "<@&1358904280165126434>", # RagingEnby's Dev Server
     1210333444563935295: "",                        # Derailcord
     1382202837856944289: "",                        # Kathund's Test Server
-    1391179788164530276: "",                        # Soul Hunters & Co.
+    1391179788164530276: "<@&1400910798368407712>", # Soul Hunters & Co.
 }
 ZONE_TRACKER_CHANNELS: dict[int, str] = {
     1256334830048903198: "<@&1210085254635724840>", # RagingEnby's Dev Server
@@ -85,17 +86,17 @@ RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
     "youtube": {
         1121130539097784401: "<@&1122272183733977249>",  # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>",  # Derailcord
-        1365021125628919898: "<@&1365021218234957884>",  # Soul Hunters & Co.
+        1365021125628919898: "<@&1400910189678301276>",  # Soul Hunters & Co.
     },
     "staff": {
         1364997652323897415: "<@&1122272183733977249>", # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>", # Derailcord
-        1365021125628919898: "<@&1365021218234957884>", # Soul Hunters & Co.
+        1365021125628919898: "<@&1400910189678301276>", # Soul Hunters & Co.
     },
     "special": {
         1269021624338878464: "<@&1122272183733977249>", # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>", # Derailcord
-        1365021125628919898: "<@&1365021218234957884>", # Soul Hunters & Co.
+        1365021125628919898: "<@&1400910189678301276>", # Soul Hunters & Co.
     }
 }
 
