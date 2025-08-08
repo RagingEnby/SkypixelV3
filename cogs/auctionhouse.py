@@ -24,7 +24,7 @@ ENDED_URL: str = "https://api.hypixel.net/v2/skyblock/auctions_ended"
 # keep track of processed auctions, this is normally VERY
 # bad practice but I need it to debug an error. It will be
 # removed afterwards.
-processed_auctions = datamanager.LimitedSet(limit=100_000)
+processed_auctions = datamanager.LimitedSet(limit=50_000)
 
 
 async def get_active_auctions() -> dict[str, Any]:
@@ -257,6 +257,16 @@ class AuctionTrackerCog(commands.Cog):
         self.log_auction(auction, item, ended=False)
         if not new:
             return
+        if auction['uuid'] in processed_auctions:
+            logger.error('\n'.join([
+                " -- AUCTION DOUBLE PROCESSED -- ",
+                f"UUID: {auction['uuid']}",
+                f"Last Updated: {auction['last_updated']}",
+                f"Start: {auction['start']}",
+                f"Last Scan: {self.last_scanned_active}"
+            ]))
+            return
+        processed_auctions.add(auction['uuid'])
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
         if not extra_attributes.get('uuid'):
             return
