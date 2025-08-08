@@ -3,6 +3,7 @@ import logging
 import os
 from contextlib import suppress
 from typing import Any, ItemsView
+from collections import OrderedDict
 
 from modules import utils
 
@@ -52,3 +53,24 @@ class JsonWrapper:
         logger.info("saving data...")
         await utils.write_json(self.file_path, self.data, indent)
         logger.info("saved data!")
+
+
+class LimitedSet:
+    def __init__(self, limit: int = 10_000):
+        self.limit = limit
+        self.data = OrderedDict()
+
+    def add(self, item: str):
+        if item in self.data:
+            self.data.move_to_end(item)
+        else:
+            if len(self.data) >= self.limit:
+                self.data.popitem(last=False)
+            self.data[item] = None
+
+    def __contains__(self, item: str) -> bool:
+        return item in self.data
+
+    def __len__(self) -> int:
+        return len(self.data)
+        
