@@ -253,7 +253,11 @@ class AuctionTrackerCog(commands.Cog):
             self.active_db_queue.append(doc)
     
     async def on_auction(self, auction: dict[str, Any], new: bool = True):
-        item = parser.decode_single(auction['item_bytes'])
+        try:
+            item = parser.decode_single(auction['item_bytes'])
+        except UnicodeDecodeError as e:
+            print("UNICODE DECODE ERROR:", e, auction['uuid'], '----', auction['item_bytes'])
+            return
         self.log_auction(auction, item, ended=False)
         if not new:
             return
