@@ -246,7 +246,7 @@ class AuctionTrackerCog(commands.Cog):
         doc = auction.copy()
         doc['item_data'] = item
         if ended:
-            doc['_id'] = doc.pop('uuid')
+            doc['_id'] = doc.pop('auction_id')
             self.ended_db_queue.append(doc)
         else:
             doc['_id'] = doc.pop('uuid')
