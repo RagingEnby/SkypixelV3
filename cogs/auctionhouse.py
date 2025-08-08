@@ -15,10 +15,16 @@ from modules import colors
 from modules import parser
 from modules import utils
 from modules import mongodb
+from modules import datamanager
 
 logger = logging.getLogger(__name__)
 ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page=0"
 ENDED_URL: str = "https://api.hypixel.net/v2/skyblock/auctions_ended"
+
+# keep track of processed auctions, this is normally VERY
+# bad practice but I need it to debug an error. It will be
+# removed afterwards.
+processed_auctions = datamanager.LimitedSet(limit=100_000)
 
 
 async def get_active_auctions() -> dict[str, Any]:
@@ -236,21 +242,19 @@ class AuctionTrackerCog(commands.Cog):
             logger.debug('logged ended auctions to mongo')
 
     
-    def log_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+    def log_auction(self, auction: dict[str, Any], item: dict[str, Any], ended: bool):
         doc = auction.copy()
-        doc['_id'] = doc.pop('uuid')
         doc['item_data'] = item
-        self.active_db_queue.append(doc)
-
-    def log_ended_auction(self, auction: dict[str, Any], item: dict[str, Any]):
-        doc = auction.copy()
-        doc['_id'] = doc.pop('auction_id')
-        doc['item_data'] = item
-        self.ended_db_queue.append(doc)
-
+        if ended:
+            doc['_id'] = doc.pop('uuid')
+            self.ended_db_queue.append(doc)
+        else:
+            doc['_id'] = doc.pop('uuid')
+            self.active_db_queue.append(doc)
+    
     async def on_auction(self, auction: dict[str, Any], new: bool = True):
         item = parser.decode_single(auction['item_bytes'])
-        self.log_auction(auction, item)
+        self.log_auction(auction, item, ended=False)
         if not new:
             return
         extra_attributes = item.get('tag', {}).get('ExtraAttributes', {})
@@ -290,7 +294,7 @@ class AuctionTrackerCog(commands.Cog):
 
     async def on_auction_end(self, auction: dict[str, Any]):
         item = parser.decode_single(auction['item_bytes'])
-        self.log_ended_auction(auction, item)
+        self.log_auction(auction, item, ended=True)
 
     async def active_scanner(self) -> float:
         page_0 = await get_active_auctions()
