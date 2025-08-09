@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 async def get_zones() -> set[str]:
     response = await asyncreqs.get(URL)
-    data = await response.json()
+    data = response.json()
     return set(data['zones'])
 
 

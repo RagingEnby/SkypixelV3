@@ -39,25 +39,24 @@ async def get_editor(name: str) -> dict[str, Any]:
         logger.debug(f"using cached data for wiki editor: {name}")
         return EDITOR_CACHE[name]
     response = await asyncreqs.get(EDITOR_URL.format(name))
-    EDITOR_CACHE[name] = await response.json()
+    EDITOR_CACHE[name] = response.json()
     logger.debug(f"cached data for wiki editor {name} {EDITOR_CACHE[name]}")
     return EDITOR_CACHE[name]
 
 
 async def get_edits(attempts: int = 0) -> list[dict[str, Any]]:
     global API_BLOCKS_SERVER
-    if not API_BLOCKS_SERVER and attempts <= 5:
+    if not API_BLOCKS_SERVER and attempts <= 2:
         response = await asyncreqs.get(URL, params=PARAMS)
-        if response.status == 403:
+        if response.status_code == 403:
             logger.warning("wiki API blocked server, retrying in 5s...")
             await asyncio.sleep(5)
             return await get_edits(attempts+1)
     else:
         API_BLOCKS_SERVER = True
         logger.warning("wiki API seems to be blocking IP, switching to proxy")
-        response = await asyncreqs.proxy_get(URL, params=PARAMS)
-    data = await response.json()
-    return data['query']['recentchanges']
+        response = await asyncreqs.get(URL, params=PARAMS, impersonate="chrome110")
+    return response.json()['query']['recentchanges']
 
     
 
