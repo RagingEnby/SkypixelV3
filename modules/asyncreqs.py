@@ -30,7 +30,7 @@ async def get_session() -> curl_cffi.AsyncSession:
         logger.error("asyncreqs.get_session() called after shutdown")
         raise RuntimeError('asyncreqs.get_session() called after shutdown')
     if not SESSION:
-        SESSION = curl_cffi.AsyncSession()
+        SESSION = curl_cffi.AsyncSession(discard_cookies=True)
     return SESSION
 
 
@@ -60,7 +60,7 @@ async def proxy_get(*args, **kwargs) -> curl_cffi.Response:
     return await request(
         'GET',
         *args,
-        proxies=constants.PROXIES,
+        proxy=constants.PROXIES['http'],
         impersonate=impersonate,
         **kwargs
     )
