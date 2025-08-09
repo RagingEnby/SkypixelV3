@@ -100,20 +100,14 @@ async def execute(inter: disnake.MessageCommandInteraction, message: disnake.Mes
 
 
 async def on_close():
-    logger.info(f"Logging out...")
-
-    asyncreqs.CLOSED = True
-    # use a try except loop instead of `if asyncreqs.SESSION and not
-    # asyncreqs.SESSION.closed` because sometimes .closed on aiohttp.ClientSession bugs out
-    try:
-        await asyncreqs.SESSION.close()
-        logger.info("Closed aiohttp session")
-    except Exception as e:
-        logger.warning(f"unable to close asyncreqs session {e} (this is 99% prob ok)")
-
+    logger.info("Shutting down...")
+    
+    await asyncreqs.close()
+    logger.info("Closed asyncreqs")
+    
     await asyncio.gather(*[
-        cog.close() for cog in bot.cogs.values()  # type: ignore
-        if hasattr(cog, 'close') and callable(cog.close)
+        cog.close() for cog in bot.cogs.values()  # type: ignore[attr-defined]
+        if hasattr(cog, 'close') and callable(cog.close)  # type: ignore[attr-defined]
     ])
     logger.info("Closed all cogs")
 
