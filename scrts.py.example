@@ -1,0 +1,7 @@
+BOT_TOKEN: str = "NTE2NDE0ODQzNjcxMDE5NTMw.gAu4.Ghejs_sdfueoqknbasdhgas"
+MONGODB_URI: str = "mongodb://username:password@ip:port/"
+
+PROXIES: dict[str, str] = {
+    "http": "http://username:password@ip:port",
+    "sock5": "socks5://username:password@ip:port"
+}
