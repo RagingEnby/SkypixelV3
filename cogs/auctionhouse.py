@@ -27,27 +27,30 @@ ENDED_URL: str = "https://api.hypixel.net/v2/skyblock/auctions_ended"
 processed_auctions = datamanager.LimitedSet(limit=50_000)
 
 
+# no attempt limit on this because im a shit dev
+# (it would require extra error handling elsewhere)
+# and i dont forsee it being an issue
 async def get_active_auctions() -> dict[str, Any]:
-    try:
-        response = await asyncreqs.get(ACTIVE_URL)
-        response.raise_for_status()
-        return await response.json()
-    except Exception as e:
-        logger.error(f'error getting /skyblock/auctions: {e}')
-        await asyncio.sleep(5)
-        return await get_active_auctions()
-
+    while True:
+        try:
+            response = await asyncreqs.get(ACTIVE_URL)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f'error getting /skyblock/auctions: {e}')
+            await asyncio.sleep(5)
+    
 
 async def get_ended_auctions() -> dict[str, Any]:
-    try:
-        response = await asyncreqs.get(ENDED_URL)
-        response.raise_for_status()
-        return await response.json()
-    except Exception as e:
-        logger.error(f'error getting /skyblock/auctions_ended: {e}')
-        await asyncio.sleep(5)
-        return await get_ended_auctions()
-    
+    while True:
+        try:
+            response = await asyncreqs.get(ENDED_URL)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f'error getting /skyblock/auctions_ended: {e}')
+            await asyncio.sleep(5)
+        
 
 async def make_auction_embed(auction: dict[str, Any], item: dict[str, Any]) -> disnake.Embed:
     tag = item.get('tag', {})
