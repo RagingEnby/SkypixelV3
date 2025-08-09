@@ -1,13 +1,9 @@
 from disnake.ext.commands import InteractionBot
-from aiohttp import BasicAuth
 
 from scrts import (
     BOT_TOKEN,
     MONGODB_URI,
     HYPIXEL_API_KEY,
-    PROXY_AUTH,
-    PROXY,
-    MINEFLAYER_EMAIL
 )
 
 
