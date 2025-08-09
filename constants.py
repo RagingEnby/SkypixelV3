@@ -3,7 +3,6 @@ from disnake.ext.commands import InteractionBot
 from scrts import (
     BOT_TOKEN,
     MONGODB_URI,
-    HYPIXEL_API_KEY,
 )
 
 
@@ -279,4 +278,3 @@ BOT: InteractionBot
 # Load Secrets (only here so IDE's don't get confused)
 BOT_TOKEN: str = BOT_TOKEN
 MONGODB_URI: str = MONGODB_URI
-HYPIXEL_API_KEY: str = HYPIXEL_API_KEY
