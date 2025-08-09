@@ -259,7 +259,7 @@ class AuctionTrackerCog(commands.Cog):
         try:
             item = parser.decode_single(auction['item_bytes'])
         except UnicodeDecodeError as e:
-            logger.error("UNICODE DECODE ERROR:", str(e), auction['uuid'], '----', auction['item_bytes'])
+            logger.error(f"UNICODE DECODE ERROR: {e} {auction['uuid']} --- {auction['item_bytes']}")
             return
         self.log_auction(auction, item, ended=False)
         if not new:
@@ -313,7 +313,7 @@ class AuctionTrackerCog(commands.Cog):
         try:
             item = parser.decode_single(auction['item_bytes'])
         except UnicodeDecodeError as e:
-            logger.error("UNICODE DECODE ERROR (ended):", str(e), auction['auction_id'], '----', auction['item_bytes'])
+            logger.error(f"UNICODE DECODE ERROR: {e} {auction['uuid']} --- {auction['item_bytes']}")
             return
         self.log_auction(auction, item, ended=True)
 
