@@ -307,7 +307,11 @@ class AuctionTrackerCog(commands.Cog):
             await asyncio.gather(*tasks)
 
     async def on_auction_end(self, auction: dict[str, Any]):
-        item = parser.decode_single(auction['item_bytes'])
+        try:
+            item = parser.decode_single(auction['item_bytes'])
+        except UnicodeDecodeError as e:
+            logger.error("UNICODE DECODE ERROR (ended):", str(e), auction['auction_id'], '----', auction['item_bytes'])
+            return
         self.log_auction(auction, item, ended=True)
 
     async def active_scanner(self) -> float:
