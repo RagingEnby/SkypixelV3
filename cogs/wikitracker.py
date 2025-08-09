@@ -12,7 +12,7 @@ from modules import datamanager
 from modules import utils
 from modules import mongodb
 
-API_BLOCKS_SERVER: bool = False
+API_BLOCKS_SERVER: bool = True # legacy flag, kept incase needed again in the future
 URL: str = "https://wiki.hypixel.net/api.php"
 PARAMS: dict[str, str] = {
     "action": "query",
