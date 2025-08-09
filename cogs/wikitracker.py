@@ -44,7 +44,7 @@ async def get_editor(name: str) -> dict[str, Any]:
 
 
 async def get_edits() -> list[dict[str, Any]]:
-    response = await asyncreqs.get(URL, params=PARAMS, impersonate="chrome110")
+    response = await asyncreqs.proxy_get(URL, params=PARAMS)
     response.raise_for_status()
     return response.json()['query']['recentchanges']
 

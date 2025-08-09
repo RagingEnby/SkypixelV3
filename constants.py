@@ -3,6 +3,7 @@ from disnake.ext.commands import InteractionBot
 from scrts import (
     BOT_TOKEN,
     MONGODB_URI,
+    PROXIES,
 )
 
 
@@ -278,3 +279,4 @@ BOT: InteractionBot
 # Load Secrets (only here so IDE's don't get confused)
 BOT_TOKEN: str = BOT_TOKEN
 MONGODB_URI: str = MONGODB_URI
+PROXIES: dict[str, str] = PROXIES

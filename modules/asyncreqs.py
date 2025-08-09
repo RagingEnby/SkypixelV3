@@ -1,8 +1,8 @@
-import asyncio
 import logging
 from typing import Literal
-
 import curl_cffi
+
+import constants
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,17 @@ async def request(
 
 async def get(*args, **kwargs) -> curl_cffi.Response:
     return await request('GET', *args, **kwargs)
+
+
+async def proxy_get(*args, **kwargs) -> curl_cffi.Response:
+    impersonate = kwargs.pop('impersonate', 'chrome110')
+    return await request(
+        'GET',
+        *args,
+        proxies=constants.PROXIES,
+        impersonate=impersonate,
+        **kwargs
+    )
 
 
 async def post(*args, **kwargs) -> curl_cffi.Response:
