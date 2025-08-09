@@ -12,6 +12,18 @@ SESSION: Optional[aiohttp.ClientSession] = None
 CLOSED: bool = False
 
 
+async def close():
+    global CLOSED, SESSION
+    CLOSED = True
+    # use a try except loop instead of `if SESSION and not
+    # SESSION.closed` because sometimes .closed on aiohttp.ClientSession bugs out
+    try:
+        await SESSION.close()  # type: ignore
+        logger.info("Closed aiohttp session")
+    except Exception as e:
+        logger.warning(f"unable to close asyncreqs session {e} (this is 99% prob ok)")
+
+
 async def get(*args, **kwargs) -> aiohttp.ClientResponse:
     global SESSION
     if CLOSED:
