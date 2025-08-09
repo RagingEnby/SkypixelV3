@@ -30,13 +30,13 @@ WATCH_LIST: datamanager.JsonWrapper = datamanager.JsonWrapper("storage/rankwatch
 
 async def get_rankname(identifier: str) -> str:
     response = await asyncreqs.get(RANKNAME_URL.format(identifier))
-    data = await response.json()
+    data = response.json()
     return data['rankname']
 
 
 async def get_rank_counts() -> dict[str, int]:
     response = await asyncreqs.get(COUNTS_URL)
-    data: dict[str, int] = await response.json()
+    data: dict[str, int] = response.json()
     logger.debug(f"rank counts: {data}")
     # sort highest -> lowest count
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
@@ -44,7 +44,7 @@ async def get_rank_counts() -> dict[str, int]:
 
 async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
     response = await asyncreqs.get(RANK_URL.format(rank))
-    return await response.json()
+    return response.json()
 
 
 async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
@@ -71,7 +71,7 @@ async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
 async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
     global POI_UUIDS
     response = await asyncreqs.get(URL)
-    data = await response.json()
+    data = response.json()
     asyncio.create_task(edit_stat_channels(data))
     POI_UUIDS = {
         player['id']

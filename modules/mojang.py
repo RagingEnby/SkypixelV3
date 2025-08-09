@@ -104,10 +104,10 @@ async def get(identifier: str) -> MojangPlayer:
     if cached:
         return cached
     response = await asyncreqs.get("https://api.ragingenby.dev/player/" + identifier)
-    if response.status == 404:
+    if response.status_code == 404:
         logger.error("invalid identifier:", identifier)
         raise PlayerNotFound(identifier)
-    data: RawMojangPlayerDict | dict[str, Any] = await response.json()
+    data: RawMojangPlayerDict | dict[str, Any] = response.json()
     logger.debug(f"got data: {data}")
     try:
         return MojangPlayer.from_dict(data)  # type: ignore
@@ -129,7 +129,7 @@ async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
             url="https://api.ragingenby.dev/players",
             json={"identifiers": [i.replace('-', '') for i in to_fetch]}
         )
-        data = await response.json()
+        data = response.json()
         logger.debug(f"got data: {data}")
         for player in data['players']:
             players.append(MojangPlayer.from_dict(player))

@@ -16,7 +16,7 @@ URL: str = "https://api.hypixel.net/v2/resources/skyblock/skills"
 
 async def get_version() -> str:
     response = await asyncreqs.get(URL)
-    data = await response.json()
+    data = response.json()
     version = data.get('version')
     if not version:
         logger.error(f"malformed skills data: {data}")

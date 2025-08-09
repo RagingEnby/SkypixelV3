@@ -18,7 +18,7 @@ URL: str = "https://api.hypixel.net/v2/skyblock/firesales"
 
 async def get_fire_sales() -> dict[str, dict[str, Any]]:
     response = await asyncreqs.get(URL)
-    data = await response.json()
+    data = response.json()
     sales = data.get('sales', [])
     return {sale.pop('item_id'): sale for sale in sales}
 
