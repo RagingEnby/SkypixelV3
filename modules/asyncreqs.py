@@ -4,8 +4,6 @@ from typing import Literal
 
 import curl_cffi
 
-import constants
-
 logger = logging.getLogger(__name__)
 
 SESSION: curl_cffi.AsyncSession | None = None
@@ -18,11 +16,9 @@ async def close():
         logger.error("asyncreqs.close() called after shutdown")
         raise RuntimeError("asyncreqs.close() called after shutdown")
     CLOSED = True
-    # use a try except loop instead of `if SESSION and not
-    # SESSION.closed` because sometimes .closed on aiohttp.ClientSession bugs out
     try:
         await SESSION.close()  # type: ignore
-        logger.info("Closed aiohttp session")
+        logger.info("Closed curl_cffi session")
     except Exception as e:
         logger.warning(f"unable to close asyncreqs session {e} (this is 99% prob ok)")
     SESSION = None
