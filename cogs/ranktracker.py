@@ -30,6 +30,8 @@ WATCH_LIST: datamanager.JsonWrapper = datamanager.JsonWrapper("storage/rankwatch
 
 async def get_rankname(identifier: str) -> str:
     response = await asyncreqs.get(RANKNAME_URL.format(identifier))
+    if response.status_code == 404:
+        raise mojang.PlayerNotFound(identifier)
     data = response.json()
     return data['rankname']
 
@@ -205,19 +207,22 @@ class RankTrackerCog(commands.Cog):
     @staticmethod
     async def do_watchlist():
         for uuid, last_rankname in WATCH_LIST.items():
-            rankname = await get_rankname(uuid)
-            logger.info(f'rank watchlist: {last_rankname} -> {rankname}')
-            if last_rankname is None:
-                WATCH_LIST[uuid] = rankname
-                await WATCH_LIST.save()
-                continue
-            # we don't need to do any processing once the
-            # rank has changed since my /rankname/ endpoint will auto
-            # update my /ranks endpoint :3
-            if rankname != last_rankname:
-                del WATCH_LIST[uuid]
-                await WATCH_LIST.save()
-
+            try:
+                rankname = await get_rankname(uuid)
+                logger.info(f'rank watchlist: {last_rankname} -> {rankname}')
+                if last_rankname is None:
+                    WATCH_LIST[uuid] = rankname
+                    await WATCH_LIST.save()
+                    continue
+                # we don't need to do any processing once the
+                # rank has changed since my /rankname/ endpoint will auto
+                # update my /ranks endpoint :3
+                if rankname != last_rankname:
+                    del WATCH_LIST[uuid]
+                    await WATCH_LIST.save()
+            except Exception as e:
+                print('unable to update', uuid, 'in rank watchlist:', e)
+    
     @commands.slash_command(
         name="ranks",
         description="Various utilities relating to Special Hypixel ranks!"
@@ -230,7 +235,13 @@ class RankTrackerCog(commands.Cog):
         description="Update's a player's rank in my database"
     )
     async def update(self, inter: disnake.AppCmdInter, player: str):
-        rankname = await get_rankname(player)
+        try:
+            rankname = await get_rankname(player)
+        except mojang.PlayerNotFound:
+            return await inter.send(embed=utils.make_error(
+                "Player not found!",
+                f"No player named [{player}](https://namemc.com/search?q={player.lower()}) was found. Please check your spelling and try again."
+            ))
         unformatted = utils.remove_color_codes(rankname)
         embed = utils.add_footer(disnake.Embed(
             description=f"Successfully updated `{unformatted}`",
