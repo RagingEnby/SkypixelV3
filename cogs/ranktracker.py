@@ -121,6 +121,38 @@ def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.E
     )
 
 
+class GotoPageModal(disnake.ui.Modal):
+    def __init__(self, view: 'RankListView'):
+        super().__init__(title="Go to page")
+        self.view = view
+        self.add_item(disnake.ui.TextInput(
+            label="Page Number",
+            placeholder="Enter page number",
+            style=disnake.TextInputStyle.short,
+            min_length=1,
+            max_length=2,
+        ))
+
+    async def callback(self, inter: disnake.ModalInteraction):
+        try:
+            page = int(self.children[0].value)
+        except Exception:
+            return await inter.response.send_message(embed=utils.make_error(
+                "Invalid Page",
+                "Please enter a valid number"
+            ), ephemeral=True)
+        if page < 1 or page > len(self.view.embeds):
+            return await inter.response.send_message(embed=utils.make_error(
+                "Invalid Page",
+                f"Please choose a page between 1 and {len(self.view.embeds)}"
+            ), ephemeral=True)
+        self.view.page = page - 1
+        await self.view._update_buttons()
+        await inter.response.defer()
+        with suppress(disnake.NotFound, disnake.HTTPException):
+            await self.view.inter.edit_original_message(embed=self.view.embeds[self.view.page], view=self.view)
+
+
 class RankListView(disnake.ui.View):
     def __init__(self, embeds: list[disnake.Embed], inter: disnake.Interaction):
         logger.debug("initializing RankListView()")
@@ -151,21 +183,25 @@ class RankListView(disnake.ui.View):
     async def _update_buttons(self):
         logger.debug("updating buttons")
         self.children[0].disabled = self.page == 0 # previous
-        self.children[1].disabled = self.page == len(self.embeds) - 1 # next
+        self.children[2].disabled = self.page == len(self.embeds) - 1 # next
         current_embed = self.embeds[self.page]
         current_embed.set_footer(
             text=f"Page {self.page+1}/{len(self.embeds)}"
         )
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)
-    async def previous(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+    async def previous(self, _, interaction: disnake.Interaction):
         logger.debug("previous button clicked")
         self.page -= 1
         await self._update_buttons()
         await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
+        
+    @disnake.ui.button(style=disnake.ButtonStyle.gray, emoji="🔢", row=0)
+    async def goto_page(self, _, interaction: disnake.Interaction):
+        await interaction.response.send_modal(GotoPageModal(self))
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
-    async def next(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+    async def next(self, _, interaction: disnake.Interaction):
         logger.debug("next button clicked")
         self.page += 1
         await self._update_buttons()
@@ -230,7 +266,7 @@ class RankTrackerCog(commands.Cog):
     async def ranks(self, inter: disnake.AppCmdInter):
         await inter.response.defer()
 
-    @ranks.sub_command(
+    @ranks.sub_command(  # type: ignore[reportUnknownReturnType]
         name="update",
         description="Update's a player's rank in my database"
     )
@@ -250,7 +286,7 @@ class RankTrackerCog(commands.Cog):
         embed.set_image(url=utils.to_mc_text(rankname))
         return await inter.send(embed=embed)
 
-    @ranks.sub_command(
+    @ranks.sub_command(  # type: ignore[reportUnknownReturnType]
         name="watch",
         description="Watch a player for rank changes closer than others"
     )
@@ -275,7 +311,7 @@ class RankTrackerCog(commands.Cog):
             color=constants.DEFAULT_EMBED_COLOR
         )))
 
-    @ranks.sub_command(
+    @ranks.sub_command(  # type: ignore[reportUnknownReturnType]
         name="counts",
         description="Get the amount of players with each rank"
     )
@@ -292,7 +328,7 @@ class RankTrackerCog(commands.Cog):
         ))
         return await inter.send(embed=embed)
 
-    @ranks.sub_command(
+    @ranks.sub_command(  # type: ignore[reportUnknownReturnType]
         name="list",
         description="Get a list of players with a specific rank"
     )
