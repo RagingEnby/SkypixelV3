@@ -63,12 +63,14 @@ FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
     1314670732374180013: "",                        # Collector's Cafe
     1399601296931164252: "<@&1399600281422921777> use code yadi :)", # Yadi | Official Discord
     1391179788164530276: "",                        # Soul Hunters & Co.
+    1396953342932029612: "",                        # SkyBlock Resource Creators
 }
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1210999395865202688: "<@&1358904280165126434>", # RagingEnby's Dev Server
     1210333444563935295: "",                        # Derailcord
     1382202837856944289: "",                        # Kathund's Test Server
     1391179788164530276: "<@&1400910798368407712>", # Soul Hunters & Co.
+    1396953342932029612: "",                        # SkyBlock Resource Creators
 }
 ZONE_TRACKER_CHANNELS: dict[int, str] = {
     1256334830048903198: "<@&1210085254635724840>", # RagingEnby's Dev Server
