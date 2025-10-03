@@ -171,3 +171,4 @@ scrts.py
 storage/skypixel.log
 storage/disnake.log
 storage/*.json
+storage/*.log.swp
