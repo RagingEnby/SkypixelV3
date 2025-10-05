@@ -64,6 +64,9 @@ async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
         for channel_id in channels.keys():
             channel = constants.BOT.get_channel(channel_id)
             name = f"{rank}-{len(players)}"
+            if not isinstance(channel, disnake.TextChannel):
+                logger.error(f"channel {channel_id} is not a text channel: {type(channel)}")
+                continue
             if channel and channel.name.startswith(f"{rank}-") and channel.name != name:
                 logger.info(f"renaming #{channel.name} ({channel.id}) to {name}")
                 tasks.append(channel.edit(name=name))
@@ -131,6 +134,7 @@ class GotoPageModal(disnake.ui.Modal):
             style=disnake.TextInputStyle.short,
             min_length=1,
             max_length=2,
+            custom_id="goto_page"
         ))
 
     async def callback(self, inter: disnake.ModalInteraction):

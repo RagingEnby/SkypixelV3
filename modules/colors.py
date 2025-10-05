@@ -128,7 +128,7 @@ def is_fairy(item_id: str, hex_code: str) -> bool:
 
 
 def is_og_fairy(item_id: str, hex_code: str) -> bool:
-    return hex_code in OG_FAIRY.get(constants.FAIRY_IDS.get(item_id), [])
+    return hex_code in OG_FAIRY.get(constants.FAIRY_IDS.get(item_id, ''), [])
 
 
 def is_spook(item_id: str, hex_code: str) -> bool:
