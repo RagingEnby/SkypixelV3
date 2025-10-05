@@ -22,7 +22,7 @@ class JsonWrapper:
             
         self.data: dict[str, Any] = {}
         with suppress(FileNotFoundError), open(self.file_path) as file:
-            self.data: dict[str, Any] = json.load(file)
+            self.data = json.load(file)
         logger.info("loaded data")
 
     def __getitem__(self, key: str) -> Any:
