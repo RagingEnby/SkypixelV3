@@ -50,12 +50,19 @@ async def send_to_channel(channel_id: int, *args, thread_id: int | None = None, 
     if not channel:
         return None
     if thread_id:
+        if not isinstance(channel, disnake.TextChannel):
+            logger.error(f"channel {channel_id} is not a text channel: {type(channel)}")
+            return None
         thread = channel.get_thread(thread_id) if hasattr(channel, 'get_thread') else None
         logger.debug(f"send_to_channel({channel_id}, {thread_id}) thread = {thread}")
         if not thread:
+            logger.error(f"thread {thread_id} not found in channel {channel_id}")
             return None
         return await thread.send(*args, **kwargs)
-    return await channel.send(*args, **kwargs)  # type: ignore
+    if not isinstance(channel, disnake.TextChannel):
+        logger.error(f"channel {channel_id} is not a text channel: {type(channel)}")
+        return None
+    return await channel.send(*args, **kwargs)
 
 
 def to_mc_text(text: str) -> str:

@@ -6,8 +6,11 @@ authors = [{name="RagingEnby", email="contact@ragingenby.dev"}]
 requires-python = ">=3.11"
 dependencies = [
     "aiofiles>=24.1.0",
+    "curl-cffi>=0.13.0",
     "disnake",
     "mcstatus>=11.1.1",
     "motor>=3.7.0",
+    "nbt>=1.5.1",
     "requests>=2.32.3",
+    "typing-extensions>=4.15.0",
 ]

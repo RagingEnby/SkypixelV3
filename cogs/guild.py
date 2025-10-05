@@ -37,7 +37,7 @@ class GuildCog(commands.Cog):
         )
         embed.add_field(
             name="Member Info",
-            value=f"**Members:** {guild.member_count}\n**Owner:** {guild.owner.mention}"
+            value=f"**Members:** {guild.member_count}\n**Owner:** {guild.owner.mention if guild.owner else '`Unknown`'}"
         )
         await utils.send_to_channel(constants.INVITE_LOG_CHANNEL, embed=embed)
 
