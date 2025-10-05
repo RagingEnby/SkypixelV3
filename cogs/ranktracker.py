@@ -126,16 +126,20 @@ def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.E
 
 class GotoPageModal(disnake.ui.Modal):
     def __init__(self, view: 'RankListView'):
-        super().__init__(title="Go to page", components=[])
+        super().__init__(
+            title="Go to page",
+            components=[
+                disnake.ui.TextInput(
+                    label="Page Number",
+                    placeholder="Enter page number",
+                    style=disnake.TextInputStyle.short,
+                    min_length=1,
+                    max_length=2,
+                    custom_id="goto_page",
+                )
+            ],
+        )
         self.view = view
-        cast(Any, self).add_item(disnake.ui.TextInput(
-            label="Page Number",
-            placeholder="Enter page number",
-            style=disnake.TextInputStyle.short,
-            min_length=1,
-            max_length=2,
-            custom_id="goto_page"
-        ))
 
     async def callback(self, inter: disnake.ModalInteraction):
         page_str = inter.text_values.get("goto_page")
