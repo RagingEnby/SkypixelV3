@@ -2,7 +2,7 @@ import asyncio
 import logging
 import traceback
 from contextlib import suppress
-from typing import Literal
+from typing import Literal, cast, Any
 
 import disnake
 import requests
@@ -126,9 +126,9 @@ def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.E
 
 class GotoPageModal(disnake.ui.Modal):
     def __init__(self, view: 'RankListView'):
-        super().__init__(title="Go to page")
+        super().__init__(title="Go to page", components=[])
         self.view = view
-        self.add_item(disnake.ui.TextInput(
+        cast(Any, self).add_item(disnake.ui.TextInput(
             label="Page Number",
             placeholder="Enter page number",
             style=disnake.TextInputStyle.short,
@@ -138,8 +138,9 @@ class GotoPageModal(disnake.ui.Modal):
         ))
 
     async def callback(self, inter: disnake.ModalInteraction):
+        page_str = inter.text_values.get("goto_page")
         try:
-            page = int(self.children[0].value)
+            page = int(page_str or "")
         except Exception:
             return await inter.response.send_message(embed=utils.make_error(
                 "Invalid Page",
@@ -154,7 +155,12 @@ class GotoPageModal(disnake.ui.Modal):
         await self.view._update_buttons()
         await inter.response.defer()
         with suppress(disnake.NotFound, disnake.HTTPException):
-            await self.view.inter.edit_original_message(embed=self.view.embeds[self.view.page], view=self.view)
+            msg = getattr(self.view, "message", None)
+            if msg is not None:
+                msg = cast(disnake.Message, msg)
+                await msg.edit(embed=self.view.embeds[self.view.page], view=self.view)
+            else:
+                await self.view.inter.edit_original_message(embed=self.view.embeds[self.view.page], view=self.view)
 
 
 class RankListView(disnake.ui.View):
@@ -164,6 +170,7 @@ class RankListView(disnake.ui.View):
         self.embeds = embeds
         self.inter = inter
         self.page = 0
+        self.message: disnake.Message | None = None
 
     async def interaction_check(self, interaction: disnake.Interaction) -> bool:
         if interaction.user != self.inter.user:
@@ -182,12 +189,18 @@ class RankListView(disnake.ui.View):
             if isinstance(item, disnake.ui.Button):
                 item.disabled = True
         with suppress(disnake.NotFound, disnake.HTTPException):
-            await self.inter.edit_original_message(view=self)
+            msg = getattr(self, "message", None)
+            if msg is not None:
+                await cast(disnake.Message, msg).edit(view=self)
+            else:
+                await self.inter.edit_original_message(view=self)
 
     async def _update_buttons(self):
         logger.debug("updating buttons")
-        self.children[0].disabled = self.page == 0 # previous
-        self.children[2].disabled = self.page == len(self.embeds) - 1 # next
+        prev_btn = cast(disnake.ui.Button, self.children[0])
+        next_btn = cast(disnake.ui.Button, self.children[2])
+        prev_btn.disabled = self.page == 0
+        next_btn.disabled = self.page == len(self.embeds) - 1
         current_embed = self.embeds[self.page]
         current_embed.set_footer(
             text=f"Page {self.page+1}/{len(self.embeds)}"
@@ -347,19 +360,25 @@ class RankTrackerCog(commands.Cog):
         )]
         index = 0
         for i, player in enumerate(rank_list):
-            if len(embeds[index].description) >= 1000:
+            cur = embeds[index]
+            desc = cur.description or ""
+            if len(desc) >= 1000:
                 index += 1
                 embeds.append(disnake.Embed(
                     title=f"{format_rank(rank)} Ranks! ({len(rank_list)})",
                     description="",
                     color=color
                 ))
-            embeds[index].description += utils.esc_mrkdwn(player['name']) + (', ' if i < len(rank_list) - 1 else "")            
+                cur = embeds[index]
+                desc = cur.description or ""
+            desc += utils.esc_mrkdwn(player['name']) + (', ' if i < len(rank_list) - 1 else "")
+            cur.description = desc
         if len(embeds) == 1:
             return await inter.send(embed=utils.add_footer(embeds[0]))
         view = RankListView(embeds, inter)
-        await inter.send(embed=embeds[0], view=view)
         await view._update_buttons()  # type: ignore
+        msg = await inter.send(embed=view.embeds[view.page], view=view)
+        view.message = msg
 
     async def main(self):
         while True:
