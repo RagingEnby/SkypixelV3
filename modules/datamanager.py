@@ -21,6 +21,9 @@ class JsonWrapper:
             os.makedirs(dir)
             
         self.data: dict[str, Any] = {}
+        self.keys = self.data.keys
+        self.values = self.data.values
+        self.items = self.data.items
         with suppress(FileNotFoundError), open(self.file_path) as file:
             self.data = json.load(file)
         logger.info("loaded data")
