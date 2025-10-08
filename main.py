@@ -47,7 +47,7 @@ disnake_logger.propagate = False
 
 
 intents = disnake.Intents.default()
-#intents.members = True  # type: ignore
+intents.members = True  # type: ignore
 bot = commands.InteractionBot(
     intents=intents,
     owner_id=constants.OWNER_ID,
