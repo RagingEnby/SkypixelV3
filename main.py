@@ -20,6 +20,7 @@ from cogs import StatusUpdaterCog
 from cogs import VersionTrackerCog
 from cogs import WikiTrackerCog
 from cogs import ZoneTrackerCog
+from cogs import JobTrackerCog
 from modules import asyncreqs
 from modules import utils
 
@@ -63,6 +64,7 @@ bot.add_cog(StatusUpdaterCog(bot))
 bot.add_cog(VersionTrackerCog(bot))
 bot.add_cog(WikiTrackerCog(bot))
 bot.add_cog(ZoneTrackerCog(bot))
+bot.add_cog(JobTrackerCog(bot))
 constants.BOT = bot
 logger.debug("Loaded all cogs + set constants.BOT")
 

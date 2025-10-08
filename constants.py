@@ -56,6 +56,9 @@ MOTD_TRACKER_CHANNELS: dict[int, str] = {
     1177328270006554826: "<@&1177329389550178354>", # Derailcord
     1391179788164530276: "",                        # Soul Hunters & Co.
 }
+JOB_TRACKER_CHANNELS: dict[int, str] = {
+    1425521819179286588: "<@&1425521864775569408>", # RagingEnby's Dev Server
+}
 FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
     1179543769905893416: "<@&1190093109938368552>", # RagingEnby's Dev Server
     1190098169703448576: "use code rail :)",        # Derailcord

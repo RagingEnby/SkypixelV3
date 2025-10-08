@@ -10,3 +10,4 @@ from .status import StatusUpdaterCog
 from .versiontracker import VersionTrackerCog
 from .wikitracker import WikiTrackerCog
 from .zonetracker import ZoneTrackerCog
+from .jobtracker import JobTrackerCog
