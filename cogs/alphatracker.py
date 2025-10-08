@@ -6,7 +6,7 @@ from typing import Any
 import disnake
 from disnake.ext import commands
 from mcstatus import JavaServer
-from mcstatus.status_response import RawJavaResponse
+from mcstatus.responses import RawJavaResponse
 
 import constants
 from modules import datamanager
