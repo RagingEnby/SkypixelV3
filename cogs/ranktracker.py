@@ -156,15 +156,12 @@ class GotoPageModal(disnake.ui.Modal):
                 f"Please choose a page between 1 and {len(self.view.embeds)}"
             ), ephemeral=True)
         self.view.page = page - 1
-        await self.view._update_buttons()
-        await inter.response.defer()
+        await asyncio.gather(
+            self.view._update_buttons(),
+            inter.response.defer()
+        )
         with suppress(disnake.NotFound, disnake.HTTPException):
-            msg = getattr(self.view, "message", None)
-            if msg is not None:
-                msg = cast(disnake.Message, msg)
-                await msg.edit(embed=self.view.embeds[self.view.page], view=self.view)
-            else:
-                await self.view.inter.edit_original_message(embed=self.view.embeds[self.view.page], view=self.view)
+            await self.view.inter.edit_original_message(embed=self.view.embeds[self.view.page], view=self.view)
 
 
 class RankListView(disnake.ui.View):
