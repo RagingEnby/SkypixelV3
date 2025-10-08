@@ -50,7 +50,7 @@ async def send_to_channel(channel_id: int, *args, thread_id: int | None = None, 
     if not channel:
         return None
     if thread_id:
-        if not isinstance(channel, disnake.TextChannel):
+        if not isinstance(channel, disnake.TextChannel) and not isinstance(channel, disnake.ForumChannel):
             logger.error(f"channel {channel_id} is not a text channel: {type(channel)}")
             return None
         thread = channel.get_thread(thread_id) if hasattr(channel, 'get_thread') else None
