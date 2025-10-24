@@ -2,24 +2,26 @@ import io
 import json
 from base64 import b64decode
 from contextlib import suppress
-from typing import Any
+from typing import Any, overload
 
 from nbt import nbt
 
 
-def nbt_to_dict_(nbt_data: nbt.NBTFile|nbt.TAG_Compound|nbt.TAG_List|Any) -> dict|list|Any:
+
+@overload
+def nbt_to_dict(nbt_data: nbt.NBTFile) -> dict: ...
+@overload
+def nbt_to_dict(nbt_data: nbt.TAG_Compound) -> dict: ...
+@overload
+def nbt_to_dict(nbt_data: nbt.TAG_List) -> list: ...
+@overload
+def nbt_to_dict(nbt_data: Any) -> Any: ...
+def nbt_to_dict(nbt_data: nbt.NBTFile|nbt.TAG_Compound|nbt.TAG_List|Any) -> dict|list|Any]:
     if isinstance(nbt_data, (nbt.NBTFile, nbt.TAG_Compound)):
         return {tag.name: nbt_to_dict(tag) for tag in nbt_data.tags}
     elif isinstance(nbt_data, nbt.TAG_List):
         return [nbt_to_dict(item) for item in nbt_data.tags]
     return nbt_data.value
-
-
-def nbt_to_dict(nbt_data: nbt.NBTFile) -> list[dict]:
-    # The ONLY point of this function is to make sure IDEs know the
-    # proper datatype returned when passing a single object
-    return nbt_to_dict_(nbt_data)  # type: ignore [assignment]
-
 
 def raw_decode(data: bytes) -> list[dict[str, Any]]:
     with io.BytesIO(data) as fileobj:
