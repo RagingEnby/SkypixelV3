@@ -58,8 +58,7 @@ class MotdTrackerCog(commands.Cog):
         # only ping every 10 minutes (don't want to repeat tge 10/4/25 incident)
         should_ping = self.last_ping.total_seconds() / 60 > 10
         await send(embed, ping=should_ping)
-        if should_ping:
-            self._last_ping = datetime.now()
+        self._last_ping = datetime.now()
 
     async def main(self):
         while True:
