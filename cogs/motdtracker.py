@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import traceback
+from datetime import datetime, timedelta
 
 import disnake
 from disnake.ext import commands
@@ -19,9 +20,9 @@ async def get_motd() -> list[str]:
     return [l.strip() for l in status.description.split("\n")]
 
 
-async def send(embed: disnake.Embed):
+async def send(embed: disnake.Embed, ping: bool = True):
     tasks = [
-        utils.send_to_channel(channel_id, content, embed=embed)
+        utils.send_to_channel(channel_id, content if ping else None, embed=embed)
         for channel_id, content in constants.MOTD_TRACKER_CHANNELS.items()
     ]
     await asyncio.gather(*tasks)
@@ -32,34 +33,43 @@ class MotdTrackerCog(commands.Cog):
         self.bot = bot
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/motd.json")
+        self._last_ping: datetime | None = None
 
-    @staticmethod
-    async def on_motd_update(before: list[str], after: list[str]):
-        embed = utils.add_footer(disnake.Embed(
-            title="Hypixel MOTD update!",
-            color=constants.DEFAULT_EMBED_COLOR
-        ))
-        embed.add_field(
-            name="Before",
-            value='```' + '\n'.join(before) + '```',
-            inline=False
+    @property
+    def last_ping(self) -> timedelta:
+        return (
+            datetime.now() - self._last_ping
+            if self._last_ping is not None
+            else timedelta.max
+        )
+
+    async def on_motd_update(self, before: list[str], after: list[str]):
+        embed = utils.add_footer(
+            disnake.Embed(
+                title="Hypixel MOTD update!", color=constants.DEFAULT_EMBED_COLOR
+            )
         )
         embed.add_field(
-            name="After",
-            value='```' + '\n'.join(after) + '```',
-            inline=False
+            name="Before", value="```" + "\n".join(before) + "```", inline=False
         )
-        await send(embed)
+        embed.add_field(
+            name="After", value="```" + "\n".join(after) + "```", inline=False
+        )
+        # only ping every 10 minutes (don't want to repeat tge 10/4/25 incident)
+        should_ping = self.last_ping.total_seconds() / 60 > 10
+        await send(embed, ping=should_ping)
+        if should_ping:
+            self._last_ping = datetime.now()
 
     async def main(self):
         while True:
             try:
                 motd = await get_motd()
-                if motd != self.data.get('motd'):
-                    logger.info("motd update:", self.data.get('motd'), "=>", motd)
-                    if self.data.get('motd'):
-                        await self.on_motd_update(self.data.get('motd', []), motd)
-                    self.data['motd'] = motd
+                if motd != self.data.get("motd"):
+                    logger.info("motd update:", self.data.get("motd"), "=>", motd)
+                    if self.data.get("motd"):
+                        await self.on_motd_update(self.data.get("motd", []), motd)
+                    self.data["motd"] = motd
                     await self.data.save()
             except Exception:
                 logger.error(traceback.format_exc())
