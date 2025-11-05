@@ -27,21 +27,31 @@ from modules import utils
 # load Skypixel logger
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.DEBUG)
-root_handler = logging.FileHandler(filename='storage/skypixel.log', encoding='utf-8', mode='w')
-root_handler.setFormatter(logging.Formatter('[%(asctime)s:%(levelname)s:%(name)s:%(lineno)d] %(message)s'))
+root_handler = logging.FileHandler(
+    filename="storage/skypixel.log", encoding="utf-8", mode="w"
+)
+root_handler.setFormatter(
+    logging.Formatter("[%(asctime)s:%(levelname)s:%(name)s:%(lineno)d] %(message)s")
+)
 
 root_logger.addHandler(root_handler)
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(logging.Formatter('[%(levelname)s:%(name)s:%(lineno)d] %(message)s'))
+console_handler.setFormatter(
+    logging.Formatter("[%(levelname)s:%(name)s:%(lineno)d] %(message)s")
+)
 root_logger.addHandler(console_handler)
 logger = logging.getLogger(__name__)
 
 # load disnake logger
-disnake_logger = logging.getLogger('disnake')
+disnake_logger = logging.getLogger("disnake")
 disnake_logger.setLevel(logging.DEBUG)
-disnake_handler = logging.FileHandler(filename='storage/disnake.log', encoding='utf-8', mode='w')
-disnake_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+disnake_handler = logging.FileHandler(
+    filename="storage/disnake.log", encoding="utf-8", mode="w"
+)
+disnake_handler.setFormatter(
+    logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s")
+)
 disnake_logger.addHandler(disnake_handler)
 disnake_logger.propagate = False
 
@@ -70,47 +80,52 @@ logger.debug("Loaded all cogs + set constants.BOT")
 
 
 # put here instead of a cog so it has main.py's scope
-@bot.message_command(
-    name="Execute"
-)
+@bot.message_command(name="Execute")
 async def execute(inter: disnake.MessageCommandInteraction, message: disnake.Message):
     if not await bot.is_owner(inter.author):
-        return await inter.send(embed=utils.make_error(
-            "Not Owner",
-            "You must be the bot owner to use this command!"
-        ))
+        return await inter.send(
+            embed=utils.make_error(
+                "Not Owner", "You must be the bot owner to use this command!"
+            )
+        )
     await inter.response.defer()
     try:
         tmp_dic = {}
         executing_string = "async def temp_func():\n    {}\n".format(
-            message.content.partition("\n")[2].strip("`") \
-                .replace("\n", "    \n    ") \
-                .replace('”', '"') \
-                .replace("’", "'") \
-                .replace("‘", "'"))
+            message.content.partition("\n")[2]
+            .strip("`")
+            .replace("\n", "    \n    ")
+            .replace("”", '"')
+            .replace("’", "'")
+            .replace("‘", "'")
+        )
         logger.info(executing_string)
         exec(executing_string, {**globals(), **locals()}, tmp_dic)
-        await tmp_dic['temp_func']()
-        await message.add_reaction('✅')
-    except:  # type: ignore
+        await tmp_dic["temp_func"]()
+        await message.add_reaction("✅")
+    except:  # noqa: E722
         error = traceback.format_exc()
         logger.error(error)
         await asyncio.gather(
-            message.add_reaction('❌'),
-            inter.send(f"Error while running code:\n```py\n{error}```")
+            message.add_reaction("❌"),
+            inter.send(f"Error while running code:\n```py\n{error}```"),
         )
 
 
 async def on_close():
     logger.info("Shutting down...")
-    
+
     await asyncreqs.close()
     logger.info("Closed asyncreqs")
-    
-    await asyncio.gather(*[
-        cog.close() for cog in bot.cogs.values()  # type: ignore[attr-defined]
-        if hasattr(cog, 'close') and callable(cog.close)  # type: ignore[attr-defined]
-    ])
+
+    # PYRIGHT I PROMISE THIS CODE WORKS PLEASE SHUT UP
+    await asyncio.gather(  # pyright: ignore[reportCallIssue]
+        *[  # pyright: ignore[reportArgumentType]
+            cog.close()  # pyright: ignore[reportAttributeAccessIssue]
+            for cog in bot.cogs.values()
+            if hasattr(cog, "close") and callable(cog.close)   # pyright: ignore[reportAttributeAccessIssue]
+        ]
+    )
     logger.info("Closed all cogs")
 
     await bot.close()
@@ -123,6 +138,7 @@ async def on_close():
 async def on_ready():
     def signal_handler(*_):
         asyncio.create_task(on_close())
+
     signal.signal(signal.SIGINT, signal_handler)
     logger.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
