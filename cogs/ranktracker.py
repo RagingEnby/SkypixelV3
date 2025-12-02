@@ -275,7 +275,7 @@ class RankTrackerCog(commands.Cog):
                     del WATCH_LIST[uuid]
                     await WATCH_LIST.save()
             except Exception as e:
-                print('unable to update', uuid, 'in rank watchlist:', e)
+                logger.error(f'unable to update {uuid} in rank watchlist: {e}')
     
     @commands.slash_command(
         name="ranks",
