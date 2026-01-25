@@ -14,7 +14,7 @@ from modules import datamanager
 from modules import utils
 
 logger = logging.getLogger(__name__)
-SpecialRank = Literal['youtube', 'staff', 'pig_plus_plus_plus', 'innit', 'events', 'mojang', 'mcp', 'minister']
+SpecialRank = Literal['youtube', 'staff', 'pig_plus_plus_plus', 'innit', 'events', 'mojang', 'mcp']
 
 URL: str = "https://api.ragingenby.dev/ranks"
 RANK_URL: str = URL + '/{}'
