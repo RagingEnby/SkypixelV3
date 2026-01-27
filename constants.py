@@ -74,6 +74,7 @@ ALPHA_TRACKER_CHANNELS: dict[int, str] = {
     1382202837856944289: "",                        # Kathund's Test Server
     1391179788164530276: "<@&1400910798368407712>", # Soul Hunters & Co.
     1396953342932029612: "",                        # SkyBlock Resource Creators
+    1463223163772207300: "",                        # @vrachel private server
 }
 ZONE_TRACKER_CHANNELS: dict[int, str] = {
     1256334830048903198: "<@&1210085254635724840>", # RagingEnby's Dev Server
