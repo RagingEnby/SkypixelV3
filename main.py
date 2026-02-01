@@ -91,8 +91,10 @@ async def execute(inter: disnake.MessageCommandInteraction, message: disnake.Mes
     await inter.response.defer()
     try:
         tmp_dic = {}
+        clean_content = message.content.replace("\u2069", "").replace("\u2068", "")
+        
         executing_string = "async def temp_func():\n    {}\n".format(
-            message.content.partition("\n")[2]
+            clean_content.partition("\n")[2]
             .strip("`")
             .replace("\n", "    \n    ")
             .replace("”", '"')
