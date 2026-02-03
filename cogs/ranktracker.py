@@ -279,7 +279,9 @@ class RankTrackerCog(commands.Cog):
     
     @commands.slash_command(
         name="ranks",
-        description="Various utilities relating to Special Hypixel ranks!"
+        description="Various utilities relating to Special Hypixel ranks!",
+        install_types=disnake.ApplicationInstallTypes.all(),
+        contexts=disnake.InteractionContextTypes.all(),
     )
     async def ranks(self, inter: disnake.AppCmdInter):
         await inter.response.defer()

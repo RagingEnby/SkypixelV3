@@ -9,9 +9,10 @@ from scrts import (
 
 # Credit Footer
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
+DISCORD_INVITE: str = "https://discord.gg/DdukMeYNdQ"
 CREDIT_FOOTERS: set[str] = {
     "Made by @ragingenby",
-    "Join my server! discord.gg/DdukMeYNdQ",
+    f"Join my server! {DISCORD_INVITE}",
     "Support me on Patreon! patreon.com/RagingEnby"
 }
 
@@ -23,6 +24,7 @@ ERROR_LOG_CHANNEL: int = 1131089040733634560
 INVITE_LOG_CHANNEL: int = 1150164916578299945
 COMMAND_LOG_CHANNEL: int = 1111050267975221326
 DM_LOG_CHANNEL: int = 1173328319320698941
+PATRON_ROLE: int = 1198471307013132379
 ## AH Trackers
 ADMIN_SPAWNED_ITEMS_CHANNEL: int = 1359366355819823334
 OG_REFORGES_CHANNEL: int = 1359367040091295854
@@ -113,6 +115,7 @@ MC_HEAD_IMAGE: str = "https://cravatar.eu/helmavatar/{}/600.png"
 MC_TEXT_IMAGE: str = "https://api.ragingenby.dev/render.png?text={}"
 AUCTION_URL: str = "https://sky.coflnet.com/auction/{}"
 STATS_URL: str = "https://sky.shiiyu.moe/stats/{}"
+PATREON_URL: str = "https://patreon.com/ragingenby"
 ## Color-related stuff
 COLOR_CODES: dict[str, int] = { # all minecraft color codes and their hex code
     "0": 0x000000, "1": 0x0000AA, "2": 0x00AA00,
