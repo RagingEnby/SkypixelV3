@@ -24,7 +24,7 @@ class JsonWrapper:
         self.keys = self.data.keys
         self.values = self.data.values
         self.items = self.data.items
-        with suppress(FileNotFoundError), open(self.file_path) as file:
+        with suppress(FileNotFoundError, json.JSONDecodeError), open(self.file_path) as file:
             self.data = json.load(file)
         logger.info("loaded data")
 
