@@ -393,7 +393,9 @@ class ItemDBCog(commands.Cog):
 
     @commands.slash_command(
         name="itemdb",
-        description="Commands that use the RagingEnby item database"
+        description="Commands that use the RagingEnby item database",
+        install_types=disnake.ApplicationInstallTypes.all(),
+        contexts=disnake.InteractionContextTypes.all(),
     )
     async def itemdb(self, inter: disnake.AppCmdInter):
         await inter.response.defer()
