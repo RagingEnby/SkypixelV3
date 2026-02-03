@@ -3,6 +3,7 @@ import logging
 import signal
 import sys
 import traceback
+from contextlib import suppress
 
 import disnake
 from disnake.ext import commands
@@ -129,51 +130,23 @@ class UserNotInDevServer(commands.CheckFailure):
 class UserNotAPatron(commands.CheckFailure):
     pass
         
-@bot.application_command_check
+@bot.application_command_check()
 async def patron_only_check(inter: disnake.Interaction):
+    owners = inter.authorizing_integration_owners
+    if owners is None or owners.user_id is None:
+        return True
     guild = bot.get_guild(constants.DEV_SERVER_ID)
     if guild is None:
         raise DevServerUnavailable("dev server unavailable")
     member = guild.get_member(inter.author.id)
     if member is None:
-        try:
+        with suppress(disnake.NotFound):
             member = await guild.fetch_member(inter.author.id)
-        except disnake.NotFound:
-            member = None
     if member is None:
         raise UserNotInDevServer("user not in dev server")
     if not member.get_role(constants.PATRON_ROLE):
         raise UserNotAPatron("user is not a patron")
     return True
-
-
-@bot.event
-async def on_application_command_error(
-    inter: disnake.ApplicationCommandInteraction,
-    error: commands.CommandError,
-):
-    if isinstance(error, DevServerUnavailable):
-        embed = utils.make_error(
-            "Dev Server Unavailable",
-            "I was unable to connect to my dev server and therefore verify that you are a patron, please try again later or dm @ragingenby for support.",
-        )
-        await inter.response.send_message(embed=embed, ephemeral=True)
-        return
-    if isinstance(error, UserNotInDevServer):
-        embed = utils.make_error(
-            "Not In Dev Server",
-            f"You must be in [RagingEnby's Dev Server]({constants.DISCORD_INVITE}) to use user commands.",
-        )
-        await inter.response.send_message(embed=embed, ephemeral=True)
-        return
-    if isinstance(error, UserNotAPatron):
-        embed = utils.make_error(
-            "Not A Patron",
-            f"You must subscribe to [my Patreon]({constants.PATREON_URL}) to use user commands. It costs $5/month and supports me greatly :)",
-        )
-        await inter.response.send_message(embed=embed, ephemeral=True)
-        return
-    raise error
 
 
 async def on_close():
