@@ -61,6 +61,33 @@ class LoggerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_slash_command_error(self, inter: disnake.AppCmdInter, e: commands.CommandError):
+        if isinstance(e, commands.CheckFailure):
+            err_name = e.__class__.__name__
+            if err_name == "DevServerUnavailable":
+                embed = utils.make_error(
+                    "Unable to Verify Patreon Membership",
+                    "Using Skypixel as a user-installed bot is only supported for patrons, I was unable to verify your membership. Please reach out to @ragingenby for support.",
+                )
+            elif err_name == "UserNotInDevServer":
+                embed = utils.make_error(
+                    "Not In Dev Server",
+                    f"You must be in [RagingEnby's Dev Server]({constants.DISCORD_INVITE}) to use user commands.",
+                )
+            elif err_name == "UserNotAPatron":
+                embed = utils.make_error(
+                    "Patron Only",
+                    f"In order to use user-installed commands, you must be a Patreon member. This costs $5/month and supports me greatly, you can join [here!]({constants.PATREON_URL})",
+                )
+            else:
+                embed = utils.make_error(
+                    "Not Allowed",
+                    "You are not allowed to use this command.",
+                )
+            if inter.response.is_done():
+                await inter.followup.send(embed=embed, ephemeral=True)
+            else:
+                await inter.response.send_message(embed=embed, ephemeral=True)
+            return
         err = ''.join(traceback.format_exception(
             type(e), e, e.__traceback__
         ))
