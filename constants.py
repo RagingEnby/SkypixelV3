@@ -9,7 +9,7 @@ from scrts import (
 
 # Credit Footer
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
-DISCORD_INVITE: str = "https://discord.gg/DdukMeYNdQ"
+DISCORD_INVITE: str = "https://discord.gg/uSQx2rWHu2"
 CREDIT_FOOTERS: set[str] = {
     "Made by @ragingenby",
     f"Join my server! {DISCORD_INVITE}",
