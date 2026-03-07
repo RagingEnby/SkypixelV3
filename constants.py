@@ -12,7 +12,7 @@ OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?r
 DISCORD_INVITE: str = "https://discord.gg/uSQx2rWHu2"
 CREDIT_FOOTERS: set[str] = {
     "Made by @ragingenby",
-    f"Join my server! {DISCORD_INVITE}",
+    f"Join my server! {DISCORD_INVITE.replace('https://', '')}",
     "Support me on Patreon! patreon.com/RagingEnby"
 }
 
