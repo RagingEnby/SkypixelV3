@@ -102,19 +102,20 @@ class JobTrackerCog(commands.Cog):
     async def main(self):
         while True:
             try:
+                print(self.data.to_dict())
                 jobs = await get_jobs()
                 jobs_dict: dict[str, Job] = {job.title: job for job in jobs}
                 for job in jobs:
                     if not self.data.get(job.title): 
                         await self.on_job_update(job, True)
-                        self.data[job.title] = job
+                        self.data.data[job.title] = job
                 to_remove: set[str] = set()
-                for job in self.data.keys():
+                for job in self.data.data.keys():
                     if job not in jobs_dict:
-                        await self.on_job_update(Job.from_dict(self.data[job]), False)
+                        await self.on_job_update(Job.from_dict(self.data.data[job]), False)
                         to_remove.add(job.title)
                 for key in to_remove:
-                    del self.data[key]
+                    del self.data.data[key]
                 await self.data.save()
             except Exception:
                 logger.error(traceback.format_exc())
