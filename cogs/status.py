@@ -20,25 +20,25 @@ class StatusUpdaterCog(commands.Cog):
         self.rank_statuses: list[Callable[[], Coroutine]] = [
             lambda rank=rank: self._rank_status(rank)
             for rank in (
-                'staff',
-                'youtube',
-                'pig_plus_plus_plus',
-                'innit',
-                'events',
-                'mojang',
-                'mcp',
+                "staff",
+                "youtube",
+                "pig_plus_plus_plus",
+                "innit",
+                "events",
+                "mojang",
+                "mcp",
             )
         ]
         self.item_count_statuses: list[Callable[[], Coroutine]] = [
             lambda item_id=item_id: self._item_count_status(item_id)
             for item_id in (
-                'CAKE_SOUL',
-                'DUECES_BUILDER_CLAY',
-                'POTATO_BASKET',
-                'ANCIENT_ELEVATOR',
-                'WIZARD_PORTAL_MEMENTO',
-                'RACING_HELMET',
-                'DCTR_SPACE_HELM',
+                "CAKE_SOUL",
+                "DUECES_BUILDER_CLAY",
+                "POTATO_BASKET",
+                "ANCIENT_ELEVATOR",
+                "WIZARD_PORTAL_MEMENTO",
+                "RACING_HELMET",
+                "DCTR_SPACE_HELM",
             )
         ]
 
@@ -66,11 +66,9 @@ class StatusUpdaterCog(commands.Cog):
             name = hypixel.get_name(item_id)
         except KeyError:
             name = item_id
-        itemdb_cog = self.bot.get_cog('ItemDBCog')
+        itemdb_cog = self.bot.get_cog("ItemDBCog")
         if itemdb_cog:
-            count = await itemdb_cog.item_db.count_documents(
-                {'itemId': item_id}
-            )  # type: ignore[attr-defined]
+            count = await itemdb_cog.item_db.count_documents({"itemId": item_id})  # type: ignore[attr-defined]
         else:
             count = 0
         return await self.change_presence(

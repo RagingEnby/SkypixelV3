@@ -14,17 +14,20 @@ class JsonWrapper:
     def __init__(self, file_path: str):
         logger.info(f"initializing json wrapper for {file_path}")
         self.file_path = file_path
-        
+
         dir = os.path.dirname(file_path)
         if not os.path.exists(dir):
             logger.info(f"creating directory {dir}")
             os.makedirs(dir)
-            
+
         self.data: dict[str, Any] = {}
         self.keys = self.data.keys
         self.values = self.data.values
         self.items = self.data.items
-        with suppress(FileNotFoundError, json.JSONDecodeError), open(self.file_path) as file:
+        with (
+            suppress(FileNotFoundError, json.JSONDecodeError),
+            open(self.file_path) as file,
+        ):
             self.data = json.load(file)
         logger.info("loaded data")
 

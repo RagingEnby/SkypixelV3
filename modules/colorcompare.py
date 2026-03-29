@@ -20,7 +20,7 @@ def hex_to_lab(hex_code: str) -> tuple[float, float, float]:
 
     if len(hex_code) != 6:
         raise ValueError(hex_code)
-    rgb: tuple[int, int, int] = tuple(int(hex_code[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore[assignment]
+    rgb: tuple[int, int, int] = tuple(int(hex_code[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[assignment]
     xyz = rgb_to_xyz(rgb)
     lab = xyz_to_cielab(xyz)
     return lab
@@ -59,15 +59,15 @@ def rgb_to_xyz(rgb: tuple[int, int, int]) -> tuple[float, float, float]:
     var_b = rgb[2] / 255
 
     if var_r > 0.04045:
-        var_r = ((var_r + 0.055) / 1.055)**2.4
+        var_r = ((var_r + 0.055) / 1.055) ** 2.4
     else:
         var_r /= 12.92
     if var_g > 0.04045:
-        var_g = ((var_g + 0.055) / 1.055)**2.4
+        var_g = ((var_g + 0.055) / 1.055) ** 2.4
     else:
         var_g /= 12.92
     if var_b > 0.04045:
-        var_b = ((var_b + 0.055) / 1.055)**2.4
+        var_b = ((var_b + 0.055) / 1.055) ** 2.4
     else:
         var_b /= 12.92
 
@@ -83,8 +83,7 @@ def rgb_to_xyz(rgb: tuple[int, int, int]) -> tuple[float, float, float]:
 
 
 @lru_cache(maxsize=None)
-def xyz_to_cielab(
-        xyz: tuple[float, float, float]) -> tuple[float, float, float]:
+def xyz_to_cielab(xyz: tuple[float, float, float]) -> tuple[float, float, float]:
     """
     Convert XYZ color space values to CIELAB.
     """
@@ -93,15 +92,15 @@ def xyz_to_cielab(
     z_nat = xyz[2] / 108.883
 
     if x_nat > 0.008856:
-        x_nat = x_nat**(1 / 3)
+        x_nat = x_nat ** (1 / 3)
     else:
         x_nat = (7.787 * x_nat) + (16 / 116)
     if y_nat > 0.008856:
-        y_nat = y_nat**(1 / 3)
+        y_nat = y_nat ** (1 / 3)
     else:
         y_nat = (7.787 * y_nat) + (16 / 116)
     if z_nat > 0.008856:
-        z_nat = z_nat**(1 / 3)
+        z_nat = z_nat ** (1 / 3)
     else:
         z_nat = (7.787 * z_nat) + (16 / 116)
 
@@ -113,8 +112,9 @@ def xyz_to_cielab(
 
 
 @lru_cache(maxsize=None)
-def compare_delta_e_2000(lab1: tuple[float, float, float],
-                         lab2: tuple[float, float, float]) -> float:
+def compare_delta_e_2000(
+    lab1: tuple[float, float, float], lab2: tuple[float, float, float]
+) -> float:
     """
     Calculate the Delta E 2000 color difference between two CIELAB colors.
     """
@@ -147,8 +147,7 @@ def compare_delta_e_2000(lab1: tuple[float, float, float],
         elif h2 - h1 < -180:
             delta_h = (h2 - h1) + 360
 
-    delta_h_dash = 2 * math.sqrt(xc1 * xc2) * math.sin(
-        math.radians(delta_h) / 2.0)
+    delta_h_dash = 2 * math.sqrt(xc1 * xc2) * math.sin(math.radians(delta_h) / 2.0)
 
     l_bar = (l1 + l2) / 2
     c_bar = (xc1 + xc2) / 2
@@ -158,17 +157,19 @@ def compare_delta_e_2000(lab1: tuple[float, float, float],
         if abs(h1 - h2) <= 180:
             h_bar = (h1 + h2) / 2
         else:
-            h_bar = (h1 + h2 + 360) / 2 if (h1 +
-                                            h2) < 360 else (h1 + h2 - 360) / 2
+            h_bar = (h1 + h2 + 360) / 2 if (h1 + h2) < 360 else (h1 + h2 - 360) / 2
 
-    t = (1 - 0.17 * math.cos(math.radians(h_bar - 30)) +
-         0.24 * math.cos(math.radians(2 * h_bar)) +
-         0.32 * math.cos(math.radians(3 * h_bar + 6)) -
-         0.20 * math.cos(math.radians(4 * h_bar - 63)))
+    t = (
+        1
+        - 0.17 * math.cos(math.radians(h_bar - 30))
+        + 0.24 * math.cos(math.radians(2 * h_bar))
+        + 0.32 * math.cos(math.radians(3 * h_bar + 6))
+        - 0.20 * math.cos(math.radians(4 * h_bar - 63))
+    )
 
-    delta_theta = 30 * math.exp(-((h_bar - 275) / 25)**2)
+    delta_theta = 30 * math.exp(-(((h_bar - 275) / 25) ** 2))
     xrc = 2 * math.sqrt(c_bar**7 / (c_bar**7 + 6103525625))
-    xsl = 1 + 0.015 * (l_bar - 50)**2 / math.sqrt(20 + (l_bar - 50)**2)
+    xsl = 1 + 0.015 * (l_bar - 50) ** 2 / math.sqrt(20 + (l_bar - 50) ** 2)
     xsc = 1 + 0.045 * c_bar
     xsh = 1 + 0.015 * c_bar * t
     xrt = -xrc * math.sin(2 * math.radians(delta_theta))
@@ -179,19 +180,19 @@ def compare_delta_e_2000(lab1: tuple[float, float, float],
     final_c = delta_c_dash / (xkc * xsc)
     final_h = delta_h_dash / (xkh * xsh)
 
-    delta = math.sqrt(final_l**2 + final_c**2 + final_h**2 +
-                      xrt * final_c * final_h)
+    delta = math.sqrt(final_l**2 + final_c**2 + final_h**2 + xrt * final_c * final_h)
     return delta
 
 
 @lru_cache(maxsize=None)
-def compare_delta_cie(lab1: tuple[float, float, float],
-                      lab2: tuple[float, float, float]) -> float:
+def compare_delta_cie(
+    lab1: tuple[float, float, float], lab2: tuple[float, float, float]
+) -> float:
     """
     Compute the Euclidean distance (Delta E CIE76) between two CIELAB colors.
     """
     l1, a1, b1 = lab1
     l2, a2, b2 = lab2
 
-    similarity = math.sqrt((l1 - l2)**2 + (a1 - a2)**2 + (b1 - b2)**2)
+    similarity = math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2)
     return similarity

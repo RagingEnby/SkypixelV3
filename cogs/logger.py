@@ -16,7 +16,7 @@ def prettify_params(options: disnake.AppCmdInter | dict) -> list[str]:
         options = options.options
     log_params = []
     for param, value in options.items():
-        if isinstance(value, dict): # if this is a subcommand
+        if isinstance(value, dict):  # if this is a subcommand
             log_params.append(param)
             log_params.extend(prettify_params(value))
         else:
@@ -33,17 +33,17 @@ def make_command_log_embed(inter: disnake.AppCmdInter) -> disnake.Embed:
     embed = disnake.Embed(
         title=full_command,
         color=constants.DEFAULT_EMBED_COLOR,
-        timestamp=inter.created_at
+        timestamp=inter.created_at,
     )
     embed.set_author(
         name=f"{inter.author.name} ({inter.author.id})",
         icon_url=inter.author.display_avatar,
-        url=f"https://discord.com/users/{inter.author.id}"
+        url=f"https://discord.com/users/{inter.author.id}",
     )
     if inter.guild:
         embed.set_footer(
             text=f"{inter.guild.name} ({inter.guild.id})",
-            icon_url=inter.guild.icon.url if inter.guild.icon else None
+            icon_url=inter.guild.icon.url if inter.guild.icon else None,
         )
     return embed
 
@@ -60,7 +60,9 @@ class LoggerCog(commands.Cog):
         await utils.send_to_channel(constants.COMMAND_LOG_CHANNEL, embed=embed)
 
     @commands.Cog.listener()
-    async def on_slash_command_error(self, inter: disnake.AppCmdInter, e: commands.CommandError):
+    async def on_slash_command_error(
+        self, inter: disnake.AppCmdInter, e: commands.CommandError
+    ):
         if isinstance(e, commands.CheckFailure):
             err_name = e.__class__.__name__
             if err_name == "DevServerUnavailable":
@@ -88,26 +90,25 @@ class LoggerCog(commands.Cog):
             else:
                 await inter.response.send_message(embed=embed, ephemeral=True)
             return
-        err = ''.join(traceback.format_exception(
-            type(e), e, e.__traceback__
-        ))
-        logger.error(f"Exception in slash command {inter.application_command.name!r}:\n{err}")
+        err = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        logger.error(
+            f"Exception in slash command {inter.application_command.name!r}:\n{err}"
+        )
         with suppress(Exception):
             await inter.response.defer()
-        await inter.send(embed=utils.make_error(
-            "Unknown Error",
-            "An unknown error occured while processing your command, this has been forwarded to the bot owner."
-        ))
+        await inter.send(
+            embed=utils.make_error(
+                "Unknown Error",
+                "An unknown error occured while processing your command, this has been forwarded to the bot owner.",
+            )
+        )
         await utils.send_to_channel(
             constants.ERROR_LOG_CHANNEL,
             f"<@{constants.OWNER_ID}>",
             embeds=[
                 make_command_log_embed(inter),
-                utils.make_error(
-                    "Unknown Error",
-                    str(e), f"\n```py\n{err}```"
-                )
-            ]
+                utils.make_error("Unknown Error", str(e), f"\n```py\n{err}```"),
+            ],
         )
 
     @commands.Cog.listener()
@@ -118,10 +119,12 @@ class LoggerCog(commands.Cog):
         embed = disnake.Embed(
             description=message.content,
             timestamp=message.created_at,
-            color=message.author.color or constants.DEFAULT_EMBED_COLOR
+            color=message.author.color or constants.DEFAULT_EMBED_COLOR,
         )
         embed.set_author(
             name=f"{message.author.display_name} ({message.author.id})",
-            icon_url=message.author.display_avatar
+            icon_url=message.author.display_avatar,
         )
-        await utils.send_to_channel(constants.DM_LOG_CHANNEL, embed=embed, attachments=message.attachments)
+        await utils.send_to_channel(
+            constants.DM_LOG_CHANNEL, embed=embed, attachments=message.attachments
+        )

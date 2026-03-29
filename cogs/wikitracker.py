@@ -21,11 +21,24 @@ PARAMS: dict[str, str] = {
     "errorformat": "bc",
     "list": "recentchanges",
     "rcnamespace": "*",
-    "rcprop": '|'.join([
-        "comment", "flags", "ids", "loginfo", "parsedcomment", "redirect",
-        "sha1", "sizes", "tags", "timestamp", "title", "user", "userid"
-    ]),
-    "rctype": '|'.join(["categorize", "edit", "external", "log", "new"])
+    "rcprop": "|".join(
+        [
+            "comment",
+            "flags",
+            "ids",
+            "loginfo",
+            "parsedcomment",
+            "redirect",
+            "sha1",
+            "sizes",
+            "tags",
+            "timestamp",
+            "title",
+            "user",
+            "userid",
+        ]
+    ),
+    "rctype": "|".join(["categorize", "edit", "external", "log", "new"]),
 }
 EDITOR_URL: str = "https://api.ragingenby.dev/wiki/user/{}"
 EDITOR_CACHE: dict[str, dict[str, Any]] = {}
@@ -46,9 +59,8 @@ async def get_editor(name: str) -> dict[str, Any]:
 async def get_edits() -> list[dict[str, Any]]:
     response = await asyncreqs.proxy_get(URL, params=PARAMS)
     response.raise_for_status()
-    return response.json()['query']['recentchanges']
+    return response.json()["query"]["recentchanges"]
 
-    
 
 async def send(embed: disnake.Embed):
     tasks = [
@@ -65,38 +77,40 @@ class WikiTrackerCog(commands.Cog):
         self.db: mongodb.Collection | None = None
         self.db_queue = []
         self.data = datamanager.JsonWrapper("storage/wikiedits.json")
-        if not self.data.get('edits'):
+        if not self.data.get("edits"):
             logger.warning("wikiedits.json is empty")
-            self.data['edits'] = []
+            self.data["edits"] = []
 
     async def upload_queue(self):
         if not self.db_queue:
             return
         if not self.db:
-            self.db = mongodb.Collection('SkyBlock', 'wikiedits')
+            self.db = mongodb.Collection("SkyBlock", "wikiedits")
         await self.db.update_many(self.db_queue)
         self.db_queue.clear()
 
     def log_edit(self, edit: dict[str, Any]):
         doc = edit.copy()
-        doc['_id'] = doc.pop('revid')
+        doc["_id"] = doc.pop("revid")
         self.db_queue.append(doc)
 
     async def on_wiki_edit(self, edit: dict[str, Any]):
         logger.debug(f"wiki edit: {edit}")
         self.log_edit(edit)
-        editor = await get_editor(edit['user'])
-        verb = "Created" if edit['type'] == 'new' else "Edited"
-        embed = utils.add_footer(disnake.Embed(
-            title=f"{verb} {edit['title']}",
-            description=f"```\n{edit['parsedcomment']}\n```\n-# **ID:** {edit['revid']}",
-            url="https://hypixel.wiki/" + edit['title'].replace(' ', '_'),
-            color=constants.DEFAULT_EMBED_COLOR
-        ))
+        editor = await get_editor(edit["user"])
+        verb = "Created" if edit["type"] == "new" else "Edited"
+        embed = utils.add_footer(
+            disnake.Embed(
+                title=f"{verb} {edit['title']}",
+                description=f"```\n{edit['parsedcomment']}\n```\n-# **ID:** {edit['revid']}",
+                url="https://hypixel.wiki/" + edit["title"].replace(" ", "_"),
+                color=constants.DEFAULT_EMBED_COLOR,
+            )
+        )
         embed.set_author(
-            name=editor.get('displayName') or edit['user'],
-            icon_url=editor.get('avatar'),
-            url=editor.get('link')
+            name=editor.get("displayName") or edit["user"],
+            icon_url=editor.get("avatar"),
+            url=editor.get("link"),
         )
         await send(embed)
 
@@ -105,12 +119,14 @@ class WikiTrackerCog(commands.Cog):
             try:
                 edits = await get_edits()
                 for edit in edits:
-                    if edit['revid'] in self.data['edits']:
-                        logger.debug(f"skipping already-processed edit: {edit['revid']}")
+                    if edit["revid"] in self.data["edits"]:
+                        logger.debug(
+                            f"skipping already-processed edit: {edit['revid']}"
+                        )
                         continue
-                    if self.data.get('edits'):
+                    if self.data.get("edits"):
                         await self.on_wiki_edit(edit)
-                    self.data['edits'].append(edit['revid'])
+                    self.data["edits"].append(edit["revid"])
                     logger.debug(f"finished processing edit: {edit['revid']}")
                 await self.upload_queue()
                 logger.debug("logged edits to mongo")

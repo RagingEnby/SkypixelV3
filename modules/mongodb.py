@@ -24,17 +24,17 @@ class Collection:
         self.bulk_write = self.collection.bulk_write
 
     async def update_many(self, docs: list[dict[str, Any]]):
-        return await self.collection.bulk_write([UpdateOne(
-            {'_id': doc['_id']},
-            {'$set': doc},
-            upsert=True
-        ) for doc in docs])
+        return await self.collection.bulk_write(
+            [UpdateOne({"_id": doc["_id"]}, {"$set": doc}, upsert=True) for doc in docs]
+        )
 
     async def close(self):
         logger.info(f"Closing {self.db_name}.{self.collection_name}")
         return self.client.close()
 
-    async def search(self, query: dict, projection: dict | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    async def search(
+        self, query: dict, projection: dict | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         logger.debug(f"Searching {self.db_name}.{self.collection_name} for {query}")
         cursor = self.find(query, projection=projection)
         return await cursor.to_list(length=limit)
