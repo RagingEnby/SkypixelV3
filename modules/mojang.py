@@ -79,23 +79,23 @@ class MojangPlayer:
         return {
             "id": self.id,
             "name": self.name,
-            "lastUpdated": int(self.last_updated.timestamp())
+            "lastUpdated": int(self.last_updated.timestamp()),
         }
 
     @classmethod
-    def from_dict(cls, data: MojangPlayerDict|RawMojangPlayerDict):
+    def from_dict(cls, data: MojangPlayerDict | RawMojangPlayerDict):
         logger.debug(f"creating MojangPlayer from {data}")
-        uuid = data.get('id', data.get('uuid'))
-        name = data.get('name', data.get('username'))
+        uuid = data.get("id", data.get("uuid"))
+        name = data.get("name", data.get("username"))
         logger.debug(f"uuid: {uuid}, name: {name}")
         if not isinstance(uuid, str) or not isinstance(name, str):
             raise ValueError("Invalid player data:", data)
-        last_updated = datetime.fromtimestamp(data['lastUpdated']) if data.get('lastUpdated') else datetime.now() # type: ignore
-        return cls(
-            uuid=uuid,
-            name=name,
-            last_updated=last_updated
-        )
+        last_updated = (
+            datetime.fromtimestamp(data["lastUpdated"])
+            if data.get("lastUpdated")
+            else datetime.now()
+        )  # type: ignore
+        return cls(uuid=uuid, name=name, last_updated=last_updated)
 
 
 async def get(identifier: str) -> MojangPlayer:
@@ -127,11 +127,11 @@ async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
     if to_fetch:
         response = await asyncreqs.post(
             url="https://api.ragingenby.dev/players",
-            json={"identifiers": [i.replace('-', '') for i in to_fetch]}
+            json={"identifiers": [i.replace("-", "") for i in to_fetch]},
         )
         data = response.json()
         logger.debug(f"got data: {data}")
-        for player in data['players']:
+        for player in data["players"]:
             players.append(MojangPlayer.from_dict(player))
     return {
         (player.id if player.id in identifiers else player.name.lower()): player

@@ -28,7 +28,7 @@ async def get_session() -> curl_cffi.AsyncSession:
     global SESSION, CLOSED
     if CLOSED:
         logger.error("asyncreqs.get_session() called after shutdown")
-        raise RuntimeError('asyncreqs.get_session() called after shutdown')
+        raise RuntimeError("asyncreqs.get_session() called after shutdown")
     if not SESSION:
         SESSION = curl_cffi.AsyncSession(discard_cookies=True)
     return SESSION
@@ -37,13 +37,14 @@ async def get_session() -> curl_cffi.AsyncSession:
 async def request(
     # this can handle other methods but only GET and POST are needed
     # in skypixel
-    method: Literal['GET', 'POST'],
-    *args, **kwargs
+    method: Literal["GET", "POST"],
+    *args,
+    **kwargs,
 ) -> curl_cffi.Response:
     global CLOSED
     if CLOSED:
         logger.error("asyncreqs.request() called after shutdown")
-        raise RuntimeError('asyncreqs.request() called after shutdown')
+        raise RuntimeError("asyncreqs.request() called after shutdown")
     session = await get_session()
 
     response = await session.request(method, *args, **kwargs)
@@ -52,19 +53,15 @@ async def request(
 
 
 async def get(*args, **kwargs) -> curl_cffi.Response:
-    return await request('GET', *args, **kwargs)
+    return await request("GET", *args, **kwargs)
 
 
 async def proxy_get(*args, **kwargs) -> curl_cffi.Response:
-    impersonate = kwargs.pop('impersonate', 'chrome110')
+    impersonate = kwargs.pop("impersonate", "chrome110")
     return await request(
-        'GET',
-        *args,
-        proxy=constants.PROXIES['http'],
-        impersonate=impersonate,
-        **kwargs
+        "GET", *args, proxy=constants.PROXIES["http"], impersonate=impersonate, **kwargs
     )
 
 
 async def post(*args, **kwargs) -> curl_cffi.Response:
-    return await request('POST', *args, **kwargs)
+    return await request("POST", *args, **kwargs)

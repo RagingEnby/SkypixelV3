@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 async def get_zones() -> set[str]:
     response = await asyncreqs.get(URL)
     data = response.json()
-    return set(data['zones'])
+    return set(data["zones"])
 
 
 async def send(embed: disnake.Embed):
@@ -33,29 +33,33 @@ class ZoneTrackerCog(commands.Cog):
         self.bot = bot
         self.task: asyncio.Task | None = None
         self.data = datamanager.JsonWrapper("storage/zones.json")
-        if not self.data.get('zones'):
+        if not self.data.get("zones"):
             logger.warning("zones.json is empty")
-            self.data['zones'] = []
+            self.data["zones"] = []
 
     @staticmethod
     async def on_new_zone(zones: set[str]):
         logger.debug(f"new zones detected: {zones}")
-        embed = utils.add_footer(disnake.Embed(
-            title="New SkyBlock Zone Added!",
-            description="New areas/zones have been added to SkyBlock's API.\n```\n{}\n```".format('\n'.join(zones)),
-            color=constants.DEFAULT_EMBED_COLOR
-        ))
+        embed = utils.add_footer(
+            disnake.Embed(
+                title="New SkyBlock Zone Added!",
+                description="New areas/zones have been added to SkyBlock's API.\n```\n{}\n```".format(
+                    "\n".join(zones)
+                ),
+                color=constants.DEFAULT_EMBED_COLOR,
+            )
+        )
         await send(embed)
 
     async def main(self):
         while True:
             try:
                 zones = await get_zones()
-                new = {zone for zone in zones if zone not in self.data['zones']}
+                new = {zone for zone in zones if zone not in self.data["zones"]}
                 if new:
-                    if self.data.get('zones'):
+                    if self.data.get("zones"):
                         await self.on_new_zone(new)
-                    self.data['zones'].extend(new)
+                    self.data["zones"].extend(new)
                     await self.data.save()
             except Exception:
                 logger.error(traceback.format_exc())
