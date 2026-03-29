@@ -14,13 +14,14 @@ from modules import utils
 
 logger = logging.getLogger(__name__)
 
+
 def flatten_status(status: RawJavaResponse) -> dict[str, Any]:
     return {
-        "MC Version": status['version']['name'],
-        "Version Protocol": status['version']['protocol'],
-        "Max Players": status['players']['max'],
-        #"Online Players": status['players']['online'],
-        "MOTD": status['description'],
+        "MC Version": status["version"]["name"],
+        "Version Protocol": status["version"]["protocol"],
+        "Max Players": status["players"]["max"],
+        # "Online Players": status['players']['online'],
+        "MOTD": status["description"],
     }
 
 
@@ -45,21 +46,19 @@ class AlphaTrackerCog(commands.Cog):
 
     @staticmethod
     async def on_status_update(before: dict[str, Any], after: dict[str, Any]):
-        diff = [
-            k for k, v in after.items()
-            if v != before.get(k)
-        ]
+        diff = [k for k, v in after.items() if v != before.get(k)]
         if not diff:
             return
-        embed = utils.add_footer(disnake.Embed(
-            title="Alpha Status Updated!",
-            color=constants.DEFAULT_EMBED_COLOR
-        ))
+        embed = utils.add_footer(
+            disnake.Embed(
+                title="Alpha Status Updated!", color=constants.DEFAULT_EMBED_COLOR
+            )
+        )
         for key in diff:
             embed.add_field(
                 name=key,
                 value=f"Before: `{before.get(key)}`\nAfter: `{after[key]}`",
-                inline=False
+                inline=False,
             )
         await send(embed)
 
