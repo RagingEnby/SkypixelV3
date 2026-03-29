@@ -99,7 +99,7 @@ async def execute(inter: disnake.MessageCommandInteraction, message: disnake.Mes
     try:
         tmp_dic = {}
         clean_content = message.content.replace("\u2069", "").replace("\u2068", "")
-        
+
         executing_string = "async def temp_func():\n    {}\n".format(
             clean_content.partition("\n")[2]
             .strip("`")
@@ -119,17 +119,20 @@ async def execute(inter: disnake.MessageCommandInteraction, message: disnake.Mes
             message.add_reaction("❌"),
             inter.send(f"Error while running code:\n```py\n{error}```"),
         )
-        
-        
+
+
 class DevServerUnavailable(commands.CheckFailure):
     pass
+
 
 class UserNotInDevServer(commands.CheckFailure):
     pass
 
+
 class UserNotAPatron(commands.CheckFailure):
     pass
-        
+
+
 @bot.application_command_check()
 async def patron_only_check(inter: disnake.Interaction):
     owners = inter.authorizing_integration_owners
@@ -160,7 +163,7 @@ async def on_close():
         *[  # pyright: ignore[reportArgumentType]
             cog.close()  # pyright: ignore[reportAttributeAccessIssue]
             for cog in bot.cogs.values()
-            if hasattr(cog, "close") and callable(cog.close)   # pyright: ignore[reportAttributeAccessIssue]
+            if hasattr(cog, "close") and callable(cog.close)  # pyright: ignore[reportAttributeAccessIssue]
         ]
     )
     logger.info("Closed all cogs")
