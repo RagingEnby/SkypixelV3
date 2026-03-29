@@ -11,3 +11,20 @@ from .versiontracker import VersionTrackerCog
 from .wikitracker import WikiTrackerCog
 from .zonetracker import ZoneTrackerCog
 from .jobtracker import JobTrackerCog
+
+
+__all__ = [
+    "AlphaTrackerCog",
+    "AuctionTrackerCog",
+    "FireSaleTrackerCog",
+    "GuildCog",
+    "ItemDBCog",
+    "LoggerCog",
+    "MotdTrackerCog",
+    "RankTrackerCog",
+    "StatusUpdaterCog",
+    "VersionTrackerCog",
+    "WikiTrackerCog",
+    "ZoneTrackerCog",
+    "JobTrackerCog",
+]
