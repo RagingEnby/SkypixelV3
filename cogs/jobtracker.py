@@ -100,7 +100,7 @@ class JobTrackerCog(commands.Cog):
     async def on_job_update(job: Job, added: bool):
         embed = utils.add_footer(
             disnake.Embed(
-                title=f"New Job Opening!" if added else f"Job Opening Removed!",
+                title="New Job Opening!" if added else "Job Opening Removed!",
                 description=job.to_markdown(),
                 color=constants.COLOR_CODES["a"]
                 if added
@@ -112,24 +112,33 @@ class JobTrackerCog(commands.Cog):
     def to_dict(self) -> dict:
         return {job.title: job.to_dict() for job in self.data.get("jobs", [])}
 
-    async def main(self):
+    async def main(self) -> None:
         while True:
             try:
                 print(self.data.to_dict())
-                jobs = await get_jobs()
-                jobs_dict: dict[str, Job] = {job.title: job for job in jobs}
-                for job in jobs:
-                    if not self.data.get(job.title):
-                        await self.on_job_update(job, True)
-                        self.data.data[job.title] = job
+                new_jobs: list[
+                    Job
+                ] = await get_jobs()  # NEW JOBS CONTAINS JOB __OBJECTS__ NOT STRINGS
+                new_job_titles: set[str] = {new_job.title for new_job in new_jobs}
+                for new_job in new_jobs:
+                    print("Fetched job:", new_job)
+                    if not self.data.get(new_job.title):
+                        print("New job!")
+                        await self.on_job_update(new_job, True)
+                        self.data.data[new_job.title] = new_job.to_dict()
+                    else:
+                        print("Already known")
                 to_remove: set[str] = set()
-                for job in self.data.data.keys():
-                    if job not in jobs_dict:
+                # OLD JOBS ARE JOB __STRINGS__ NOT OBJECTS
+                for old_job in self.data.data.keys():
+                    print("Checking old job:", old_job)
+                    if old_job not in new_job_titles:
                         await self.on_job_update(
-                            Job.from_dict(self.data.data[job]), False
+                            Job.from_dict(self.data.data[old_job]), False
                         )
-                        to_remove.add(job)
+                        to_remove.add(old_job)
                 for key in to_remove:
+                    print("Deleting job from local storage:", key)
                     del self.data.data[key]
                 await self.data.save()
             except Exception:
