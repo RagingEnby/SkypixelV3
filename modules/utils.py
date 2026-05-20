@@ -17,8 +17,9 @@ logger = logging.getLogger(__name__)
 
 async def write_json(file_path: str, data: dict, indent: int = 2):
     logger.debug(f"Writing to {file_path}...")
+    content = json.dumps(data, indent=indent)
     async with aiofiles.open(file_path, "w") as file:
-        await file.write(json.dumps(data, indent=indent))
+        await file.write(content)
     logger.debug(f"Wrote to {file_path}!")
 
 
