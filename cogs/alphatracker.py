@@ -6,11 +6,10 @@ from typing import Any
 import disnake
 from disnake.ext import commands
 from mcstatus import JavaServer
-from mcstatus.responses import RawJavaResponse
+from mcstatus.responses._raw import RawJavaResponse
 
 import constants
-from modules import datamanager
-from modules import utils
+from modules import datamanager, utils
 
 logger = logging.getLogger(__name__)
 
