@@ -10,7 +10,10 @@ dependencies = [
     "disnake",
     "mcstatus>=11.1.1",
     "motor>=3.7.0",
-    "nbt>=1.5.1",
+    "nbt",
     "requests>=2.32.3",
     "typing-extensions>=4.15.0",
 ]
+
+[tool.uv.sources]
+nbt = { git = "https://github.com/RagingEnby/NBT" }
