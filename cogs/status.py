@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import traceback
-from typing import Coroutine, Callable
+from typing import Callable, Coroutine
 
 import disnake
 from disnake.ext import commands

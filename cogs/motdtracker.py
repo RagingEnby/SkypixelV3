@@ -8,8 +8,7 @@ from disnake.ext import commands
 from mcstatus import JavaServer
 
 import constants
-from modules import datamanager
-from modules import utils
+from modules import datamanager, utils
 
 logger = logging.getLogger(__name__)
 
