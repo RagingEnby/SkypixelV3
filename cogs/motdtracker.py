@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 async def get_motd() -> list[str]:
     logger.debug("getting mc.hypixel.net motd")
     status = await JavaServer.lookup("mc.hypixel.net").async_status()
-    return [l.strip() for l in status.description.split("\n")]
+    return [l.strip() for l in status.description.split("\n")]  # noqa: E741
 
 
 async def send(embed: disnake.Embed, ping: bool = True):
