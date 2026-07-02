@@ -71,7 +71,10 @@ async def send_to_channel(
     if not isinstance(channel, disnake.TextChannel):
         logger.error(f"channel {channel_id} is not a text channel: {type(channel)}")
         return None
-    return await channel.send(*args, **kwargs)
+    try:
+        return await channel.send(*args, **kwargs)
+    except Exception as e:
+        print("Unable to send message to", channel, e)
 
 
 def to_mc_text(text: str) -> str:
