@@ -8,11 +8,11 @@ from nbt import nbt
 
 
 @overload
-def nbt_to_dict(nbt_data: nbt.NBTFile) -> dict: ...
+def nbt_to_dict(nbt_data: nbt.NBTFile) -> dict: ...  # pyright: ignore[reportOverlappingOverload]
 @overload
-def nbt_to_dict(nbt_data: nbt.TAG_Compound) -> dict: ...
+def nbt_to_dict(nbt_data: nbt.TAG_Compound) -> dict: ...  # pyright: ignore[reportOverlappingOverload]
 @overload
-def nbt_to_dict(nbt_data: nbt.TAG_List) -> list: ...
+def nbt_to_dict(nbt_data: nbt.TAG_List) -> list: ...  # pyright: ignore[reportOverlappingOverload]
 @overload
 def nbt_to_dict(nbt_data: Any) -> Any: ...
 def nbt_to_dict(

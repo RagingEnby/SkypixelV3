@@ -91,7 +91,7 @@ class MojangPlayer:
         if not isinstance(uuid, str) or not isinstance(name, str):
             raise ValueError("Invalid player data:", data)
         last_updated = (
-            datetime.fromtimestamp(data["lastUpdated"])
+            datetime.fromtimestamp(data["lastUpdated"]) # pyright: ignore[reportGeneralTypeIssues]
             if data.get("lastUpdated")
             else datetime.now()
         )  # type: ignore
