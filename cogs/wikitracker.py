@@ -7,10 +7,7 @@ import disnake
 from disnake.ext import commands
 
 import constants
-from modules import asyncreqs
-from modules import datamanager
-from modules import utils
-from modules import mongodb
+from modules import asyncreqs, datamanager, mongodb, utils
 
 URL: str = "https://wiki.hypixel.net/api.php"
 PARAMS: dict[str, str] = {

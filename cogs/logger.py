@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def prettify_params(options: disnake.AppCmdInter | dict) -> list[str]:
-    if isinstance(options, disnake.AppCmdInter):
+    if not isinstance(options, dict):
         options = options.options
     log_params = []
     for param, value in options.items():

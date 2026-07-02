@@ -6,7 +6,6 @@ from scrts import (
     PROXIES,
 )
 
-
 # Credit Footer
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
 DISCORD_INVITE: str = "https://discord.gg/uSQx2rWHu2"
@@ -281,13 +280,13 @@ MINECRAFT_DYES: dict[int, dict[str, str | int]] = {
     },
 }
 ## Misc
-SEYMOUR_IDS: dict[str, "ArmorType"] = {  # type: ignore
+SEYMOUR_IDS: dict[str, "ArmorType"] = {  # noqa: F821 # pyright: ignore[reportUndefinedVariable]
     "VELVET_TOP_HAT": "helmet",
     "CASHMERE_JACKET": "chestplate",
     "SATIN_TROUSERS": "leggings",
     "OXFORD_SHOES": "boots",
 }
-FAIRY_IDS: dict[str, "ArmorType"] = {  # type: ignore
+FAIRY_IDS: dict[str, "ArmorType"] = {  # noqa: F821 # pyright: ignore[reportUndefinedVariable]
     "FAIRY_HELMET": "helmet",
     "FAIRY_CHESTPLATE": "chestplate",
     "FAIRY_LEGGINGS": "leggings",

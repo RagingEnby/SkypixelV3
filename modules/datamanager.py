@@ -3,7 +3,6 @@ import logging
 import os
 from contextlib import suppress
 from typing import Any, ItemsView
-from collections import OrderedDict
 
 from modules import utils
 

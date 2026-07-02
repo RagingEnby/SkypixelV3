@@ -9,21 +9,22 @@ import disnake
 from disnake.ext import commands
 
 import constants
-from cogs import AlphaTrackerCog
-from cogs import AuctionTrackerCog
-from cogs import FireSaleTrackerCog
-from cogs import GuildCog
-from cogs import ItemDBCog
-from cogs import LoggerCog
-from cogs import MotdTrackerCog
-from cogs import RankTrackerCog
-from cogs import StatusUpdaterCog
-from cogs import VersionTrackerCog
-from cogs import WikiTrackerCog
-from cogs import ZoneTrackerCog
-from cogs import JobTrackerCog
-from modules import asyncreqs
-from modules import utils
+from cogs import (
+    AlphaTrackerCog,
+    AuctionTrackerCog,
+    FireSaleTrackerCog,
+    GuildCog,
+    ItemDBCog,
+    JobTrackerCog,
+    LoggerCog,
+    MotdTrackerCog,
+    RankTrackerCog,
+    StatusUpdaterCog,
+    VersionTrackerCog,
+    WikiTrackerCog,
+    ZoneTrackerCog,
+)
+from modules import asyncreqs, utils
 
 # load Skypixel logger
 root_logger = logging.getLogger()
@@ -34,6 +35,7 @@ root_handler = logging.FileHandler(
 root_handler.setFormatter(
     logging.Formatter("[%(asctime)s:%(levelname)s:%(name)s:%(lineno)d] %(message)s")
 )
+
 
 root_logger.addHandler(root_handler)
 console_handler = logging.StreamHandler(sys.stdout)

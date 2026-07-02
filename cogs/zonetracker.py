@@ -6,9 +6,7 @@ import disnake
 from disnake.ext import commands
 
 import constants
-from modules import asyncreqs
-from modules import datamanager
-from modules import utils
+from modules import asyncreqs, datamanager, utils
 
 URL: str = "https://api.ragingenby.dev/skyblock/zones"
 logger = logging.getLogger(__name__)

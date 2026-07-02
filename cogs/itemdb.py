@@ -2,16 +2,14 @@ import json
 import logging
 import re
 from contextlib import suppress
-from typing import Any, Optional, Literal
+from typing import Any, Literal, Optional
 
 import disnake
 import pymongo
 from disnake.ext import commands
 
 import constants
-from modules import hypixel, mongodb
-from modules import mojang
-from modules import utils
+from modules import hypixel, mojang, mongodb, utils
 
 logger = logging.getLogger(__name__)
 PrefixRank = Literal[
@@ -492,7 +490,7 @@ class ItemDBCog(commands.Cog):
     async def search(self, inter: disnake.AppCmdInter, query: str):
         try:
             parsed_query = json.loads(query)
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             parsed_query = {"_id": query}
         return await self.do_search_command(inter, parsed_query)
 
@@ -556,10 +554,12 @@ class ItemDBCog(commands.Cog):
             )
             item_embed = await view.get_current_embed()
             await view.update_buttons()
-            await inter.send(embeds=[embed, item_embed], view=view)
+            await inter.send(
+                embeds=[i for i in [embed, item_embed] if i is not None], view=view
+            )
         else:
             result = await self.item_db.find_one(query)
-            item_embed = await make_item_embed(result)
+            item_embed = await make_item_embed(result)  # type: ignore
             await inter.send(embeds=[embed, item_embed])
 
     @itemdb.sub_command(

@@ -6,9 +6,7 @@ import disnake
 from disnake.ext import commands
 
 import constants
-from modules import asyncreqs
-from modules import datamanager
-from modules import utils
+from modules import asyncreqs, datamanager, utils
 
 logger = logging.getLogger(__name__)
 URL: str = "https://api.hypixel.net/v2/resources/skyblock/skills"
