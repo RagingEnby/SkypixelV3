@@ -1,16 +1,17 @@
 import logging
-from typing import Any, Literal
+from typing import Any, Literal, TypeAlias
 
 import requests
 
 logger = logging.getLogger(__name__)
+
 
 ITEMS: list[dict[str, Any]] = requests.get(
     "https://api.ragingenby.dev/skyblock/items"
 ).json()["items"]
 MEMENTOS: list[str] = [i["id"] for i in ITEMS if i.get("category") == "MEMENTO"]
 
-Memento = Literal[tuple(MEMENTOS)]  # type: ignore
+Memento: TypeAlias = Literal[tuple(MEMENTOS)]  # type: ignore
 
 
 def get_material(item_id: str) -> str:

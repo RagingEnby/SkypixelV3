@@ -1,8 +1,8 @@
 import logging
 from typing import Any
 
-from pymongo import UpdateOne
 import motor.motor_asyncio as motor
+from pymongo import UpdateOne
 
 import constants
 
