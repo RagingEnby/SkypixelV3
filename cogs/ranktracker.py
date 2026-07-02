@@ -1,17 +1,16 @@
 import asyncio
+import json
 import logging
 import traceback
 from contextlib import suppress
-from typing import Literal, cast, Any
+from typing import Any, Literal, cast
 
 import disnake
 import requests
 from disnake.ext import commands
 
 import constants
-from modules import asyncreqs, mojang
-from modules import datamanager
-from modules import utils
+from modules import asyncreqs, datamanager, mojang, utils
 
 logger = logging.getLogger(__name__)
 SpecialRank = Literal[
@@ -103,6 +102,7 @@ async def send(
 ):
     if rank not in constants.RANK_TRACKER_CHANNELS:
         rank = "special"
+    print(f"rank embed message: {json.dumps(embed.to_dict(), indent=2)}")
     tasks = [
         utils.send_to_channel(channel_id, content if ping else "", embed=embed)
         for channel_id, content in constants.RANK_TRACKER_CHANNELS[rank].items()
@@ -241,6 +241,7 @@ class RankTrackerCog(commands.Cog):
         self.data = datamanager.JsonWrapper("storage/ranks.json")
         if not self.data.to_dict():
             logger.warning("ranks.json is empty")
+        self.known_changes: set[str] = set()
 
     @staticmethod
     async def on_rank_add(uuid: str, name: str, rank: SpecialRank):
@@ -417,6 +418,7 @@ class RankTrackerCog(commands.Cog):
     async def main(self):
         while True:
             logger.info("rank tracker loop")
+
             try:
                 await self.do_watchlist()
                 player_ranks = await get_player_ranks()
@@ -427,27 +429,44 @@ class RankTrackerCog(commands.Cog):
                     continue
 
                 for uuid, data in player_ranks.items():
-                    # SUPER temporary failsafe because one youtuber got bugged while i was on vacation
-                    # and i dont wanna worry about fixing rn
-                    if uuid == "11b2d8b1572342daab4164585b461dde":
-                        continue
-                    if uuid not in self.data:
+                    old_data: dict[str, Any] | None = self.data.get(uuid)
+                    if not old_data:
+                        key = f"{uuid}-add"
+                        if key in self.known_changes:
+                            logger.error(f"Known rank change detected: {data} {key}")
+                            continue
+                        self.known_changes.add(key)
                         await self.on_rank_add(uuid, data["name"], data["rank"])  # type: ignore
                         continue
-                    if self.data[uuid]["rank"] != data["rank"]:
-                        await self.on_rank_add(uuid, data["name"], data["rank"])  # type: ignore
-                        await self.on_rank_remove(
-                            uuid, data["name"], self.data[uuid]["rank"]
+                    if old_data["rank"] != data["rank"]:
+                        key = f"{uuid}-rankchange-{old_data['rank']}-{data['rank']}"
+                        if key in self.known_changes:
+                            logger.error(f"Known rank change detected: {data} {key}")
+                            continue
+                        self.known_changes.add(key)
+                        await asyncio.gather(
+                            self.on_rank_add(uuid, data["name"], data["rank"]),  # type: ignore
+                            self.on_rank_remove(uuid, data["name"], old_data["rank"]),
                         )
-                    if self.data[uuid]["name"] != data["name"]:
+                    if old_data["name"] != data["name"]:
+                        key = f"{uuid}-namechange-{old_data['name']}-{data['name']}"
+                        if key in self.known_changes:
+                            logger.error(f"Known name change detected: {data} {key}")
+                            continue
+                        self.known_changes.add(key)
                         await self.on_name_change(
                             uuid=uuid,
-                            before=self.data[uuid]["name"],
+                            before=old_data["name"],
                             after=data["name"],
                             rank=data["rank"],  # type: ignore
                         )
                 for uuid, data in self.data.data.items():
                     if uuid not in player_ranks:
+                        key = f"{uuid}-remove"
+                        if key in self.known_changes:
+                            logger.error(f"Known rank removal detected: {data} {key}")
+                            continue
+                        self.known_changes.add(key)
                         await self.on_rank_remove(uuid, data["name"], data["rank"])  # type: ignore
 
                 self.data.data = player_ranks
