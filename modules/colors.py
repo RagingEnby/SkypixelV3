@@ -22,7 +22,7 @@ ExoticType = Literal[
 ]
 try:
     ITEMS = requests.get("https://api.ragingenby.dev/skyblock/items").json()["items"]
-except:
+except:  # noqa: E722
     logger.warning("WARNING: USING HYPIXEL ITEMS ENDPOINT, api.ragingenby.dev IS DOWN")
     ITEMS = requests.get("https://api.hypixel.net/v2/resources/skyblock/items").json()[
         "items"
