@@ -89,7 +89,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
             "ZoneTrackerCog": 12000,
         }
         for name, interval in expected.items():
-            self.assertEqual(getattr(support.cogs, name).interval, interval)
+            self.assertEqual(support.extensions.get_extension(name).interval, interval)
 
 
 class RankCacheTests(unittest.IsolatedAsyncioTestCase):

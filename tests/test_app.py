@@ -199,17 +199,6 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ImportTests(unittest.TestCase):
-    def test_original_import_paths_share_the_new_module_state(self):
-        import constants as legacy_constants
-        from cogs import itemdb
-        from modules import asyncreqs
-        from skypixel.clients import http
-        from skypixel.commands import itemdb as new_itemdb
-
-        self.assertIs(legacy_constants, constants)
-        self.assertIs(asyncreqs, http)
-        self.assertIs(itemdb, new_itemdb)
-
     def test_imports_do_not_open_clients_or_start_the_bot(self):
         source = """import importlib
 import pkgutil
@@ -223,7 +212,7 @@ with patch("curl_cffi.AsyncSession", side_effect=AssertionError("HTTP session op
     import skypixel
     for module in pkgutil.walk_packages(skypixel.__path__, "skypixel."):
         importlib.import_module(module.name)
-    import constants
+    from skypixel import constants
     assert constants.BOT is None
 """
         with tempfile.TemporaryDirectory() as directory:
