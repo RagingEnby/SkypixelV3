@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from skypixel.storage import json as storage
 from skypixel.storage.json import JsonWrapper, StorageError
-from skypixel.storage.mongo import Collection
+from skypixel.storage.mongo import Collection, UploadQueue
 
 
 class JsonStorageTests(unittest.IsolatedAsyncioTestCase):
@@ -121,3 +121,25 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
         client.close.assert_called_once()
         with self.assertRaises(RuntimeError):
             _ = collection.client
+
+
+class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
+    async def test_flush_sends_queued_documents_in_batches_of_1000(self):
+        queue = UploadQueue("test", "items")
+        for index in range(1500):
+            queue.append({"_id": index})
+        with patch.object(
+            queue.collection, "update_many", new_callable=AsyncMock
+        ) as write:
+            await queue.flush()
+        self.assertEqual(
+            [len(call.args[0]) for call in write.await_args_list], [1000, 500]
+        )
+        self.assertEqual(queue.docs, [])
+
+    async def test_empty_flush_does_not_open_a_client(self):
+        queue = UploadQueue("test", "items")
+        with patch("skypixel.storage.mongo.AsyncIOMotorClient") as factory:
+            await queue.flush()
+            await queue.close()
+        factory.assert_not_called()

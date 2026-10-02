@@ -199,11 +199,11 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
 
         async def scan_ended():
             await asyncio.sleep(0)
-            cog.ended_db_queue.append({"_id": "ended"})
+            cog.ended_uploads.append({"_id": "ended"})
             return 30.0
 
         async def upload():
-            self.assertEqual(cog.ended_db_queue, [{"_id": "ended"}])
+            self.assertEqual(cog.ended_uploads.docs, [{"_id": "ended"}])
 
         with (
             patch.object(
@@ -229,7 +229,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
                 return_value=sales,
             ),
             patch.object(firesaletracker, "send", new_callable=AsyncMock) as send,
-            patch.object(cog, "upload_queue", new_callable=AsyncMock),
+            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
         ):
             await cog.poll()
         send.assert_not_awaited()
@@ -250,7 +250,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
                 wikitracker, "get_edits", new_callable=AsyncMock, return_value=edits
             ),
             patch.object(cog, "on_wiki_edit", new_callable=AsyncMock) as notify,
-            patch.object(cog, "upload_queue", new_callable=AsyncMock),
+            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
         ):
             await cog.poll()
         notify.assert_not_awaited()
