@@ -9,8 +9,6 @@ from skypixel import constants
 from skypixel import discord as utils
 
 logger = logging.getLogger(__name__)
-# enum would be better but uv was fucking tweaking
-# and wouldn't let me install it so Literal works
 JoinLeave = Literal["join", "leave"]
 
 
@@ -21,7 +19,6 @@ class GuildCog(commands.Cog):
     @staticmethod
     async def on_bot_joinleave(guild: disnake.Guild, action: JoinLeave):
         if not guild.members:
-            # bugged server, skypixel is in 1-2
             return
         verb = "joined" if action == "join" else "left"
         embed = disnake.Embed(

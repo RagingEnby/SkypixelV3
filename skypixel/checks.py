@@ -29,8 +29,13 @@ async def patron_only_check(
         raise DevServerUnavailable("The dev server is unavailable.")
     member = guild.get_member(inter.author.id)
     if member is None:
-        with suppress(disnake.NotFound):
-            member = await guild.fetch_member(inter.author.id)
+        try:
+            with suppress(disnake.NotFound):
+                member = await guild.fetch_member(inter.author.id)
+        except disnake.HTTPException as error:
+            raise DevServerUnavailable(
+                "Cannot check the patron role in the dev server."
+            ) from error
     if member is None:
         raise UserNotInDevServer("Join the dev server to use this command.")
     if not member.get_role(constants.PATRON_ROLE):

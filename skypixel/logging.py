@@ -4,26 +4,28 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 
-class CredentialFilter(logging.Filter):
-    def __init__(self, secrets: tuple[str, ...]):
-        super().__init__()
-        self.secrets = tuple(secret for secret in secrets if secret)
+def redact(text: str, secrets: tuple[str, ...]) -> str:
+    for secret in secrets:
+        if secret:
+            text = text.replace(secret, "[redacted]")
+    return text
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        message = record.getMessage()
-        for secret in self.secrets:
-            message = message.replace(secret, "[redacted]")
-        record.msg = message
-        record.args = ()
-        return True
+
+class RedactingFormatter(logging.Formatter):
+    def __init__(self, fmt: str, secrets: tuple[str, ...]):
+        super().__init__(fmt)
+        self.secrets = secrets
+
+    def format(self, record: logging.LogRecord) -> str:
+        return redact(super().format(record), self.secrets)
 
 
 def configure_logging(storage_dir: Path, *, secrets: tuple[str, ...] = ()) -> None:
     storage_dir.mkdir(parents=True, exist_ok=True)
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "[%(asctime)s:%(levelname)s:%(name)s:%(lineno)d] %(message)s"
+    formatter = RedactingFormatter(
+        "[%(asctime)s:%(levelname)s:%(name)s:%(lineno)d] %(message)s", secrets
     )
     for handler in list(root.handlers):
         if getattr(handler, "_skypixel_handler", False):
@@ -39,7 +41,6 @@ def configure_logging(storage_dir: Path, *, secrets: tuple[str, ...] = ()) -> No
     console_handler.setLevel(logging.INFO)
     for handler in (file_handler, console_handler):
         handler.setFormatter(formatter)
-        handler.addFilter(CredentialFilter(secrets))
         handler._skypixel_handler = True
         root.addHandler(handler)
     discord_logger = logging.getLogger("disnake")
@@ -55,7 +56,6 @@ def configure_logging(storage_dir: Path, *, secrets: tuple[str, ...] = ()) -> No
         encoding="utf-8",
     )
     discord_handler.setFormatter(formatter)
-    discord_handler.addFilter(CredentialFilter(secrets))
     discord_handler._skypixel_handler = True
     discord_logger.addHandler(discord_handler)
     discord_logger.propagate = False
