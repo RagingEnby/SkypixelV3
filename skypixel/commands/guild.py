@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 import disnake
@@ -29,7 +29,7 @@ class GuildCog(commands.Cog):
             color=constants.COLOR_CODES["a"]
             if action == "join"
             else constants.COLOR_CODES["c"],
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
         )
         embed.set_thumbnail(guild.icon.url if guild.icon else None)
         creation_unix = int(guild.created_at.timestamp())
@@ -53,7 +53,7 @@ class GuildCog(commands.Cog):
             color=constants.COLOR_CODES["a"]
             if action == "join"
             else constants.COLOR_CODES["c"],
-            timestamp=member.joined_at if action == "left" else datetime.now(),
+            timestamp=member.joined_at if action == "left" else datetime.now(UTC),
         )
         embed.set_author(
             name=f"{member.display_name} {verb} the server!",

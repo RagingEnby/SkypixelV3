@@ -1,6 +1,7 @@
+from skypixel.trackers.base import PollingCog
+
 import asyncio
 import logging
-import traceback
 
 import disnake
 from disnake.ext import commands
@@ -15,29 +16,23 @@ URL: str = "https://api.hypixel.net/v2/resources/skyblock/skills"
 
 
 async def get_version() -> str:
-    response = await asyncreqs.get(URL)
-    data = response.json()
+    data = await asyncreqs.get_json(URL)
     version = data.get("version")
-    if not version:
-        logger.error(f"malformed skills data: {data}")
-        await asyncio.sleep(10)
-        return await get_version()
+    if not isinstance(version, str) or not version:
+        raise ValueError("The skills API did not return a version.")
     logger.debug(f"got version: {version}")
     return version
 
 
 async def send(embed: disnake.Embed):
-    tasks = [
-        utils.send_to_channel(channel_id, content, embed=embed)
-        for channel_id, content in constants.VERSION_TRACKER_CHANNELS.items()
-    ]
-    await asyncio.gather(*tasks)
+    await utils.broadcast(constants.VERSION_TRACKER_CHANNELS, embed=embed)
 
 
-class VersionTrackerCog(commands.Cog):
+class VersionTrackerCog(PollingCog):
+    interval = 120
+
     def __init__(self, bot: commands.InteractionBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
+        super().__init__(bot)
         self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "version.json")
         if not self.data.get("version"):
             logger.warning("version.json is empty")
@@ -53,28 +48,11 @@ class VersionTrackerCog(commands.Cog):
         )
         await send(embed)
 
-    async def main(self):
-        while True:
-            try:
-                version = await get_version()
-                if version != self.data.get("version"):
-                    logger.debug(
-                        f"version update: {self.data.get('version')} => {version}"
-                    )
-                    if self.data.get("version"):
-                        await self.on_version_change(self.data["version"], version)
-                    self.data["version"] = version
-                    await self.data.save()
-            except Exception:
-                logger.error(traceback.format_exc())
-            finally:
-                await asyncio.sleep(120)
-
-    async def close(self):
-        if self.task and not self.task.done():
-            self.task.cancel()
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.close()
-        self.task = asyncio.create_task(self.main())
+    async def poll(self):
+        version = await get_version()
+        if version != self.data.get("version"):
+            logger.debug(f"version update: {self.data.get('version')} => {version}")
+            if self.data.get("version"):
+                await self.on_version_change(self.data["version"], version)
+            self.data["version"] = version
+            await self.data.save()

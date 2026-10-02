@@ -1,6 +1,7 @@
+from skypixel.trackers.base import PollingCog
+
 import asyncio
 import logging
-import traceback
 from typing import Callable, Coroutine
 
 import disnake
@@ -13,10 +14,11 @@ from skypixel import discord as utils
 logger = logging.getLogger(__name__)
 
 
-class StatusUpdaterCog(commands.Cog):
+class StatusUpdaterCog(PollingCog):
+    interval = 20
+
     def __init__(self, bot: commands.InteractionBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
+        super().__init__(bot)
         self.index = 0
         self.rank_statuses: list[Callable[[], Coroutine]] = [
             lambda rank=rank: self._rank_status(rank)
@@ -102,21 +104,6 @@ class StatusUpdaterCog(commands.Cog):
             self.index = 0
             return await self.change_status()
 
-    async def main(self):
-        while True:
-            try:
-                await self.change_status()
-                self.index += 1
-            except Exception:
-                logger.error(traceback.format_exc())
-            finally:
-                await asyncio.sleep(20)
-
-    async def close(self):
-        if self.task and not self.task.done():
-            self.task.cancel()
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.close()
-        self.task = asyncio.create_task(self.main())
+    async def poll(self):
+        await self.change_status()
+        self.index += 1

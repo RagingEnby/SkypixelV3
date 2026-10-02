@@ -9,6 +9,13 @@ from skypixel import constants
 logger = logging.getLogger(__name__)
 
 
+async def flush_queue(collection: "Collection", queue: list[dict[str, Any]]) -> None:
+    while queue:
+        batch = queue[:1000]
+        await collection.update_many(batch)
+        del queue[: len(batch)]
+
+
 class Collection:
     """Open a MongoDB connection when the collection is first used."""
 

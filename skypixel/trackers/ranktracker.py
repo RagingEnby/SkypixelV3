@@ -1,8 +1,9 @@
+from skypixel.trackers.base import PollingCog
+
 import asyncio
 import json
 import logging
 import time
-import traceback
 from contextlib import suppress
 from typing import Any, Literal, cast
 
@@ -38,21 +39,20 @@ async def get_rankname(identifier: str) -> str:
     response = await asyncreqs.get(RANKNAME_URL.format(identifier))
     if response.status_code == 404:
         raise mojang.PlayerNotFound(identifier)
+    response.raise_for_status()
     data = response.json()
     return data["rankname"]
 
 
 async def get_rank_counts() -> dict[str, int]:
-    response = await asyncreqs.get(COUNTS_URL)
-    data: dict[str, int] = response.json()
+    data: dict[str, int] = await asyncreqs.get_json(COUNTS_URL)
     logger.debug(f"rank counts: {data}")
     # sort highest -> lowest count
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
 
 async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
-    response = await asyncreqs.get(RANK_URL.format(rank))
-    return response.json()
+    return await asyncreqs.get_json(RANK_URL.format(rank))
 
 
 async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
@@ -138,12 +138,7 @@ async def send(
 ):
     if rank not in constants.RANK_TRACKER_CHANNELS:
         rank = "special"
-    print(f"rank embed message: {json.dumps(embed.to_dict(), indent=2)}")
-    tasks = [
-        utils.send_to_channel(channel_id, content if ping else "", embed=embed)
-        for channel_id, content in constants.RANK_TRACKER_CHANNELS[rank].items()
-    ]
-    await asyncio.gather(*tasks)
+    await utils.broadcast(constants.RANK_TRACKER_CHANNELS[rank], embed=embed, ping=ping)
 
 
 def format_rank(rank: str) -> str:
@@ -270,10 +265,11 @@ class RankListView(disnake.ui.View):
         await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
 
 
-class RankTrackerCog(commands.Cog):
+class RankTrackerCog(PollingCog):
+    interval = 240
+
     def __init__(self, bot: commands.InteractionBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
+        super().__init__(bot)
         self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "ranks.json")
         if not self.data.to_dict():
             logger.warning("ranks.json is empty")
@@ -451,72 +447,54 @@ class RankTrackerCog(commands.Cog):
         msg = await inter.send(embed=view.embeds[view.page], view=view)
         view.message = msg
 
-    async def main(self):
-        while True:
-            logger.info("rank tracker loop")
-
-            try:
-                await self.do_watchlist()
-                player_ranks = await get_player_ranks()
-                if not self.data.to_dict():
-                    self.data.data = player_ranks
-                    await self.data.save()
-                    logger.info("wrote rank data to empty ranks.json")
+    async def poll(self):
+        await self.do_watchlist()
+        player_ranks = await get_player_ranks()
+        if not self.data.to_dict():
+            self.data.data = player_ranks
+            await self.data.save()
+            logger.info("wrote rank data to empty ranks.json")
+            return
+        for uuid, data in player_ranks.items():
+            old_data: dict[str, Any] | None = self.data.get(uuid)
+            if not old_data:
+                key = f"{uuid}-add"
+                if key in self.known_changes:
+                    logger.error(f"Known rank change detected: {data} {key}")
                     continue
-
-                for uuid, data in player_ranks.items():
-                    old_data: dict[str, Any] | None = self.data.get(uuid)
-                    if not old_data:
-                        key = f"{uuid}-add"
-                        if key in self.known_changes:
-                            logger.error(f"Known rank change detected: {data} {key}")
-                            continue
-                        self.known_changes.add(key)
-                        await self.on_rank_add(uuid, data["name"], data["rank"])  # type: ignore
-                        continue
-                    if old_data["rank"] != data["rank"]:
-                        key = f"{uuid}-rankchange-{old_data['rank']}-{data['rank']}"
-                        if key in self.known_changes:
-                            logger.error(f"Known rank change detected: {data} {key}")
-                            continue
-                        self.known_changes.add(key)
-                        await asyncio.gather(
-                            self.on_rank_add(uuid, data["name"], data["rank"]),  # type: ignore
-                            self.on_rank_remove(uuid, data["name"], old_data["rank"]),
-                        )
-                    if old_data["name"] != data["name"]:
-                        key = f"{uuid}-namechange-{old_data['name']}-{data['name']}"
-                        if key in self.known_changes:
-                            logger.error(f"Known name change detected: {data} {key}")
-                            continue
-                        self.known_changes.add(key)
-                        await self.on_name_change(
-                            uuid=uuid,
-                            before=old_data["name"],
-                            after=data["name"],
-                            rank=data["rank"],  # type: ignore
-                        )
-                for uuid, data in self.data.data.items():
-                    if uuid not in player_ranks:
-                        key = f"{uuid}-remove"
-                        if key in self.known_changes:
-                            logger.error(f"Known rank removal detected: {data} {key}")
-                            continue
-                        self.known_changes.add(key)
-                        await self.on_rank_remove(uuid, data["name"], data["rank"])  # type: ignore
-
-                self.data.data = player_ranks
-                await self.data.save()
-            except Exception:
-                logger.error(traceback.format_exc())
-            finally:
-                await asyncio.sleep(240)
-
-    async def close(self):
-        if self.task and not self.task.done():
-            self.task.cancel()
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.close()
-        self.task = asyncio.create_task(self.main())
+                self.known_changes.add(key)
+                await self.on_rank_add(uuid, data["name"], data["rank"])  # type: ignore
+                continue
+            if old_data["rank"] != data["rank"]:
+                key = f"{uuid}-rankchange-{old_data['rank']}-{data['rank']}"
+                if key in self.known_changes:
+                    logger.error(f"Known rank change detected: {data} {key}")
+                    continue
+                self.known_changes.add(key)
+                await asyncio.gather(
+                    self.on_rank_add(uuid, data["name"], data["rank"]),  # type: ignore
+                    self.on_rank_remove(uuid, data["name"], old_data["rank"]),
+                )
+            if old_data["name"] != data["name"]:
+                key = f"{uuid}-namechange-{old_data['name']}-{data['name']}"
+                if key in self.known_changes:
+                    logger.error(f"Known name change detected: {data} {key}")
+                    continue
+                self.known_changes.add(key)
+                await self.on_name_change(
+                    uuid=uuid,
+                    before=old_data["name"],
+                    after=data["name"],
+                    rank=data["rank"],  # type: ignore
+                )
+        for uuid, data in self.data.data.items():
+            if uuid not in player_ranks:
+                key = f"{uuid}-remove"
+                if key in self.known_changes:
+                    logger.error(f"Known rank removal detected: {data} {key}")
+                    continue
+                self.known_changes.add(key)
+                await self.on_rank_remove(uuid, data["name"], data["rank"])  # type: ignore
+        self.data.data = player_ranks
+        await self.data.save()
+        self.known_changes.clear()

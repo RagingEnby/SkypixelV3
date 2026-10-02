@@ -1,6 +1,7 @@
+from skypixel.trackers.base import PollingCog
+
 import asyncio
 import logging
-import traceback
 
 import disnake
 from disnake.ext import commands
@@ -78,22 +79,21 @@ class Job:
 
 async def get_jobs() -> list[Job]:
     logger.debug("getting job openings from api.ragingenby.dev")
-    response = await asyncreqs.get(URL)
-    return [Job.from_dict(job) for job in response.json()["jobs"]]
+    data = await asyncreqs.get_json(URL)
+    if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
+        raise ValueError("The job API did not return a jobs list.")
+    return [Job.from_dict(job) for job in data["jobs"]]
 
 
 async def send(embed: disnake.Embed):
-    tasks = [
-        utils.send_to_channel(channel_id, content, embed=embed)
-        for channel_id, content in constants.JOB_TRACKER_CHANNELS.items()
-    ]
-    await asyncio.gather(*tasks)
+    await utils.broadcast(constants.JOB_TRACKER_CHANNELS, embed=embed)
 
 
-class JobTrackerCog(commands.Cog):
+class JobTrackerCog(PollingCog):
+    interval = 1800
+
     def __init__(self, bot: commands.InteractionBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
+        super().__init__(bot)
         self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "jobs.json")
 
     @staticmethod
@@ -110,47 +110,16 @@ class JobTrackerCog(commands.Cog):
         await send(embed)
 
     def to_dict(self) -> dict:
-        return {job.title: job.to_dict() for job in self.data.get("jobs", [])}
+        return self.data.to_dict()
 
-    async def main(self) -> None:
-        while True:
-            try:
-                print(self.data.to_dict())
-                new_jobs: list[
-                    Job
-                ] = await get_jobs()  # NEW JOBS CONTAINS JOB __OBJECTS__ NOT STRINGS
-                new_job_titles: set[str] = {new_job.title for new_job in new_jobs}
-                for new_job in new_jobs:
-                    print("Fetched job:", new_job)
-                    if not self.data.get(new_job.title):
-                        print("New job!")
-                        await self.on_job_update(new_job, True)
-                        self.data.data[new_job.title] = new_job.to_dict()
-                    else:
-                        print("Already known")
-                to_remove: set[str] = set()
-                # OLD JOBS ARE JOB __STRINGS__ NOT OBJECTS
-                for old_job in self.data.data.keys():
-                    print("Checking old job:", old_job)
-                    if old_job not in new_job_titles:
-                        await self.on_job_update(
-                            Job.from_dict(self.data.data[old_job]), False
-                        )
-                        to_remove.add(old_job)
-                for key in to_remove:
-                    print("Deleting job from local storage:", key)
-                    del self.data.data[key]
-                await self.data.save()
-            except Exception:
-                logger.error(traceback.format_exc())
-            finally:
-                await asyncio.sleep(60 * 30)
-
-    async def close(self):
-        if self.task and not self.task.done():
-            self.task.cancel()
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.close()
-        self.task = asyncio.create_task(self.main())
+    async def poll(self):
+        jobs = await get_jobs()
+        current = {job.title: job.to_dict() for job in jobs}
+        for job in jobs:
+            if job.title not in self.data:
+                await self.on_job_update(job, True)
+        for title, data in list(self.data.items()):
+            if title not in current:
+                await self.on_job_update(Job.from_dict(data), False)
+        self.data.data = current
+        await self.data.save()

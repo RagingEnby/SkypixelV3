@@ -39,17 +39,24 @@ with patch("requests.get", side_effect=AssertionError("Imports must not fetch da
 
 
 def command_schema():
+    import asyncio
     import disnake
     from disnake.ext import commands
 
+    loop = asyncio.new_event_loop()
     bot = commands.InteractionBot(
+        loop=loop,
         intents=disnake.Intents.none(),
         command_sync_flags=commands.CommandSyncFlags.none(),
     )
-    for name in ("ItemDBCog", "RankTrackerCog"):
-        cog = getattr(cogs, name).__new__(getattr(cogs, name))
-        bot.add_cog(cog)
-    return sorted(
-        (command.body.to_dict() for command in bot.slash_commands),
-        key=lambda command: command["name"],
-    )
+    try:
+        for name in ("ItemDBCog", "RankTrackerCog"):
+            cog = getattr(cogs, name).__new__(getattr(cogs, name))
+            bot.add_cog(cog)
+        return sorted(
+            (command.body.to_dict() for command in bot.slash_commands),
+            key=lambda command: command["name"],
+        )
+    finally:
+        loop.run_until_complete(bot.close())
+        loop.close()
