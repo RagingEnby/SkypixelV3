@@ -3,17 +3,16 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-from tests import support
 from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
     auctionhouse,
     firesaletracker,
-    jobtracker,
     ranktracker,
     wikitracker,
 )
 from skypixel.trackers.base import PollingCog
+from tests import support
 
 
 class ProbeCog(PollingCog):
@@ -94,6 +93,24 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
 
 
 class RankCacheTests(unittest.IsolatedAsyncioTestCase):
+    async def test_empty_rank_response_does_not_replace_the_cache(self):
+        cached = {"staff": [{"id": "abc", "name": "Player"}]}
+        with (
+            patch.object(ranktracker, "RANK_LIST_CACHE", cached),
+            patch.object(ranktracker, "RANK_LIST_CACHE_TIME", 0),
+            patch.object(ranktracker, "time", SimpleNamespace(monotonic=lambda: 86401)),
+            patch.object(ranktracker, "RANK_LIST_CACHE_LOCK", asyncio.Lock()),
+            patch.object(
+                ranktracker.asyncreqs,
+                "get_json",
+                new_callable=AsyncMock,
+                return_value={},
+            ),
+        ):
+            with self.assertRaises(ValueError):
+                await ranktracker.get_rank_lists()
+            self.assertEqual(ranktracker.RANK_LIST_CACHE, cached)
+
     async def test_concurrent_reads_fetch_once_and_do_not_mutate_the_cache(self):
         data = {"staff": [{"id": "abc", "name": "Player"}]}
         with (
@@ -161,6 +178,44 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
 
 
 class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
+    async def test_auction_failure_waits_for_other_tasks(self):
+        completed = False
+
+        async def fail():
+            raise OSError("failed request")
+
+        async def complete():
+            nonlocal completed
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            completed = True
+
+        with self.assertRaises(OSError):
+            await auctionhouse.finish_tasks(fail(), complete())
+        self.assertTrue(completed)
+
+    async def test_auction_poll_uploads_the_successful_scanner_after_a_failure(self):
+        cog = auctionhouse.AuctionTrackerCog(Mock())
+
+        async def scan_ended():
+            await asyncio.sleep(0)
+            cog.ended_db_queue.append({"_id": "ended"})
+            return 30.0
+
+        async def upload():
+            self.assertEqual(cog.ended_db_queue, [{"_id": "ended"}])
+
+        with (
+            patch.object(
+                cog, "active_scanner", new_callable=AsyncMock, side_effect=OSError
+            ),
+            patch.object(cog, "ended_scanner", side_effect=scan_ended),
+            patch.object(cog, "upload_queue", side_effect=upload) as flush,
+        ):
+            with self.assertRaises(OSError):
+                await cog.poll()
+        flush.assert_awaited_once()
+
     async def test_first_fire_sale_poll_saves_without_notifications(self):
         cog = firesaletracker.FireSaleTrackerCog(Mock())
         cog.data.data = {}

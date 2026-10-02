@@ -1,15 +1,13 @@
-from skypixel.trackers.base import PollingCog
-
-import asyncio
 import logging
-from typing import Callable, Coroutine
+from collections.abc import Callable, Coroutine
 
 import disnake
 from disnake.ext import commands
 
-from skypixel.trackers import ranktracker
-from skypixel.clients import hypixel
 from skypixel import discord as utils
+from skypixel.clients import hypixel
+from skypixel.trackers import ranktracker
+from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
 

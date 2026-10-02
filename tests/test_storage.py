@@ -1,10 +1,12 @@
+import asyncio
 import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
-from tests import support
+from skypixel.storage import json as storage
 from skypixel.storage.json import JsonWrapper, StorageError
 from skypixel.storage.mongo import Collection
 
@@ -40,6 +42,40 @@ class JsonStorageTests(unittest.IsolatedAsyncioTestCase):
                 await state.save()
         self.assertEqual(json.loads(self.path.read_text()), {"old": 1})
         self.assertEqual(list(self.path.parent.iterdir()), [self.path])
+
+    async def test_cancelled_save_waits_for_the_write_before_releasing_the_lock(self):
+        state = JsonWrapper(self.path)
+        state.data = {"first": 1}
+        started = asyncio.Event()
+        release, second_started = threading.Event(), threading.Event()
+        loop = asyncio.get_running_loop()
+        original = storage._write_atomic
+
+        def write(path, content):
+            if json.loads(content) == {"first": 1}:
+                loop.call_soon_threadsafe(started.set)
+                if not release.wait(timeout=2):
+                    raise TimeoutError("The test did not release the first write.")
+            else:
+                second_started.set()
+            original(path, content)
+
+        with patch.object(storage, "_write_atomic", side_effect=write):
+            first = asyncio.create_task(state.save())
+            try:
+                await asyncio.wait_for(started.wait(), timeout=1)
+                first.cancel()
+                state.data = {"second": 2}
+                second = asyncio.create_task(state.save())
+                await asyncio.sleep(0)
+                self.assertFalse(first.done())
+                self.assertFalse(second_started.is_set())
+            finally:
+                release.set()
+            with self.assertRaises(asyncio.CancelledError):
+                await first
+            await second
+        self.assertEqual(json.loads(self.path.read_text()), {"second": 2})
 
     async def test_corrupt_state_is_not_silently_discarded(self):
         self.path.write_text('{"unfinished":')
@@ -84,4 +120,4 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
         await collection.close()
         client.close.assert_called_once()
         with self.assertRaises(RuntimeError):
-            collection.client
+            _ = collection.client

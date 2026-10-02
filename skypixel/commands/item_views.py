@@ -1,15 +1,14 @@
-from skypixel.commands.views import OwnedView
 import logging
 from typing import Any
 
 import disnake
 import pymongo
 
-from skypixel import constants
 from skypixel import discord as utils
 from skypixel.clients import mojang
-from skypixel.storage import mongo as mongodb
+from skypixel.commands.views import OwnedView
 from skypixel.domain.items import fix_item, get_item_color, get_item_image
+from skypixel.storage import mongo as mongodb
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +212,7 @@ class SoulSearchView(OwnedView):
                 embeds=[self.main_embed], view=self
             )
         await interaction.response.edit_message(
-            embeds=[self.main_embed, embed], view=self
+            embeds=utils.fit_embeds([self.main_embed, embed]), view=self
         )
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
@@ -227,5 +226,5 @@ class SoulSearchView(OwnedView):
                 embeds=[self.main_embed], view=self
             )
         await interaction.response.edit_message(
-            embeds=[self.main_embed, embed], view=self
+            embeds=utils.fit_embeds([self.main_embed, embed]), view=self
         )

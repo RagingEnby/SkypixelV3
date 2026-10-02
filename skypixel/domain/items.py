@@ -1,32 +1,12 @@
 import logging
 import re
-from typing import Any, Literal
+from typing import Any
 
 from skypixel import constants
 from skypixel import discord as utils
+from skypixel.domain.types import PrefixRank as PrefixRank
 
 logger = logging.getLogger(__name__)
-
-PrefixRank = Literal[
-    "NON",
-    "[VIP]",
-    "[VIP+]",
-    "[MVP]",
-    "[MVP+]",
-    "[MVP++]",
-    "[YOUTUBE]",
-    "[PIG+++]",
-    "[INNIT]",
-    "[MAYOR]",
-    "[MOJANG]",
-    "[EVENTS]",
-    "[HELPER]",
-    "[MOD]",
-    "[GM]",
-    "[ADMIN]",
-    "[OWNER]",
-    "[ዞ]",
-]
 
 
 def fix_item(item: dict[str, Any]) -> dict[str, Any]:

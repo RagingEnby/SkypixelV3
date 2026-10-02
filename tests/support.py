@@ -1,10 +1,12 @@
+import atexit
 import os
 import sys
 import tempfile
 import types
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 TEST_STORAGE = tempfile.TemporaryDirectory(prefix="skypixel-tests-")
+atexit.register(TEST_STORAGE.cleanup)
 os.environ["SKYPIXEL_STORAGE_DIR"] = TEST_STORAGE.name
 
 secrets = types.ModuleType("scrts")
@@ -30,16 +32,23 @@ ITEMS = [
 ]
 
 
-with patch("requests.get", side_effect=AssertionError("Imports must not fetch data.")):
-    from modules import colors, hypixel, utils
+with patch(
+    "curl_cffi.AsyncSession",
+    side_effect=AssertionError("Imports must not open a client."),
+):
+    from modules import colors as colors
+    from modules import hypixel
+    from modules import utils as utils
 
     hypixel.initialize(ITEMS)
     import cogs
-    from cogs import itemdb, ranktracker
+    from cogs import itemdb as itemdb
+    from cogs import ranktracker as ranktracker
 
 
 def command_schema():
     import asyncio
+
     import disnake
     from disnake.ext import commands
 

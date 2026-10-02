@@ -1,8 +1,9 @@
 from disnake.ext.commands import InteractionBot
 
+from skypixel.domain.types import ArmorType, ExoticType
 from skypixel.settings import settings
 
-# Credit Footer
+# Credit footer
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
 DISCORD_INVITE: str = "https://discord.gg/uSQx2rWHu2"
 CREDIT_FOOTERS: set[str] = {
@@ -11,7 +12,7 @@ CREDIT_FOOTERS: set[str] = {
     "Support me on Patreon! patreon.com/RagingEnby",
 }
 
-# Discord ID's
+# Discord IDs
 OWNER_ID: int = 447861538095759365
 DEV_SERVER_ID: int = 1066589212348006401
 JOIN_LOG_CHANNEL: int = 1340389033951629525
@@ -20,7 +21,7 @@ INVITE_LOG_CHANNEL: int = 1150164916578299945
 COMMAND_LOG_CHANNEL: int = 1111050267975221326
 DM_LOG_CHANNEL: int = 1173328319320698941
 PATRON_ROLE: int = 1198471307013132379
-## AH Trackers
+# Auction channels
 ADMIN_SPAWNED_ITEMS_CHANNEL: int = 1359366355819823334
 OG_REFORGES_CHANNEL: int = 1359367040091295854
 SEMI_OG_REFORGES_CHANNEL: int = 1359367058009358536
@@ -33,7 +34,7 @@ CAKE_SOUL_AUCTIONS_CHANNEL: int = 1365795200235999413
 CHEAP_RED_SOUL_ROLE: int = 1366215277834014721
 CHEAP_SOUL_ROLE: int = 1366217072346136688
 EXOTIC_AUCTIONS_THREADS_PARENT: int = 1425548644362354859
-EXOTIC_AUCTIONS_THREADS: dict["ExoticType", int] = {  # noqa: F821 # pyright: ignore[reportUndefinedVariable]
+EXOTIC_AUCTIONS_THREADS: dict[ExoticType, int] = {
     "crystal": 1425548847895019592,
     "og_fairy": 1425548888030318793,
     "fairy": 1425548921119314063,
@@ -42,7 +43,7 @@ EXOTIC_AUCTIONS_THREADS: dict["ExoticType", int] = {  # noqa: F821 # pyright: ig
     "glitched": 1425549032729739305,
     "exotic": 1425549071636107346,
 }
-## Misc Trackers
+# Tracker channels
 VERSION_TRACKER_CHANNELS: dict[int, str] = {
     1172205656112123994: "<@&1139315700339593256>",  # RagingEnby's Dev Server
     1210333444563935295: "",  # Derailcord
@@ -86,24 +87,23 @@ RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
         1121130539097784401: "<@&1122272183733977249>",  # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>",  # Derailcord
         1365021125628919898: "<@&1400910189678301276>",  # Soul Hunters & Co.
-        1444771276597100584: "<@&1444771346671341589>",  # Secret 🤫
+        1444771276597100584: "<@&1444771346671341589>",  # Secret server
     },
     "staff": {
         1364997652323897415: "<@&1122272183733977249>",  # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>",  # Derailcord
         1365021125628919898: "<@&1400910189678301276>",  # Soul Hunters & Co.
-        1444771255424254013: "<@&1444771346671341589>",  # Secret 🤫
+        1444771255424254013: "<@&1444771346671341589>",  # Secret server
     },
     "special": {
         1269021624338878464: "<@&1122272183733977249>",  # RagingEnby's Dev Server
         1173855870568902747: "<@&1177329153607991428>",  # Derailcord
         1365021125628919898: "<@&1400910189678301276>",  # Soul Hunters & Co.
-        1444771291390546221: "<@&1444771346671341589>",  # Secret 🤫
+        1444771291390546221: "<@&1444771346671341589>",  # Secret server
     },
 }
 
-# Constants
-## Random URL's
+# API and image URLs
 ITEM_IMAGE: str = "https://sky.shiiyu.moe/api/item/{}"
 LEATHER_IMAGE: str = "https://api.ragingenby.dev/leather/{}/{}.png"
 MC_HEAD_IMAGE: str = "https://cravatar.eu/helmavatar/{}/600.png"
@@ -111,7 +111,7 @@ MC_TEXT_IMAGE: str = "https://api.ragingenby.dev/render.png?text={}"
 AUCTION_URL: str = "https://sky.coflnet.com/auction/{}"
 STATS_URL: str = "https://sky.shiiyu.moe/stats/{}"
 PATREON_URL: str = "https://patreon.com/ragingenby"
-## Color-related stuff
+# Minecraft colors
 COLOR_CODES: dict[str, int] = {  # all minecraft color codes and their hex code
     "0": 0x000000,
     "1": 0x0000AA,
@@ -275,14 +275,14 @@ MINECRAFT_DYES: dict[int, dict[str, str | int]] = {
         "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/white.png?raw=true",
     },
 }
-## Misc
-SEYMOUR_IDS: dict[str, "ArmorType"] = {  # noqa: F821 # pyright: ignore[reportUndefinedVariable]
+# Item IDs and reforge names
+SEYMOUR_IDS: dict[str, ArmorType] = {
     "VELVET_TOP_HAT": "helmet",
     "CASHMERE_JACKET": "chestplate",
     "SATIN_TROUSERS": "leggings",
     "OXFORD_SHOES": "boots",
 }
-FAIRY_IDS: dict[str, "ArmorType"] = {  # noqa: F821 # pyright: ignore[reportUndefinedVariable]
+FAIRY_IDS: dict[str, ArmorType] = {
     "FAIRY_HELMET": "helmet",
     "FAIRY_CHESTPLATE": "chestplate",
     "FAIRY_LEGGINGS": "leggings",

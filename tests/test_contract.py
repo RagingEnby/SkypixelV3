@@ -2,10 +2,10 @@ import json
 import unittest
 from pathlib import Path
 
-from tests.support import colors, command_schema, utils
 from cogs import itemdb, ranktracker
 from cogs.alphatracker import flatten_status
 from cogs.jobtracker import Job
+from tests.support import colors, command_schema, utils
 
 
 class ContractTests(unittest.TestCase):

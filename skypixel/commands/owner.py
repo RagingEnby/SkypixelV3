@@ -51,7 +51,7 @@ def register(bot: commands.InteractionBot) -> None:
             exec(compile(code, "<owner command>", "exec"), namespace)  # noqa: S102
             await namespace["temp_func"]()
             await message.add_reaction("\u2705")
-        except Exception:  # noqa: BLE001
+        except Exception:
             error = traceback.format_exc()
             logger.exception("The owner command failed.")
             await asyncio.gather(
