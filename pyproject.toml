@@ -24,11 +24,7 @@ build-backend = "hatchling.build"
 dev = ["ruff>=0.14,<1"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["skypixel", "cogs", "modules", "nbt"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"constants.py" = "constants.py"
-"main.py" = "main.py"
+packages = ["skypixel", "nbt"]
 
 [tool.ruff]
 target-version = "py311"

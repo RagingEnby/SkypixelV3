@@ -2,10 +2,13 @@ import json
 import unittest
 from pathlib import Path
 
-from cogs import itemdb, ranktracker
-from cogs.alphatracker import flatten_status
-from cogs.jobtracker import Job
-from tests.support import colors, command_schema, utils
+from skypixel import discord as utils
+from skypixel.commands import itemdb
+from skypixel.domain import colors
+from skypixel.trackers import ranktracker
+from skypixel.trackers.alphatracker import flatten_status
+from skypixel.trackers.jobtracker import Job
+from tests.support import command_schema
 
 
 class ContractTests(unittest.TestCase):

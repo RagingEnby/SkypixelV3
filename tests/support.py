@@ -36,14 +36,11 @@ with patch(
     "curl_cffi.AsyncSession",
     side_effect=AssertionError("Imports must not open a client."),
 ):
-    from modules import colors as colors
-    from modules import hypixel
-    from modules import utils as utils
+    from skypixel.clients import hypixel
 
+    # ItemDBCog reads the memento list when its module loads.
     hypixel.initialize(ITEMS)
-    import cogs
-    from cogs import itemdb as itemdb
-    from cogs import ranktracker as ranktracker
+    from skypixel import extensions
 
 
 def command_schema():
@@ -60,7 +57,8 @@ def command_schema():
     )
     try:
         for name in ("ItemDBCog", "RankTrackerCog"):
-            cog = getattr(cogs, name).__new__(getattr(cogs, name))
+            cog_type = extensions.get_extension(name)
+            cog = cog_type.__new__(cog_type)
             bot.add_cog(cog)
         return sorted(
             (command.body.to_dict() for command in bot.slash_commands),
