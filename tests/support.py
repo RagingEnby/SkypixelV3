@@ -40,7 +40,6 @@ with patch(
 
     # ItemDBCog reads the memento list when its module loads.
     hypixel.initialize(ITEMS)
-    from skypixel import extensions
 
 
 def command_schema():
@@ -56,10 +55,11 @@ def command_schema():
         command_sync_flags=commands.CommandSyncFlags.none(),
     )
     try:
-        for name in ("ItemDBCog", "RankTrackerCog"):
-            cog_type = extensions.get_extension(name)
-            cog = cog_type.__new__(cog_type)
-            bot.add_cog(cog)
+        from skypixel.commands.itemdb import ItemDBCog
+        from skypixel.trackers.ranktracker import RankTrackerCog
+
+        for cog_type in (ItemDBCog, RankTrackerCog):
+            bot.add_cog(cog_type.__new__(cog_type))
         return sorted(
             (command.body.to_dict() for command in bot.slash_commands),
             key=lambda command: command["name"],

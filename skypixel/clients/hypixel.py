@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Literal, TypeAlias
+from typing import Any
 
 from curl_cffi.requests.exceptions import RequestException
 
@@ -12,7 +12,6 @@ ITEMS_URL = "https://api.ragingenby.dev/skyblock/items"
 FALLBACK_URL = "https://api.hypixel.net/v2/resources/skyblock/items"
 ITEMS: list[dict[str, Any]] = []
 MEMENTOS: list[str] = []
-Memento: TypeAlias = str
 _items_by_id: dict[str, dict[str, Any]] = {}
 
 
@@ -33,13 +32,11 @@ def validate_items(data: Any) -> list[dict[str, Any]]:
 
 
 def initialize(items: list[dict[str, Any]]) -> None:
-    global Memento
     from skypixel.domain import colors
 
     validate_items({"items": items})
     ITEMS[:] = items
     MEMENTOS[:] = [item["id"] for item in items if item.get("category") == "MEMENTO"]
-    Memento = Literal[tuple(MEMENTOS)] if MEMENTOS else str
     _items_by_id.clear()
     _items_by_id.update((item["id"], item) for item in items)
     colors.configure(items)

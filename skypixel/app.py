@@ -5,7 +5,7 @@ import signal
 import disnake
 from disnake.ext import commands
 
-from skypixel import checks, constants, extensions
+from skypixel import checks, constants
 from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
 from skypixel.logging import configure_logging
@@ -51,11 +51,47 @@ class SkypixelBot(commands.InteractionBot):
         logger.info("Logged in as %s.", self.user)
 
 
+def load_cogs() -> list[type[commands.Cog]]:
+    """Import the cogs. Call this after hypixel.load_items().
+
+    itemdb reads the memento list when it is imported.
+    """
+    from skypixel.commands.guild import GuildCog
+    from skypixel.commands.itemdb import ItemDBCog
+    from skypixel.commands.logger import LoggerCog
+    from skypixel.trackers.alphatracker import AlphaTrackerCog
+    from skypixel.trackers.auctionhouse import AuctionTrackerCog
+    from skypixel.trackers.firesaletracker import FireSaleTrackerCog
+    from skypixel.trackers.jobtracker import JobTrackerCog
+    from skypixel.trackers.motdtracker import MotdTrackerCog
+    from skypixel.trackers.ranktracker import RankTrackerCog
+    from skypixel.trackers.status import StatusUpdaterCog
+    from skypixel.trackers.versiontracker import VersionTrackerCog
+    from skypixel.trackers.wikitracker import WikiTrackerCog
+    from skypixel.trackers.zonetracker import ZoneTrackerCog
+
+    return [
+        AlphaTrackerCog,
+        AuctionTrackerCog,
+        FireSaleTrackerCog,
+        GuildCog,
+        ItemDBCog,
+        LoggerCog,
+        MotdTrackerCog,
+        RankTrackerCog,
+        StatusUpdaterCog,
+        VersionTrackerCog,
+        WikiTrackerCog,
+        ZoneTrackerCog,
+        JobTrackerCog,
+    ]
+
+
 def create_bot(**kwargs) -> SkypixelBot:
     bot = SkypixelBot(**kwargs)
     constants.BOT = bot
-    for name in extensions.EXTENSIONS:
-        bot.add_cog(extensions.get_extension(name)(bot))
+    for cog in load_cogs():
+        bot.add_cog(cog(bot))
     owner.register(bot)
 
     @bot.application_command_check()
