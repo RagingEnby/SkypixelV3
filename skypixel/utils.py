@@ -9,7 +9,6 @@ import disnake
 
 from skypixel import constants
 from skypixel.clients import hypixel
-from skypixel.storage.json import write_json as write_json
 
 logger = logging.getLogger(__name__)
 COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")

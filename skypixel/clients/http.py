@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 import curl_cffi
 from curl_cffi.requests.exceptions import RequestException
 
-from skypixel import constants
+from skypixel.settings import settings
 
 logger = logging.getLogger(__name__)
 SESSION: curl_cffi.AsyncSession | None = None
@@ -71,7 +71,7 @@ async def get(*args, **kwargs) -> curl_cffi.Response:
 
 
 async def proxy_get(*args, **kwargs) -> curl_cffi.Response:
-    proxy = constants.PROXIES.get("http")
+    proxy = settings.proxies.get("http")
     if not proxy:
         raise ValueError(
             "Set SKYPIXEL_HTTP_PROXY or scrts.PROXIES['http'] to use the wiki tracker."

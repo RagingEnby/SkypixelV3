@@ -5,8 +5,7 @@ from typing import Literal
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants
-from skypixel import discord as utils
+from skypixel import constants, utils
 
 logger = logging.getLogger(__name__)
 JoinLeave = Literal["join", "leave"]

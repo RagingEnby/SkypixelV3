@@ -3,10 +3,10 @@ import logging
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants
-from skypixel import discord as utils
-from skypixel.clients import http as asyncreqs
-from skypixel.storage import json as datamanager
+from skypixel import constants, utils
+from skypixel.clients import http
+from skypixel.settings import settings
+from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ URL: str = "https://api.hypixel.net/v2/resources/skyblock/skills"
 
 
 async def get_version() -> str:
-    data = await asyncreqs.get_json(URL)
+    data = await http.get_json(URL)
     version = data.get("version")
     if not isinstance(version, str) or not version:
         raise ValueError("The skills API did not return a version.")
@@ -31,7 +31,7 @@ class VersionTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "version.json")
+        self.data = JsonWrapper(settings.storage_dir / "version.json")
         if not self.data.get("version"):
             logger.warning("version.json is empty")
 

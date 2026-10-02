@@ -4,9 +4,9 @@ import traceback
 import disnake
 from disnake.ext import commands
 
-from skypixel import checks, constants
-from skypixel import discord as utils
+from skypixel import checks, constants, utils
 from skypixel.logging import redact
+from skypixel.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +88,9 @@ class LoggerCog(commands.Cog):
         trace = "".join(traceback.format_exception(original))
         logger.error("Command %s failed.", inter.data.name, exc_info=original)
         secrets = (
-            constants.BOT_TOKEN,
-            constants.MONGODB_URI,
-            *constants.PROXIES.values(),
+            settings.bot_token,
+            settings.mongodb_uri,
+            *settings.proxies.values(),
         )
         await utils.send_to_channel(
             constants.ERROR_LOG_CHANNEL,

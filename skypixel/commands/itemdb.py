@@ -5,16 +5,10 @@ from typing import Any
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants
-from skypixel import discord as utils
+from skypixel import constants, utils
 from skypixel.clients import hypixel
 from skypixel.commands.item_views import SoulSearchView, make_item_embed, make_item_view
 from skypixel.domain.items import PrefixRank, make_player_regex, search_souls_query
-from skypixel.domain.items import fix_item as fix_item
-from skypixel.domain.items import get_item_color as get_item_color
-from skypixel.domain.items import get_item_image as get_item_image
-from skypixel.domain.items import make_playername_regex as make_playername_regex
-from skypixel.domain.items import make_rank_regex as make_rank_regex
 from skypixel.storage.items import ItemRepository
 
 logger = logging.getLogger(__name__)

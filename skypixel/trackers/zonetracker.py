@@ -3,10 +3,10 @@ import logging
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants
-from skypixel import discord as utils
-from skypixel.clients import http as asyncreqs
-from skypixel.storage import json as datamanager
+from skypixel import constants, utils
+from skypixel.clients import http
+from skypixel.settings import settings
+from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 URL: str = "https://api.ragingenby.dev/skyblock/zones"
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_zones() -> set[str]:
-    data = await asyncreqs.get_json(URL)
+    data = await http.get_json(URL)
     if not isinstance(data, dict) or not isinstance(data.get("zones"), list):
         raise ValueError("The zone API did not return a zones list.")
     return set(data["zones"])
@@ -29,7 +29,7 @@ class ZoneTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "zones.json")
+        self.data = JsonWrapper(settings.storage_dir / "zones.json")
         if not self.data.get("zones"):
             logger.warning("zones.json is empty")
             self.data["zones"] = []

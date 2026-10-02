@@ -100,7 +100,7 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_concurrent_requests_share_the_fetch(self):
         with patch.object(
-            mojang.asyncreqs,
+            mojang.http,
             "get",
             new_callable=AsyncMock,
             return_value=response(data={"id": "a" * 32, "name": "Player"}),
@@ -117,7 +117,7 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             await release.wait()
             return response(data={"id": "a" * 32, "name": "Player"})
 
-        with patch.object(mojang.asyncreqs, "get", side_effect=fetch_player) as fetch:
+        with patch.object(mojang.http, "get", side_effect=fetch_player) as fetch:
             first = asyncio.create_task(mojang.get("Player"))
             await asyncio.wait_for(started.wait(), timeout=1)
             second = asyncio.create_task(mojang.get("PLAYER"))
@@ -138,7 +138,7 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 stopped.set()
 
-        with patch.object(mojang.asyncreqs, "get", side_effect=fetch_player):
+        with patch.object(mojang.http, "get", side_effect=fetch_player):
             caller = asyncio.create_task(mojang.get("Player"))
             await asyncio.wait_for(started.wait(), timeout=1)
             caller.cancel()
@@ -152,7 +152,7 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
     async def test_expired_cache_fetches_again(self):
         mojang.MojangPlayer("Player", "a" * 32, datetime.now(UTC) - timedelta(hours=1))
         with patch.object(
-            mojang.asyncreqs,
+            mojang.http,
             "get",
             new_callable=AsyncMock,
             return_value=response(data={"id": "a" * 32, "name": "Player"}),
@@ -162,14 +162,14 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_missing_player_keeps_the_public_exception(self):
         with patch.object(
-            mojang.asyncreqs, "get", new_callable=AsyncMock, return_value=response(404)
+            mojang.http, "get", new_callable=AsyncMock, return_value=response(404)
         ):
             with self.assertRaises(mojang.PlayerNotFound):
                 await mojang.get("missing")
 
     async def test_bulk_uses_both_uuid_and_name_keys(self):
         with patch.object(
-            mojang.asyncreqs,
+            mojang.http,
             "post",
             new_callable=AsyncMock,
             return_value=response(
@@ -181,6 +181,6 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
         fetch.assert_awaited_once()
 
     async def test_empty_bulk_does_not_fetch(self):
-        with patch.object(mojang.asyncreqs, "post", new_callable=AsyncMock) as fetch:
+        with patch.object(mojang.http, "post", new_callable=AsyncMock) as fetch:
             self.assertEqual(await mojang.bulk([]), {})
         fetch.assert_not_awaited()

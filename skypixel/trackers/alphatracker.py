@@ -6,9 +6,9 @@ from disnake.ext import commands
 from mcstatus import JavaServer
 from mcstatus.responses._raw import RawJavaResponse
 
-from skypixel import constants
-from skypixel import discord as utils
-from skypixel.storage import json as datamanager
+from skypixel import constants, utils
+from skypixel.settings import settings
+from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class AlphaTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "alpha.json")
+        self.data = JsonWrapper(settings.storage_dir / "alpha.json")
 
     @staticmethod
     async def on_status_update(before: dict[str, Any], after: dict[str, Any]):

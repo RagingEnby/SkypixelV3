@@ -4,7 +4,7 @@ from collections.abc import Callable, Coroutine
 import disnake
 from disnake.ext import commands
 
-from skypixel import discord as utils
+from skypixel import utils
 from skypixel.clients import hypixel
 from skypixel.trackers import ranktracker
 from skypixel.trackers.base import PollingCog

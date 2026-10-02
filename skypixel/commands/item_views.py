@@ -4,11 +4,11 @@ from typing import Any
 import disnake
 import pymongo
 
-from skypixel import discord as utils
+from skypixel import utils
 from skypixel.clients import mojang
 from skypixel.commands.views import OwnedView
 from skypixel.domain.items import fix_item, get_item_color, get_item_image
-from skypixel.storage import mongo as mongodb
+from skypixel.storage.mongo import Collection
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ class SoulSearchView(OwnedView):
         query: dict,
         count: int,
         main_embed: disnake.Embed,
-        item_db: mongodb.Collection,
+        item_db: Collection,
         inter: disnake.Interaction,
     ):
         super().__init__(inter)

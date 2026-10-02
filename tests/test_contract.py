@@ -2,9 +2,13 @@ import json
 import unittest
 from pathlib import Path
 
-from skypixel import discord as utils
-from skypixel.commands import itemdb
+from skypixel import utils
 from skypixel.domain import colors
+from skypixel.domain.items import (
+    make_playername_regex,
+    make_rank_regex,
+    search_souls_query,
+)
 from skypixel.trackers import ranktracker
 from skypixel.trackers.alphatracker import flatten_status
 from skypixel.trackers.jobtracker import Job
@@ -20,15 +24,15 @@ class ContractTests(unittest.TestCase):
 
     def test_item_queries(self):
         self.assertEqual(
-            itemdb.search_souls_query({"owner": None}),
+            search_souls_query({"owner": None}),
             {
                 "itemId": "CAKE_SOUL",
                 "extraAttributes.captured_player": {"$exists": True},
             },
         )
-        self.assertEqual(itemdb.make_rank_regex("NON"), {"$not": {"$regex": " "}})
+        self.assertEqual(make_rank_regex("NON"), {"$not": {"$regex": " "}})
         self.assertEqual(
-            itemdb.make_playername_regex("A.B"),
+            make_playername_regex("A.B"),
             {
                 "$regex": r"(§7| )A\.B(§[0-9a-fk-or])*$",
                 "$options": "i",

@@ -7,8 +7,7 @@ from typing import Literal
 
 from skypixel import constants
 from skypixel.domain import colorcompare
-from skypixel.domain.types import ArmorType as ArmorType
-from skypixel.domain.types import ExoticType as ExoticType
+from skypixel.domain.types import ArmorType, ExoticType
 
 logger = logging.getLogger(__name__)
 

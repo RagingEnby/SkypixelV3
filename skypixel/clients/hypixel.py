@@ -3,8 +3,8 @@ from typing import Any, Literal, TypeAlias
 
 from curl_cffi.requests.exceptions import RequestException
 
-from skypixel import constants
 from skypixel.clients import http
+from skypixel.settings import settings
 from skypixel.storage.json import read_json, write_json
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def initialize(items: list[dict[str, Any]]) -> None:
 
 
 async def load_items() -> None:
-    cache_path = constants.STORAGE_DIR / "items.json"
+    cache_path = settings.storage_dir / "items.json"
     for url in (ITEMS_URL, FALLBACK_URL):
         try:
             items = validate_items(await http.get_json(url))

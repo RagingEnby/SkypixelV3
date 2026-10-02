@@ -5,9 +5,9 @@ import disnake
 from disnake.ext import commands
 from mcstatus import JavaServer
 
-from skypixel import constants
-from skypixel import discord as utils
-from skypixel.storage import json as datamanager
+from skypixel import constants, utils
+from skypixel.settings import settings
+from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class MotdTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "motd.json")
+        self.data = JsonWrapper(settings.storage_dir / "motd.json")
         self._last_ping: datetime | None = None
 
     @property

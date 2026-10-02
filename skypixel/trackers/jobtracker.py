@@ -3,10 +3,10 @@ import logging
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants
-from skypixel import discord as utils
-from skypixel.clients import http as asyncreqs
-from skypixel.storage import json as datamanager
+from skypixel import constants, utils
+from skypixel.clients import http
+from skypixel.settings import settings
+from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ class Job:
 
 async def get_jobs() -> list[Job]:
     logger.debug("getting job openings from api.ragingenby.dev")
-    data = await asyncreqs.get_json(URL)
+    data = await http.get_json(URL)
     if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
         raise ValueError("The job API did not return a jobs list.")
     return [Job.from_dict(job) for job in data["jobs"]]
@@ -92,7 +92,7 @@ class JobTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "jobs.json")
+        self.data = JsonWrapper(settings.storage_dir / "jobs.json")
 
     @staticmethod
     async def on_job_update(job: Job, added: bool):

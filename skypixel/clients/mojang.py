@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import ClassVar, TypedDict
 
 from skypixel import constants
-from skypixel.clients import http as asyncreqs
+from skypixel.clients import http
 
 logger = logging.getLogger(__name__)
 PLAYER_URL = "https://api.ragingenby.dev/player/{}"
@@ -111,7 +111,7 @@ async def close() -> None:
 
 
 async def _fetch(identifier: str) -> MojangPlayer:
-    response = await asyncreqs.get(PLAYER_URL.format(identifier))
+    response = await http.get(PLAYER_URL.format(identifier))
     if response.status_code == 404:
         raise PlayerNotFound(identifier)
     response.raise_for_status()
@@ -142,7 +142,7 @@ async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
         else:
             missing.append(key)
     if missing:
-        response = await asyncreqs.post(
+        response = await http.post(
             PLAYERS_URL, json={"identifiers": list(dict.fromkeys(missing))}
         )
         response.raise_for_status()
