@@ -54,9 +54,6 @@ class Collection:
     async def count_documents(self, *args, **kwargs):
         return await self.collection.count_documents(*args, **kwargs)
 
-    async def insert_many(self, *args, **kwargs):
-        return await self.collection.insert_many(*args, **kwargs)
-
     async def bulk_write(self, *args, **kwargs):
         return await self.collection.bulk_write(*args, **kwargs)
 
