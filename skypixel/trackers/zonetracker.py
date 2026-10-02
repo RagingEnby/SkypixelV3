@@ -1,6 +1,7 @@
+from skypixel.trackers.base import PollingCog
+
 import asyncio
 import logging
-import traceback
 
 import disnake
 from disnake.ext import commands
@@ -15,23 +16,21 @@ logger = logging.getLogger(__name__)
 
 
 async def get_zones() -> set[str]:
-    response = await asyncreqs.get(URL)
-    data = response.json()
+    data = await asyncreqs.get_json(URL)
+    if not isinstance(data, dict) or not isinstance(data.get("zones"), list):
+        raise ValueError("The zone API did not return a zones list.")
     return set(data["zones"])
 
 
 async def send(embed: disnake.Embed):
-    tasks = [
-        utils.send_to_channel(channel_id, content, embed=embed)
-        for channel_id, content in constants.ZONE_TRACKER_CHANNELS.items()
-    ]
-    await asyncio.gather(*tasks)
+    await utils.broadcast(constants.ZONE_TRACKER_CHANNELS, embed=embed)
 
 
-class ZoneTrackerCog(commands.Cog):
+class ZoneTrackerCog(PollingCog):
+    interval = 12000
+
     def __init__(self, bot: commands.InteractionBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
+        super().__init__(bot)
         self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "zones.json")
         if not self.data.get("zones"):
             logger.warning("zones.json is empty")
@@ -51,27 +50,14 @@ class ZoneTrackerCog(commands.Cog):
         )
         await send(embed)
 
-    async def main(self):
-        while True:
-            try:
-                zones = await get_zones()
-                new = {zone for zone in zones if zone not in self.data["zones"]}
-                if new:
-                    if self.data.get("zones"):
-                        await self.on_new_zone(new)
-                    self.data["zones"].extend(new)
-                    await self.data.save()
-            except Exception:
-                logger.error(traceback.format_exc())
-            finally:
-                await asyncio.sleep(12000)
+    async def poll(self):
+        zones = await get_zones()
+        new = {zone for zone in zones if zone not in self.data["zones"]}
+        if new:
+            if self.data.get("zones"):
+                await self.on_new_zone(new)
+            self.data["zones"].extend(new)
+            await self.data.save()
 
-    async def close(self):
+    async def close_resources(self):
         logger.debug("closing...")
-        if self.task and not self.task.done():
-            self.task.cancel()
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.close()
-        self.task = asyncio.create_task(self.main())

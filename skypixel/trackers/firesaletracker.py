@@ -1,6 +1,7 @@
+from skypixel.trackers.base import PollingCog
+
 import asyncio
 import logging
-import traceback
 from typing import Any
 
 import disnake
@@ -17,24 +18,24 @@ URL: str = "https://api.hypixel.net/v2/skyblock/firesales"
 
 
 async def get_fire_sales() -> dict[str, dict[str, Any]]:
-    response = await asyncreqs.get(URL)
-    data = response.json()
-    sales = data.get("sales", [])
-    return {sale.pop("item_id"): sale for sale in sales}
+    data = await asyncreqs.get_json(URL)
+    if not isinstance(data, dict) or not isinstance(data.get("sales"), list):
+        raise ValueError("The fire sale API did not return a sales list.")
+    return {
+        sale["item_id"]: {key: value for key, value in sale.items() if key != "item_id"}
+        for sale in data["sales"]
+    }
 
 
 async def send(embeds: list[disnake.Embed]):
-    tasks = [
-        utils.send_to_channel(channel_id, content, embeds=embeds)
-        for channel_id, content in constants.FIRE_SALE_TRACKER_CHANNELS.items()
-    ]
-    await asyncio.gather(*tasks)
+    await utils.broadcast(constants.FIRE_SALE_TRACKER_CHANNELS, embeds=embeds)
 
 
-class FireSaleTrackerCog(commands.Cog):
+class FireSaleTrackerCog(PollingCog):
+    interval = 120
+
     def __init__(self, bot: commands.InteractionBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
+        super().__init__(bot)
         self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "firesales.json")
         self.db: mongodb.Collection | None = None
         self.db_queue = []
@@ -44,8 +45,7 @@ class FireSaleTrackerCog(commands.Cog):
             return
         if not self.db:
             self.db = mongodb.Collection("SkyBlock", "firesales")
-        await self.db.update_many(self.db_queue)
-        self.db_queue.clear()
+        await mongodb.flush_queue(self.db, self.db_queue)
 
     def log_firesale(self, item_id: str, sale: dict[str, Any]):
         doc = sale.copy()
@@ -72,34 +72,25 @@ class FireSaleTrackerCog(commands.Cog):
         embed.set_thumbnail(url=utils.get_item_image(item_id))
         return embed
 
-    async def main(self):
-        while True:
-            try:
-                embeds: list[disnake.Embed] = []
-                sales = await get_fire_sales()
-                for item_id, sale in sales.items():
-                    self.log_firesale(item_id, sale)
-                    if item_id not in self.data:
-                        if self.data.to_dict():
-                            embeds.append(self.make_fire_sale_embed(item_id, sale))
-                        self.data[item_id] = sale
-                if embeds:
-                    await send(embeds)
-                    await self.data.save()
-                await self.upload_queue()
-            except Exception:
-                logger.error(traceback.format_exc())
-            finally:
-                await asyncio.sleep(120)
+    async def poll(self):
+        embeds: list[disnake.Embed] = []
+        sales = await get_fire_sales()
+        initialized = bool(self.data)
+        changed = False
+        for item_id, sale in sales.items():
+            self.log_firesale(item_id, sale)
+            if item_id not in self.data:
+                if initialized:
+                    embeds.append(self.make_fire_sale_embed(item_id, sale))
+                self.data[item_id] = sale
+                changed = True
+        if embeds:
+            await send(embeds)
+        if changed:
+            await self.data.save()
+        await self.upload_queue()
 
-    async def close(self):
-        if self.task and not self.task.done():
-            self.task.cancel()
+    async def close_resources(self):
         if self.db:
             await self.db.close()
             self.db = None
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.close()
-        self.task = asyncio.create_task(self.main())

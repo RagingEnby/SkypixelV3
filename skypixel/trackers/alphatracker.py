@@ -1,6 +1,7 @@
+from skypixel.trackers.base import PollingCog
+
 import asyncio
 import logging
-import traceback
 from typing import Any
 
 import disnake
@@ -26,22 +27,19 @@ def flatten_status(status: RawJavaResponse) -> dict[str, Any]:
 
 
 async def get_alpha_data() -> dict[str, Any]:
-    status = await JavaServer.lookup("alpha.hypixel.net").async_status()
+    status = await (await JavaServer.async_lookup("alpha.hypixel.net")).async_status()
     return flatten_status(status.raw)
 
 
 async def send(embed: disnake.Embed):
-    tasks = [
-        utils.send_to_channel(channel_id, content, embed=embed)
-        for channel_id, content in constants.ALPHA_TRACKER_CHANNELS.items()
-    ]
-    await asyncio.gather(*tasks)
+    await utils.broadcast(constants.ALPHA_TRACKER_CHANNELS, embed=embed)
 
 
-class AlphaTrackerCog(commands.Cog):
+class AlphaTrackerCog(PollingCog):
+    interval = 240
+
     def __init__(self, bot: commands.InteractionBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
+        super().__init__(bot)
         self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "alpha.json")
 
     @staticmethod
@@ -62,26 +60,11 @@ class AlphaTrackerCog(commands.Cog):
             )
         await send(embed)
 
-    async def main(self):
-        while True:
-            try:
-                status = await get_alpha_data()
-                if status != self.data.to_dict():
-                    if self.data.to_dict():
-                        logger.info(f"{status} != {self.data.to_dict()}")
-                        await self.on_status_update(self.data.to_dict(), status)
-                    self.data.update(status)
-                    await self.data.save()
-            except Exception:
-                logger.error(traceback.format_exc())
-            finally:
-                await asyncio.sleep(240)
-
-    async def close(self):
-        if self.task and not self.task.done():
-            self.task.cancel()
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.close()
-        self.task = asyncio.create_task(self.main())
+    async def poll(self):
+        status = await get_alpha_data()
+        if status != self.data.to_dict():
+            if self.data.to_dict():
+                logger.info(f"{status} != {self.data.to_dict()}")
+                await self.on_status_update(self.data.to_dict(), status)
+            self.data.update(status)
+            await self.data.save()

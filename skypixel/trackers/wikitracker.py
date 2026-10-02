@@ -1,6 +1,7 @@
+from skypixel.trackers.base import PollingCog
+
 import asyncio
 import logging
-import traceback
 from typing import Any
 
 import disnake
@@ -46,34 +47,28 @@ logger = logging.getLogger(__name__)
 
 
 async def get_editor(name: str) -> dict[str, Any]:
-    global EDITOR_CACHE
     if name in EDITOR_CACHE:
         logger.debug(f"using cached data for wiki editor: {name}")
         return EDITOR_CACHE[name]
-    response = await asyncreqs.get(EDITOR_URL.format(name))
-    EDITOR_CACHE[name] = response.json()
+    EDITOR_CACHE[name] = await asyncreqs.get_json(EDITOR_URL.format(name))
     logger.debug(f"cached data for wiki editor {name} {EDITOR_CACHE[name]}")
     return EDITOR_CACHE[name]
 
 
 async def get_edits() -> list[dict[str, Any]]:
-    response = await asyncreqs.proxy_get(URL, params=PARAMS)
-    response.raise_for_status()
-    return response.json()["query"]["recentchanges"]
+    data = await asyncreqs.get_json(URL, proxy=True, params=PARAMS)
+    return data["query"]["recentchanges"]
 
 
 async def send(embed: disnake.Embed):
-    tasks = [
-        utils.send_to_channel(channel_id, content, embed=embed)
-        for channel_id, content in constants.WIKI_TRACKER_CHANNELS.items()
-    ]
-    await asyncio.gather(*tasks)
+    await utils.broadcast(constants.WIKI_TRACKER_CHANNELS, embed=embed)
 
 
-class WikiTrackerCog(commands.Cog):
+class WikiTrackerCog(PollingCog):
+    interval = 30
+
     def __init__(self, bot: commands.InteractionBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
+        super().__init__(bot)
         self.db: mongodb.Collection | None = None
         self.db_queue = []
         self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "wikiedits.json")
@@ -86,8 +81,7 @@ class WikiTrackerCog(commands.Cog):
             return
         if not self.db:
             self.db = mongodb.Collection("SkyBlock", "wikiedits")
-        await self.db.update_many(self.db_queue)
-        self.db_queue.clear()
+        await mongodb.flush_queue(self.db, self.db_queue)
 
     def log_edit(self, edit: dict[str, Any]):
         doc = edit.copy()
@@ -114,36 +108,26 @@ class WikiTrackerCog(commands.Cog):
         )
         await send(embed)
 
-    async def main(self):
-        while True:
-            try:
-                edits = await get_edits()
-                for edit in edits:
-                    if edit["revid"] in self.data["edits"]:
-                        logger.debug(
-                            f"skipping already-processed edit: {edit['revid']}"
-                        )
-                        continue
-                    if self.data.get("edits"):
-                        await self.on_wiki_edit(edit)
-                    self.data["edits"].append(edit["revid"])
-                    logger.debug(f"finished processing edit: {edit['revid']}")
-                await self.upload_queue()
-                logger.debug("logged edits to mongo")
-                await self.data.save()
-            except Exception:
-                logger.error(traceback.format_exc())
-            finally:
-                await asyncio.sleep(30)
+    async def poll(self):
+        edits = await get_edits()
+        seen = set(self.data["edits"])
+        initialized = bool(seen)
+        for edit in edits:
+            if edit.get("type") not in {"edit", "new"} or not edit.get("revid"):
+                continue
+            if edit["revid"] in seen:
+                logger.debug(f"skipping already-processed edit: {edit['revid']}")
+                continue
+            if initialized:
+                await self.on_wiki_edit(edit)
+            self.data["edits"].append(edit["revid"])
+            seen.add(edit["revid"])
+            logger.debug(f"finished processing edit: {edit['revid']}")
+        await self.upload_queue()
+        logger.debug("logged edits to mongo")
+        await self.data.save()
 
-    async def close(self):
-        if self.task and not self.task.done():
-            self.task.cancel()
+    async def close_resources(self):
         if self.db:
             await self.db.close()
             self.db = None
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.close()
-        self.task = asyncio.create_task(self.main())
