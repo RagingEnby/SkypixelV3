@@ -21,13 +21,6 @@ class ItemDBCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.item_db = ItemRepository()
         self.bot = bot
-        self.item_cache = self.item_db.cache
-
-    async def search_souls(self, query: dict) -> dict[str, int]:
-        return await self.item_db.search_souls(query)
-
-    async def get_item_from_uuid(self, uuid: str) -> dict[str, Any] | None:
-        return await self.item_db.get_item(uuid)
 
     async def do_search_command(
         self, inter: disnake.AppCmdInter, query: dict[str, Any], limit: int = 1
@@ -113,7 +106,7 @@ class ItemDBCog(commands.Cog):
                 else None,
             }
         )
-        results = await self.search_souls(query)
+        results = await self.item_db.search_souls(query)
         logger.info(json.dumps(results, indent=2))
         if not results:
             return await inter.send(
@@ -317,7 +310,7 @@ class ItemDBCog(commands.Cog):
         if not button_id or not button_id.startswith("view_lore|"):
             return
         uuid = button_id.split("|")[1]
-        item = await self.get_item_from_uuid(uuid)
+        item = await self.item_db.get_item(uuid)
         if not item:
             return await inter.send(
                 embed=utils.make_error(
