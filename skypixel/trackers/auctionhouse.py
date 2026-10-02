@@ -11,7 +11,7 @@ from skypixel import constants, utils
 from skypixel.clients import http, mojang
 from skypixel.domain import colors
 from skypixel.domain.nbt import ItemDecodeError, decode_single
-from skypixel.storage.mongo import Collection, flush_queue
+from skypixel.storage.mongo import UploadQueue
 from skypixel.trackers import ranktracker
 from skypixel.trackers.base import PollingCog
 
@@ -242,35 +242,25 @@ class AuctionTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.active_db: Collection | None = None
-        self.ended_db: Collection | None = None
-        self.active_db_queue = []
-        self.ended_db_queue = []
+        self.active_uploads = UploadQueue("SkyBlock", "auctions")
+        self.ended_uploads = UploadQueue("SkyBlock", "ended_auctions")
         self.last_scanned_active = 0
         self.last_scanned_ended = 0
         self._scan_semaphore = asyncio.Semaphore(20)
 
     async def upload_queue(self):
-        if self.active_db_queue:
-            if not self.active_db:
-                self.active_db = Collection("SkyBlock", "auctions")
-            await flush_queue(self.active_db, self.active_db_queue)
-            logger.debug("logged auctions to mongo")
-        if self.ended_db_queue:
-            if not self.ended_db:
-                self.ended_db = Collection("SkyBlock", "ended_auctions")
-            await flush_queue(self.ended_db, self.ended_db_queue)
-            logger.debug("logged ended auctions to mongo")
+        await self.active_uploads.flush()
+        await self.ended_uploads.flush()
 
     def log_auction(self, auction: dict[str, Any], item: dict[str, Any], ended: bool):
         doc = auction.copy()
         doc["item_data"] = item
         if ended:
             doc["_id"] = doc.pop("auction_id")
-            self.ended_db_queue.append(doc)
+            self.ended_uploads.append(doc)
         else:
             doc["_id"] = doc.pop("uuid")
-            self.active_db_queue.append(doc)
+            self.active_uploads.append(doc)
 
     async def on_auction(self, auction: dict[str, Any], new: bool = True):
         try:
@@ -418,9 +408,5 @@ class AuctionTrackerCog(PollingCog):
         return min(delays)
 
     async def close_resources(self):
-        if self.active_db:
-            await self.active_db.close()
-            self.active_db = None
-        if self.ended_db:
-            await self.ended_db.close()
-            self.ended_db = None
+        await self.active_uploads.close()
+        await self.ended_uploads.close()

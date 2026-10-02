@@ -8,7 +8,7 @@ from skypixel import constants, utils
 from skypixel.clients import http
 from skypixel.settings import settings
 from skypixel.storage.json import JsonWrapper
-from skypixel.storage.mongo import Collection, flush_queue
+from skypixel.storage.mongo import UploadQueue
 from skypixel.trackers.base import PollingCog
 
 URL: str = "https://wiki.hypixel.net/api.php"
@@ -67,24 +67,16 @@ class WikiTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.db: Collection | None = None
-        self.db_queue = []
+        self.uploads = UploadQueue("SkyBlock", "wikiedits")
         self.data = JsonWrapper(settings.storage_dir / "wikiedits.json")
         if not self.data.get("edits"):
             logger.warning("wikiedits.json is empty")
             self.data["edits"] = []
 
-    async def upload_queue(self):
-        if not self.db_queue:
-            return
-        if not self.db:
-            self.db = Collection("SkyBlock", "wikiedits")
-        await flush_queue(self.db, self.db_queue)
-
     def log_edit(self, edit: dict[str, Any]):
         doc = edit.copy()
         doc["_id"] = doc.pop("revid")
-        self.db_queue.append(doc)
+        self.uploads.append(doc)
 
     async def on_wiki_edit(self, edit: dict[str, Any]):
         logger.debug(f"wiki edit: {edit}")
@@ -121,11 +113,9 @@ class WikiTrackerCog(PollingCog):
             self.data["edits"].append(edit["revid"])
             seen.add(edit["revid"])
             logger.debug(f"finished processing edit: {edit['revid']}")
-        await self.upload_queue()
+        await self.uploads.flush()
         logger.debug("logged edits to mongo")
         await self.data.save()
 
     async def close_resources(self):
-        if self.db:
-            await self.db.close()
-            self.db = None
+        await self.uploads.close()

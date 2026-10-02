@@ -85,3 +85,20 @@ class Collection:
         if limit < 1:
             raise ValueError("The search limit must be positive.")
         return await self.find(query, projection=projection).to_list(length=limit)
+
+
+class UploadQueue:
+    """Collect documents and upsert them into one collection in batches."""
+
+    def __init__(self, db: str, collection: str):
+        self.docs: list[dict[str, Any]] = []
+        self.collection = Collection(db, collection)
+
+    def append(self, doc: dict[str, Any]) -> None:
+        self.docs.append(doc)
+
+    async def flush(self) -> None:
+        await flush_queue(self.collection, self.docs)
+
+    async def close(self) -> None:
+        await self.collection.close()

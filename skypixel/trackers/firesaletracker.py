@@ -8,7 +8,7 @@ from skypixel import constants, utils
 from skypixel.clients import http
 from skypixel.settings import settings
 from skypixel.storage.json import JsonWrapper
-from skypixel.storage.mongo import Collection, flush_queue
+from skypixel.storage.mongo import UploadQueue
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
@@ -35,20 +35,12 @@ class FireSaleTrackerCog(PollingCog):
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
         self.data = JsonWrapper(settings.storage_dir / "firesales.json")
-        self.db: Collection | None = None
-        self.db_queue = []
-
-    async def upload_queue(self):
-        if not self.db_queue:
-            return
-        if not self.db:
-            self.db = Collection("SkyBlock", "firesales")
-        await flush_queue(self.db, self.db_queue)
+        self.uploads = UploadQueue("SkyBlock", "firesales")
 
     def log_firesale(self, item_id: str, sale: dict[str, Any]):
         doc = sale.copy()
         doc["_id"] = item_id
-        self.db_queue.append(doc)
+        self.uploads.append(doc)
 
     @staticmethod
     def make_fire_sale_embed(item_id: str, sale: dict[str, Any]) -> disnake.Embed:
@@ -86,9 +78,7 @@ class FireSaleTrackerCog(PollingCog):
             await send(embeds)
         if changed:
             await self.data.save()
-        await self.upload_queue()
+        await self.uploads.flush()
 
     async def close_resources(self):
-        if self.db:
-            await self.db.close()
-            self.db = None
+        await self.uploads.close()
