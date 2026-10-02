@@ -1,6 +1,3 @@
-from skypixel.trackers.base import PollingCog
-
-import asyncio
 import logging
 from typing import Any
 
@@ -10,8 +7,9 @@ from mcstatus import JavaServer
 from mcstatus.responses._raw import RawJavaResponse
 
 from skypixel import constants
-from skypixel.storage import json as datamanager
 from skypixel import discord as utils
+from skypixel.storage import json as datamanager
+from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +19,6 @@ def flatten_status(status: RawJavaResponse) -> dict[str, Any]:
         "MC Version": status["version"]["name"],
         "Version Protocol": status["version"]["protocol"],
         "Max Players": status["players"]["max"],
-        # "Online Players": status['players']['online'],
         "MOTD": status["description"],
     }
 
@@ -66,5 +63,5 @@ class AlphaTrackerCog(PollingCog):
             if self.data.to_dict():
                 logger.info(f"{status} != {self.data.to_dict()}")
                 await self.on_status_update(self.data.to_dict(), status)
-            self.data.update(status)
+            self.data.data = status
             await self.data.save()

@@ -27,7 +27,7 @@ class PollingCog(commands.Cog):
                 delay = self.interval if delay is None else max(float(delay), 1.0)
             except asyncio.CancelledError:
                 raise
-            except Exception:  # noqa: BLE001
+            except Exception:
                 self._logger.exception("The %s poll failed.", type(self).__name__)
                 delay = self.interval
             await asyncio.sleep(delay)

@@ -2,13 +2,14 @@ import datetime
 import logging
 import random
 import re
+from copy import deepcopy
 from urllib.parse import quote
 
 import disnake
 
 from skypixel import constants
 from skypixel.clients import hypixel
-from skypixel.storage.json import write_json
+from skypixel.storage.json import write_json as write_json
 
 logger = logging.getLogger(__name__)
 COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
@@ -26,7 +27,7 @@ def make_error(title: str, *args) -> disnake.Embed:
     )
 
 
-def fit_embed(embed: disnake.Embed) -> disnake.Embed:
+def fit_embed(embed: disnake.Embed, max_length: int = 6000) -> disnake.Embed:
     if embed.title:
         embed.title = embed.title[:256]
     if embed.description:
@@ -47,7 +48,7 @@ def fit_embed(embed: disnake.Embed) -> disnake.Embed:
     if embed.footer.text:
         embed.set_footer(text=embed.footer.text[:2048], icon_url=embed.footer.icon_url)
     for index in reversed(range(len(embed.fields))):
-        excess = len(embed) - 6000
+        excess = len(embed) - max_length
         if excess <= 0:
             break
         field = embed.fields[index]
@@ -57,11 +58,49 @@ def fit_embed(embed: disnake.Embed) -> disnake.Embed:
             )
         else:
             embed.remove_field(index)
-    if len(embed) > 6000 and embed.description:
-        embed.description = embed.description[
-            : max(0, len(embed.description) - (len(embed) - 6000))
+    if len(embed) > max_length and embed.description:
+        embed.description = (
+            embed.description[
+                : max(0, len(embed.description) - (len(embed) - max_length))
+            ]
+            or None
+        )
+    if len(embed) > max_length and embed.footer.text:
+        text = embed.footer.text[
+            : max(0, len(embed.footer.text) - (len(embed) - max_length))
         ]
+        if text:
+            embed.set_footer(text=text, icon_url=embed.footer.icon_url)
+        else:
+            embed.remove_footer()
+    if len(embed) > max_length and embed.author.name:
+        name = embed.author.name[
+            : max(0, len(embed.author.name) - (len(embed) - max_length))
+        ]
+        if name:
+            embed.set_author(
+                name=name, url=embed.author.url, icon_url=embed.author.icon_url
+            )
+        else:
+            embed.remove_author()
+    if len(embed) > max_length and embed.title:
+        embed.title = (
+            embed.title[: max(0, len(embed.title) - (len(embed) - max_length))] or None
+        )
     return embed
+
+
+def fit_embeds(embeds: list[disnake.Embed]) -> list[disnake.Embed]:
+    copies = [
+        fit_embed(disnake.Embed.from_dict(deepcopy(embed.to_dict())))
+        for embed in embeds[:10]
+    ]
+    total = sum(map(len, copies))
+    if total > 6000:
+        for embed in copies:
+            budget = 1 + (6000 - len(copies)) * len(embed) // total
+            fit_embed(embed, max_length=budget)
+    return copies
 
 
 async def respond(
@@ -108,8 +147,8 @@ async def send_to_channel(
         return None
     if embed := kwargs.get("embed"):
         fit_embed(embed)
-    for embed in kwargs.get("embeds", []):
-        fit_embed(embed)
+    if "embeds" in kwargs:
+        kwargs["embeds"] = fit_embeds(kwargs["embeds"])
     try:
         return await target.send(*args, **kwargs)
     except disnake.HTTPException:
@@ -128,11 +167,20 @@ async def broadcast(
 ) -> None:
     import asyncio
 
-    batches = (
-        [embeds[index : index + 10] for index in range(0, len(embeds), 10)]
-        if embeds is not None
-        else [None]
-    )
+    batches = []
+    if embeds is None:
+        batches.append(None)
+    else:
+        batch, length = [], 0
+        for candidate in embeds:
+            fit_embed(candidate)
+            if batch and (len(batch) == 10 or length + len(candidate) > 6000):
+                batches.append(batch)
+                batch, length = [], 0
+            batch.append(candidate)
+            length += len(candidate)
+        if batch:
+            batches.append(batch)
     for batch in batches:
         kwargs = {"embeds": batch} if batch is not None else {"embed": embed}
         await asyncio.gather(

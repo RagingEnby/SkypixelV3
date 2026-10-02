@@ -1,6 +1,3 @@
-from skypixel.trackers.base import PollingCog
-
-import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -9,8 +6,9 @@ from disnake.ext import commands
 from mcstatus import JavaServer
 
 from skypixel import constants
-from skypixel.storage import json as datamanager
 from skypixel import discord as utils
+from skypixel.storage import json as datamanager
+from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +51,7 @@ class MotdTrackerCog(PollingCog):
         embed.add_field(
             name="After", value="```" + "\n".join(after) + "```", inline=False
         )
-        # only ping every 10 minutes (don't want to repeat tge 10/4/25 incident)
+        # Wait at least ten minutes between role pings.
         should_ping = self.last_ping.total_seconds() / 60 > 10
         await send(embed, ping=should_ping)
         if should_ping:

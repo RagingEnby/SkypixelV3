@@ -6,7 +6,7 @@ import disnake
 from disnake.ext import commands
 
 from skypixel import checks, constants, extensions
-from skypixel.clients import http, hypixel
+from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
 from skypixel.logging import configure_logging
 from skypixel.settings import ConfigurationError, settings
@@ -39,6 +39,7 @@ class SkypixelBot(commands.InteractionBot):
                 for result in results:
                     if isinstance(result, BaseException):
                         logger.error("A cog failed to close.", exc_info=result)
+                await mojang.close()
                 await http.close()
             finally:
                 await super().close()

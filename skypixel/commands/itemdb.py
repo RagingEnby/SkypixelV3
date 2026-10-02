@@ -8,15 +8,14 @@ from disnake.ext import commands
 from skypixel import constants
 from skypixel import discord as utils
 from skypixel.clients import hypixel
-from skypixel.storage.items import ItemRepository
-from skypixel.domain.items import PrefixRank, make_player_regex, search_souls_query
 from skypixel.commands.item_views import SoulSearchView, make_item_embed, make_item_view
-
+from skypixel.domain.items import PrefixRank, make_player_regex, search_souls_query
 from skypixel.domain.items import fix_item as fix_item
-from skypixel.domain.items import get_item_image as get_item_image
 from skypixel.domain.items import get_item_color as get_item_color
+from skypixel.domain.items import get_item_image as get_item_image
 from skypixel.domain.items import make_playername_regex as make_playername_regex
 from skypixel.domain.items import make_rank_regex as make_rank_regex
+from skypixel.storage.items import ItemRepository
 
 logger = logging.getLogger(__name__)
 
@@ -144,12 +143,15 @@ class ItemDBCog(commands.Cog):
             item_embed = await view.get_current_embed()
             await view.update_buttons()
             await inter.send(
-                embeds=[i for i in [embed, item_embed] if i is not None], view=view
+                embeds=utils.fit_embeds(
+                    [i for i in [embed, item_embed] if i is not None]
+                ),
+                view=view,
             )
         else:
             result = await self.item_db.find_one(query)
             item_embed = await make_item_embed(result)  # type: ignore
-            await inter.send(embeds=[embed, item_embed])
+            await inter.send(embeds=utils.fit_embeds([embed, item_embed]))
 
     @itemdb.sub_command(
         name="clay-search", description="Search the itemdb for a Builder's Clay"

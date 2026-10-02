@@ -95,6 +95,21 @@ class MojangPlayer:
 _inflight: dict[str, asyncio.Task[MojangPlayer]] = {}
 
 
+def _finish_fetch(key: str, task: asyncio.Task[MojangPlayer]) -> None:
+    if _inflight.get(key) is task:
+        _inflight.pop(key)
+    if not task.cancelled():
+        task.exception()
+
+
+async def close() -> None:
+    tasks = list(_inflight.values())
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    _inflight.clear()
+
+
 async def _fetch(identifier: str) -> MojangPlayer:
     response = await asyncreqs.get(PLAYER_URL.format(identifier))
     if response.status_code == 404:
@@ -113,7 +128,7 @@ async def get(identifier: str) -> MojangPlayer:
     if key not in _inflight:
         task = asyncio.create_task(_fetch(identifier), name=f"player-{key}")
         _inflight[key] = task
-        task.add_done_callback(lambda finished: _inflight.pop(key, None))
+        task.add_done_callback(lambda finished: _finish_fetch(key, finished))
     return await asyncio.shield(_inflight[key])
 
 

@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, Mock, patch
 import disnake
 from disnake.ext import commands
 
-from tests import support
 from skypixel import checks
 from skypixel import discord as utils
 from skypixel.commands import owner
@@ -20,7 +19,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         for done in (False, True):
             inter = SimpleNamespace(
                 response=SimpleNamespace(
-                    is_done=lambda: done, send_message=AsyncMock()
+                    is_done=lambda done=done: done, send_message=AsyncMock()
                 ),
                 followup=SimpleNamespace(send=AsyncMock()),
             )
@@ -64,6 +63,33 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         self.assertLessEqual(len(embed.description), 4096)
         self.assertLessEqual(len(embed.fields), 25)
         self.assertTrue(all(len(field.value) <= 1024 for field in embed.fields))
+
+    async def test_broadcast_splits_large_embeds_without_cutting_text(self):
+        embeds = [disnake.Embed(description="x" * 4000) for _ in range(3)]
+        with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
+            await utils.broadcast({1: "ping"}, embeds=embeds)
+        self.assertEqual(len(send.call_args_list), 3)
+        self.assertEqual(
+            [sum(map(len, call.kwargs["embeds"])) for call in send.call_args_list],
+            [4000, 4000, 4000],
+        )
+
+    async def test_combined_embeds_fit_without_changing_cached_embeds(self):
+        embeds = [disnake.Embed(description="x" * 4000) for _ in range(2)]
+        embeds[0].add_field(name="Attributes", value="v" * 1000)
+        result = utils.fit_embeds(embeds)
+        self.assertLessEqual(sum(map(len, result)), 6000)
+        self.assertEqual(embeds[0].fields[0].value, "v" * 1000)
+        self.assertEqual(embeds[0].description, "x" * 4000)
+
+    async def test_combined_embeds_handle_long_titles_and_footers(self):
+        embeds = []
+        for _ in range(10):
+            embed = disnake.Embed(title="t" * 256)
+            embed.set_author(name="a" * 256)
+            embed.set_footer(text="f" * 2048)
+            embeds.append(embed)
+        self.assertLessEqual(sum(map(len, utils.fit_embeds(embeds))), 6000)
 
     async def test_check_errors_use_a_private_followup(self):
         cog = LoggerCog(Mock())

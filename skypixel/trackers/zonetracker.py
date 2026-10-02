@@ -1,15 +1,13 @@
-from skypixel.trackers.base import PollingCog
-
-import asyncio
 import logging
 
 import disnake
 from disnake.ext import commands
 
 from skypixel import constants
+from skypixel import discord as utils
 from skypixel.clients import http as asyncreqs
 from skypixel.storage import json as datamanager
-from skypixel import discord as utils
+from skypixel.trackers.base import PollingCog
 
 URL: str = "https://api.ragingenby.dev/skyblock/zones"
 logger = logging.getLogger(__name__)

@@ -1,26 +1,23 @@
-from skypixel.commands.rank_views import GotoPageModal as GotoPageModal
-from skypixel.commands.rank_views import RankListView as RankListView
-from skypixel.trackers.base import PollingCog
-
 import asyncio
-import json
 import logging
 import time
 from typing import Any, Literal
 
 import disnake
+from curl_cffi.requests.exceptions import RequestException
 from disnake.ext import commands
 
 from skypixel import constants
-from skypixel.clients import http as asyncreqs
-from skypixel.storage import json as datamanager
-from skypixel.clients import mojang
 from skypixel import discord as utils
+from skypixel.clients import http as asyncreqs
+from skypixel.clients import mojang
+from skypixel.commands.rank_views import GotoPageModal as GotoPageModal
+from skypixel.commands.rank_views import RankListView as RankListView
+from skypixel.domain.types import SpecialRank as SpecialRank
+from skypixel.storage import json as datamanager
+from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
-SpecialRank = Literal[
-    "youtube", "staff", "pig_plus_plus_plus", "innit", "events", "mojang", "mcp"
-]
 
 URL: str = "https://api.ragingenby.dev/ranks"
 RANK_URL: str = URL + "/{}"
@@ -57,9 +54,7 @@ async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
 
 
 async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
-    # 'why not use get_rank_counts()?' this is called anytime updated rank info
-    # is fetched whereas get_rank_counts() has a 1h cache
-    # we dont care about specific special ranks, only the count
+    # Use the player lists because the count endpoint caches its results for an hour.
     rank_data = {**rank_data}
     rank_data["special"] = [
         player
@@ -100,15 +95,19 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
             or time.monotonic() - RANK_LIST_CACHE_TIME >= RANK_LIST_CACHE_TTL_SECONDS
         ):
             data = await asyncreqs.get_json(URL)
-            if not isinstance(data, dict) or any(
-                not isinstance(players, list)
+            if (
+                not isinstance(data, dict)
+                or not data
                 or any(
-                    not isinstance(player, dict)
-                    or not isinstance(player.get("id"), str)
-                    or not isinstance(player.get("name"), str)
-                    for player in players
+                    not isinstance(players, list)
+                    or any(
+                        not isinstance(player, dict)
+                        or not isinstance(player.get("id"), str)
+                        or not isinstance(player.get("name"), str)
+                        for player in players
+                    )
+                    for players in data.values()
                 )
-                for players in data.values()
             ):
                 raise ValueError("The rank API did not return player lists.")
             RANK_LIST_CACHE = data
@@ -211,14 +210,12 @@ class RankTrackerCog(PollingCog):
                     WATCH_LIST[uuid] = rankname
                     await WATCH_LIST.save()
                     continue
-                # we don't need to do any processing once the
-                # rank has changed since my /rankname/ endpoint will auto
-                # update my /ranks endpoint :3
+                # The rank-name endpoint updates the rank lists after a change.
                 if rankname != last_rankname:
                     del WATCH_LIST[uuid]
                     await WATCH_LIST.save()
-            except Exception as e:
-                logger.error(f"unable to update {uuid} in rank watchlist: {e}")
+            except (RequestException, KeyError, ValueError):
+                logger.exception("Cannot update player %s in the rank watchlist.", uuid)
 
     @commands.slash_command(
         name="ranks",

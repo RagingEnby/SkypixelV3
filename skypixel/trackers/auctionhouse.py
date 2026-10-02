@@ -1,25 +1,33 @@
-from skypixel.trackers.base import PollingCog
-
 import asyncio
 import logging
 import time
-from typing import Any, Coroutine
+from collections.abc import Coroutine
+from typing import Any
 
 import disnake
 from disnake.ext import commands
 
 from skypixel import constants
-from skypixel.trackers import ranktracker
-from skypixel.clients import http as asyncreqs
-from skypixel.domain import colors
-from skypixel.clients import mojang
-from skypixel.storage import mongo as mongodb
-from skypixel.domain import nbt as parser
 from skypixel import discord as utils
+from skypixel.clients import http as asyncreqs
+from skypixel.clients import mojang
+from skypixel.domain import colors
+from skypixel.domain import nbt as parser
+from skypixel.storage import mongo as mongodb
+from skypixel.trackers import ranktracker
+from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
 ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page=0"
 ENDED_URL: str = "https://api.hypixel.net/v2/skyblock/auctions_ended"
+
+
+async def finish_tasks(*tasks: Coroutine[Any, Any, Any]) -> list[Any]:
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for result in results:
+        if isinstance(result, BaseException):
+            raise result
+    return results
 
 
 def validate_auctions(data: Any) -> dict[str, Any]:
@@ -173,7 +181,7 @@ class AHListener:
                     embed=embed,
                 )
             )
-        await asyncio.gather(*send_tasks)
+        await finish_tasks(*send_tasks)
 
     @staticmethod
     async def on_cake_soul_auction(auction: dict[str, Any], item: dict[str, Any]):
@@ -327,7 +335,7 @@ class AuctionTrackerCog(PollingCog):
                 AHListener.on_editioned_auction(auction, item, edition, timestamp)
             )
         if tasks:
-            await asyncio.gather(*tasks)
+            await finish_tasks(*tasks)
 
     async def on_auction_end(self, auction: dict[str, Any]):
         try:
@@ -363,7 +371,7 @@ class AuctionTrackerCog(PollingCog):
                 if a.get("last_updated", a.get("start", 0)) >= self.last_scanned_active
             ]
             logger.debug(f"got {len(auctions)} auctions")
-            await asyncio.gather(
+            await finish_tasks(
                 *[
                     self.process_auction(
                         auction=a, new=a.get("start", 0) >= self.last_scanned_active
@@ -390,7 +398,7 @@ class AuctionTrackerCog(PollingCog):
                 if a.get("timestamp", 0) >= self.last_scanned_ended
             ]
             logger.debug(f"got {len(auctions)} ended auctions")
-            await asyncio.gather(
+            await finish_tasks(
                 *(self.process_auction(auction=a, ended=True) for a in auctions)
             )
             logger.debug("processed ended auctions")
@@ -402,8 +410,13 @@ class AuctionTrackerCog(PollingCog):
         return time_until_update
 
     async def poll(self):
-        delays = await asyncio.gather(self.active_scanner(), self.ended_scanner())
+        delays = await asyncio.gather(
+            self.active_scanner(), self.ended_scanner(), return_exceptions=True
+        )
         await self.upload_queue()
+        for delay in delays:
+            if isinstance(delay, BaseException):
+                raise delay
         return min(delays)
 
     async def close_resources(self):

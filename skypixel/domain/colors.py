@@ -7,16 +7,14 @@ from typing import Literal
 
 from skypixel import constants
 from skypixel.domain import colorcompare
+from skypixel.domain.types import ArmorType as ArmorType
+from skypixel.domain.types import ExoticType as ExoticType
 
 logger = logging.getLogger(__name__)
 
 DYE_PATTERN = re.compile(
     r"Combinable in Anvil Changes the color of an armor piece to #([0-9A-Fa-f]+)!"
 )
-ArmorType = Literal["helmet", "chestplate", "leggings", "boots"]
-ExoticType = Literal[
-    "exotic", "crystal", "fairy", "og_fairy", "spook", "bleached", "glitched"
-]
 ITEMS: list[dict] = []
 DEFAULT_HEXES: dict[str, str] = {}
 MISC_HEXES = {
@@ -321,7 +319,7 @@ def get_exotic_type(
     return "exotic"
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def find_closest_pieces(armor_type: ArmorType, color: str | int) -> dict[str, float]:
     lab = (
         colorcompare.hex_to_lab(color)
@@ -336,7 +334,7 @@ def find_closest_pieces(armor_type: ArmorType, color: str | int) -> dict[str, fl
     return {k: v for k, v in sorted(matches.items(), key=lambda item: item[1])}
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def get_top_5(armor_type: ArmorType, color: str | int) -> dict[str, float]:
     data = find_closest_pieces(armor_type, color)
     top_5 = {}

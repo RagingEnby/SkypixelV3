@@ -1,6 +1,3 @@
-from skypixel.trackers.base import PollingCog
-
-import asyncio
 import logging
 from typing import Any
 
@@ -8,10 +5,11 @@ import disnake
 from disnake.ext import commands
 
 from skypixel import constants
+from skypixel import discord as utils
 from skypixel.clients import http as asyncreqs
 from skypixel.storage import json as datamanager
 from skypixel.storage import mongo as mongodb
-from skypixel import discord as utils
+from skypixel.trackers.base import PollingCog
 
 URL: str = "https://wiki.hypixel.net/api.php"
 PARAMS: dict[str, str] = {

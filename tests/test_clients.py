@@ -3,7 +3,6 @@ import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
-from tests import support
 from skypixel.clients import http, mojang
 
 
@@ -109,6 +108,46 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             players = await asyncio.gather(mojang.get("Player"), mojang.get("PLAYER"))
         self.assertIs(players[0], players[1])
         fetch.assert_awaited_once()
+
+    async def test_cancelling_one_caller_keeps_the_fetch_for_another_caller(self):
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def fetch_player(url):
+            started.set()
+            await release.wait()
+            return response(data={"id": "a" * 32, "name": "Player"})
+
+        with patch.object(mojang.asyncreqs, "get", side_effect=fetch_player) as fetch:
+            first = asyncio.create_task(mojang.get("Player"))
+            await asyncio.wait_for(started.wait(), timeout=1)
+            second = asyncio.create_task(mojang.get("PLAYER"))
+            first.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await first
+            release.set()
+            self.assertEqual((await second).name, "Player")
+        fetch.assert_awaited_once()
+
+    async def test_close_waits_for_a_fetch_after_its_caller_is_cancelled(self):
+        started, stopped = asyncio.Event(), asyncio.Event()
+
+        async def fetch_player(url):
+            started.set()
+            try:
+                await asyncio.Future()
+            finally:
+                stopped.set()
+
+        with patch.object(mojang.asyncreqs, "get", side_effect=fetch_player):
+            caller = asyncio.create_task(mojang.get("Player"))
+            await asyncio.wait_for(started.wait(), timeout=1)
+            caller.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await caller
+            await mojang.close()
+            await mojang.close()
+        self.assertTrue(stopped.is_set())
+        self.assertEqual(mojang._inflight, {})
 
     async def test_expired_cache_fetches_again(self):
         mojang.MojangPlayer("Player", "a" * 32, datetime.now(UTC) - timedelta(hours=1))

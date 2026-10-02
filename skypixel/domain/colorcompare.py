@@ -1,4 +1,4 @@
-# this code is MOSTLY stolen from artificialair/seymoursniper
+"""Compare colors using the formulas from artificialair/seymoursniper."""
 
 import math
 from functools import lru_cache
@@ -8,7 +8,7 @@ def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
     return f"{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X}".upper()
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def hex_to_lab(hex_code: str) -> tuple[float, float, float]:
     """
     Convert a hexadecimal color string to CIELAB color space.
@@ -26,7 +26,7 @@ def hex_to_lab(hex_code: str) -> tuple[float, float, float]:
     return lab
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def int_to_lab(color: int) -> tuple[float, float, float]:
     """
     Convert an integer representation of a color to CIELAB color space.
@@ -39,7 +39,7 @@ def int_to_lab(color: int) -> tuple[float, float, float]:
     return lab
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def rgb_to_lab(rgb: tuple[int, int, int]) -> tuple[float, float, float]:
     """
     Convert an RGB color to CIELAB color space.
@@ -49,7 +49,7 @@ def rgb_to_lab(rgb: tuple[int, int, int]) -> tuple[float, float, float]:
     return lab
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def rgb_to_xyz(rgb: tuple[int, int, int]) -> tuple[float, float, float]:
     """
     Convert an RGB color to the XYZ color space.
@@ -82,7 +82,7 @@ def rgb_to_xyz(rgb: tuple[int, int, int]) -> tuple[float, float, float]:
     return x, y, z
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def xyz_to_cielab(xyz: tuple[float, float, float]) -> tuple[float, float, float]:
     """
     Convert XYZ color space values to CIELAB.
@@ -111,7 +111,7 @@ def xyz_to_cielab(xyz: tuple[float, float, float]) -> tuple[float, float, float]
     return l_star, a_star, b_star
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def compare_delta_e_2000(
     lab1: tuple[float, float, float], lab2: tuple[float, float, float]
 ) -> float:
@@ -184,7 +184,7 @@ def compare_delta_e_2000(
     return delta
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def compare_delta_cie(
     lab1: tuple[float, float, float], lab2: tuple[float, float, float]
 ) -> float:
