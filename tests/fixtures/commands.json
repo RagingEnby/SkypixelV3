@@ -1,0 +1,1240 @@
+[
+  {
+    "type": 1,
+    "name": "itemdb",
+    "default_member_permissions": null,
+    "default_permission": true,
+    "nsfw": false,
+    "integration_types": [
+      0,
+      1
+    ],
+    "contexts": [
+      0,
+      1,
+      2
+    ],
+    "description": "Commands that use the RagingEnby item database",
+    "options": [
+      {
+        "name": "search",
+        "description": "**ADMIN ONLY** Search the item database using json params",
+        "type": 1,
+        "options": [
+          {
+            "name": "query",
+            "description": "-",
+            "type": 3,
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "soul-search",
+        "description": "Searches the item database to see how many souls have been captured of a user",
+        "type": 1,
+        "options": [
+          {
+            "name": "captured_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "captured_player",
+            "description": "-",
+            "type": 3
+          },
+          {
+            "name": "captured_by_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "captured_by_name",
+            "description": "-",
+            "type": 3
+          },
+          {
+            "name": "cake_owner_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "cake_owner_name",
+            "description": "-",
+            "type": 3
+          }
+        ]
+      },
+      {
+        "name": "clay-search",
+        "description": "Search the itemdb for a Builder's Clay",
+        "type": 1,
+        "options": [
+          {
+            "name": "edition",
+            "description": "-",
+            "type": 4
+          },
+          {
+            "name": "sender_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "sender_name",
+            "description": "-",
+            "type": 3
+          },
+          {
+            "name": "recipient_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "recipient_name",
+            "description": "-",
+            "type": 3
+          }
+        ]
+      },
+      {
+        "name": "basket-search",
+        "description": "Search the itemdb for a Basket of Hope",
+        "type": 1,
+        "options": [
+          {
+            "name": "edition",
+            "description": "-",
+            "type": 4
+          },
+          {
+            "name": "basket_player_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "basket_player_name",
+            "description": "-",
+            "type": 3
+          }
+        ]
+      },
+      {
+        "name": "elevator-search",
+        "description": "Search the itemdb for an Ancient Elevator",
+        "type": 1,
+        "options": [
+          {
+            "name": "edition",
+            "description": "-",
+            "type": 4
+          },
+          {
+            "name": "sender_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "sender_name",
+            "description": "-",
+            "type": 3
+          },
+          {
+            "name": "recipient_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "recipient_name",
+            "description": "-",
+            "type": 3
+          }
+        ]
+      },
+      {
+        "name": "memento-search",
+        "description": "Search the itemdb for a Memento",
+        "type": 1,
+        "options": [
+          {
+            "name": "memento",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "TEST_MEMENTO",
+                "value": "TEST_MEMENTO"
+              }
+            ]
+          },
+          {
+            "name": "edition",
+            "description": "-",
+            "type": 4
+          },
+          {
+            "name": "recipient_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "recipient_name",
+            "description": "-",
+            "type": 3
+          },
+          {
+            "name": "recipient_id",
+            "description": "-",
+            "type": 3
+          }
+        ]
+      },
+      {
+        "name": "racinghelm-search",
+        "description": "Search the itemdb for a Racing Helmet",
+        "type": 1,
+        "options": [
+          {
+            "name": "auction",
+            "description": "-",
+            "type": 4
+          },
+          {
+            "name": "bid",
+            "description": "-",
+            "type": 4
+          },
+          {
+            "name": "price",
+            "description": "-",
+            "type": 4
+          },
+          {
+            "name": "buyer_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "buyer_name",
+            "description": "-",
+            "type": 3
+          }
+        ]
+      },
+      {
+        "name": "spacehelm-search",
+        "description": "Search the itemdb for a (Dctr) Space Helmet",
+        "type": 1,
+        "options": [
+          {
+            "name": "edition",
+            "description": "-",
+            "type": 4
+          },
+          {
+            "name": "sender_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "sender_name",
+            "description": "-",
+            "type": 3
+          },
+          {
+            "name": "recipient_rank",
+            "description": "-",
+            "type": 3,
+            "choices": [
+              {
+                "name": "NON",
+                "value": "NON"
+              },
+              {
+                "name": "[VIP]",
+                "value": "[VIP]"
+              },
+              {
+                "name": "[VIP+]",
+                "value": "[VIP+]"
+              },
+              {
+                "name": "[MVP]",
+                "value": "[MVP]"
+              },
+              {
+                "name": "[MVP+]",
+                "value": "[MVP+]"
+              },
+              {
+                "name": "[MVP++]",
+                "value": "[MVP++]"
+              },
+              {
+                "name": "[YOUTUBE]",
+                "value": "[YOUTUBE]"
+              },
+              {
+                "name": "[PIG+++]",
+                "value": "[PIG+++]"
+              },
+              {
+                "name": "[INNIT]",
+                "value": "[INNIT]"
+              },
+              {
+                "name": "[MAYOR]",
+                "value": "[MAYOR]"
+              },
+              {
+                "name": "[MOJANG]",
+                "value": "[MOJANG]"
+              },
+              {
+                "name": "[EVENTS]",
+                "value": "[EVENTS]"
+              },
+              {
+                "name": "[HELPER]",
+                "value": "[HELPER]"
+              },
+              {
+                "name": "[MOD]",
+                "value": "[MOD]"
+              },
+              {
+                "name": "[GM]",
+                "value": "[GM]"
+              },
+              {
+                "name": "[ADMIN]",
+                "value": "[ADMIN]"
+              },
+              {
+                "name": "[OWNER]",
+                "value": "[OWNER]"
+              },
+              {
+                "name": "[\u12de]",
+                "value": "[\u12de]"
+              }
+            ]
+          },
+          {
+            "name": "recipient_name",
+            "description": "-",
+            "type": 3
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": 1,
+    "name": "ranks",
+    "default_member_permissions": null,
+    "default_permission": true,
+    "nsfw": false,
+    "integration_types": [
+      0,
+      1
+    ],
+    "contexts": [
+      0,
+      1,
+      2
+    ],
+    "description": "Various utilities relating to Special Hypixel ranks!",
+    "options": [
+      {
+        "name": "update",
+        "description": "Update's a player's rank in my database",
+        "type": 1,
+        "options": [
+          {
+            "name": "player",
+            "description": "-",
+            "type": 3,
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "watch",
+        "description": "Watch a player for rank changes closer than others",
+        "type": 1,
+        "options": [
+          {
+            "name": "player",
+            "description": "-",
+            "type": 3,
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "counts",
+        "description": "Get the amount of players with each rank",
+        "type": 1
+      },
+      {
+        "name": "list",
+        "description": "Get a list of players with a specific rank",
+        "type": 1,
+        "options": [
+          {
+            "name": "rank",
+            "description": "-",
+            "type": 3,
+            "required": true,
+            "choices": [
+              {
+                "name": "youtube",
+                "value": "youtube"
+              },
+              {
+                "name": "staff",
+                "value": "staff"
+              },
+              {
+                "name": "pig_plus_plus_plus",
+                "value": "pig_plus_plus_plus"
+              },
+              {
+                "name": "innit",
+                "value": "innit"
+              },
+              {
+                "name": "events",
+                "value": "events"
+              },
+              {
+                "name": "mojang",
+                "value": "mojang"
+              },
+              {
+                "name": "mcp",
+                "value": "mcp"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
