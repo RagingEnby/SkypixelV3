@@ -97,6 +97,7 @@ async def run() -> None:
             loop.remove_signal_handler(signum)
         if shutdown_task is not None:
             await shutdown_task
+        bot = bot or constants.BOT
         if bot is not None:
             await bot.close()
         else:

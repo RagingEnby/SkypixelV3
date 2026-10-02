@@ -15,13 +15,62 @@ COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
 
 
 def make_error(title: str, *args) -> disnake.Embed:
-    return add_footer(
-        disnake.Embed(
-            title=title,
-            description="\n".join(map(str, args)),
-            color=constants.COLOR_CODES["c"],
+    return fit_embed(
+        add_footer(
+            disnake.Embed(
+                title=title,
+                description="\n".join(map(str, args)),
+                color=constants.COLOR_CODES["c"],
+            )
         )
     )
+
+
+def fit_embed(embed: disnake.Embed) -> disnake.Embed:
+    if embed.title:
+        embed.title = embed.title[:256]
+    if embed.description:
+        embed.description = embed.description[:4096]
+    for index, field in enumerate(embed.fields):
+        if index >= 25:
+            embed.remove_field(25)
+            continue
+        embed.set_field_at(
+            index, name=field.name[:256], value=field.value[:1024], inline=field.inline
+        )
+    if embed.author.name:
+        embed.set_author(
+            name=embed.author.name[:256],
+            url=embed.author.url,
+            icon_url=embed.author.icon_url,
+        )
+    if embed.footer.text:
+        embed.set_footer(text=embed.footer.text[:2048], icon_url=embed.footer.icon_url)
+    for index in reversed(range(len(embed.fields))):
+        excess = len(embed) - 6000
+        if excess <= 0:
+            break
+        field = embed.fields[index]
+        if len(field.value) > excess:
+            embed.set_field_at(
+                index, name=field.name, value=field.value[:-excess], inline=field.inline
+            )
+        else:
+            embed.remove_field(index)
+    if len(embed) > 6000 and embed.description:
+        embed.description = embed.description[
+            : max(0, len(embed.description) - (len(embed) - 6000))
+        ]
+    return embed
+
+
+async def respond(
+    inter: disnake.Interaction, *, embed: disnake.Embed, ephemeral: bool = True
+) -> None:
+    if inter.response.is_done():
+        await inter.followup.send(embed=fit_embed(embed), ephemeral=ephemeral)
+    else:
+        await inter.response.send_message(embed=fit_embed(embed), ephemeral=ephemeral)
 
 
 def remove_color_codes(string: str) -> str:
@@ -57,6 +106,10 @@ async def send_to_channel(
     if target is None:
         logger.warning("Cannot find channel %s or thread %s.", channel_id, thread_id)
         return None
+    if embed := kwargs.get("embed"):
+        fit_embed(embed)
+    for embed in kwargs.get("embeds", []):
+        fit_embed(embed)
     try:
         return await target.send(*args, **kwargs)
     except disnake.HTTPException:

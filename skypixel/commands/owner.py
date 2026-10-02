@@ -41,6 +41,8 @@ def register(bot: commands.InteractionBot) -> None:
             namespace = {
                 **globals(),
                 **locals(),
+                "constants": constants,
+                "asyncreqs": asyncreqs,
                 **{
                     name: extensions.get_extension(name)
                     for name in extensions.EXTENSIONS
