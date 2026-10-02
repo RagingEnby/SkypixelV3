@@ -332,7 +332,7 @@ class RankTrackerCog(PollingCog):
         if len(embeds) == 1:
             return await inter.send(embed=utils.add_footer(embeds[0]))
         view = RankListView(embeds, inter)
-        await view._update_buttons()  # type: ignore
+        view.update_buttons()
         msg = await inter.send(embed=view.embeds[view.page], view=view)
         view.message = msg
 
