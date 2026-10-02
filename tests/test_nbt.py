@@ -1,15 +1,25 @@
-import io
 import gzip
+import io
 import unittest
 from base64 import b64encode
 
 from nbt import nbt
-
-from tests import support
 from skypixel.domain import nbt as parser
+from tests import support
 
 
 class NbtTests(unittest.TestCase):
+    def test_fork_reads_modified_utf8_strings(self):
+        encoded = b"\x00\x09a\xc0\x80\xed\xa0\xbd\xed\xb8\x80"
+        tag = nbt.TAG_String(buffer=io.BytesIO(encoded))
+        self.assertEqual(tag.value, "a\x00\U0001f600")
+
+    def test_fork_writes_null_as_modified_utf8(self):
+        tag = nbt.TAG_String(value="a\x00")
+        buffer = io.BytesIO()
+        tag._render_buffer(buffer)
+        self.assertEqual(buffer.getvalue(), b"\x00\x03a\xc0\x80")
+
     def test_round_trip_item_and_pet_info(self):
         root = nbt.NBTFile()
         items = nbt.TAG_List(name="i", type=nbt.TAG_Compound)

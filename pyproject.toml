@@ -1,19 +1,39 @@
 [project]
 name = "skypixelv3"
 version = "3.0.0-alpha.1"
-description = "A base Disnake bot"
+description = "A Discord bot for Hypixel SkyBlock item collectors"
 authors = [{name="RagingEnby", email="contact@ragingenby.dev"}]
 requires-python = ">=3.11"
 dependencies = [
-    "aiofiles>=24.1.0",
-    "curl-cffi>=0.13.0",
-    "disnake",
-    "mcstatus>=11.1.1",
-    "motor>=3.7.0",
-    "nbt",
-    "requests>=2.32.3",
-    "typing-extensions>=4.15.0",
+    "curl-cffi>=0.13.0,<1",
+    "disnake>=2.11,<3",
+    "mcstatus>=11.1.1,<15",
+    "motor>=3.7.0,<4",
+    "mutf8>=1.0.6,<2",
+    "pymongo>=4.9,<5",
 ]
 
-[tool.uv.sources]
-nbt = { git = "https://github.com/RagingEnby/NBT" }
+[project.scripts]
+skypixel = "skypixel.app:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["ruff>=0.14,<1"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["skypixel", "cogs", "modules", "nbt"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"constants.py" = "constants.py"
+"main.py" = "main.py"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+extend-exclude = ["nbt"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "RUF", "BLE", "ASYNC", "S102"]
