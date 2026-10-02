@@ -3,121 +3,66 @@
 import math
 from functools import lru_cache
 
+Lab = tuple[float, float, float]
+
 
 def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
-    return f"{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X}".upper()
+    return f"{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X}"
 
 
 @lru_cache(maxsize=1024)
-def hex_to_lab(hex_code: str) -> tuple[float, float, float]:
-    """
-    Convert a hexadecimal color string to CIELAB color space.
-    """
-    if hex_code.startswith("0x"):
-        hex_code = hex_code[2:]
-    elif hex_code.startswith("#"):
-        hex_code = hex_code[1:]
-
+def hex_to_lab(hex_code: str) -> Lab:
+    hex_code = hex_code.removeprefix("0x").removeprefix("#")
     if len(hex_code) != 6:
         raise ValueError(hex_code)
-    rgb: tuple[int, int, int] = tuple(int(hex_code[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[assignment]
-    xyz = rgb_to_xyz(rgb)
-    lab = xyz_to_cielab(xyz)
-    return lab
+    red, green, blue = (int(hex_code[i : i + 2], 16) for i in (0, 2, 4))
+    return rgb_to_lab((red, green, blue))
 
 
 @lru_cache(maxsize=1024)
-def int_to_lab(color: int) -> tuple[float, float, float]:
-    """
-    Convert an integer representation of a color to CIELAB color space.
-    """
-    r = (color >> 16) & 0xFF
-    g = (color >> 8) & 0xFF
-    b = color & 0xFF
-    xyz = rgb_to_xyz((r, g, b))
-    lab = xyz_to_cielab(xyz)
-    return lab
+def int_to_lab(color: int) -> Lab:
+    return rgb_to_lab(((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF))
 
 
 @lru_cache(maxsize=1024)
-def rgb_to_lab(rgb: tuple[int, int, int]) -> tuple[float, float, float]:
-    """
-    Convert an RGB color to CIELAB color space.
-    """
-    xyz = rgb_to_xyz(rgb)
-    lab = xyz_to_cielab(xyz)
-    return lab
+def rgb_to_lab(rgb: tuple[int, int, int]) -> Lab:
+    return xyz_to_cielab(rgb_to_xyz(rgb))
+
+
+def _linearize(channel: int) -> float:
+    value = channel / 255
+    if value > 0.04045:
+        value = ((value + 0.055) / 1.055) ** 2.4
+    else:
+        value /= 12.92
+    return value * 100
 
 
 @lru_cache(maxsize=1024)
-def rgb_to_xyz(rgb: tuple[int, int, int]) -> tuple[float, float, float]:
-    """
-    Convert an RGB color to the XYZ color space.
-    """
-    var_r = rgb[0] / 255
-    var_g = rgb[1] / 255
-    var_b = rgb[2] / 255
-
-    if var_r > 0.04045:
-        var_r = ((var_r + 0.055) / 1.055) ** 2.4
-    else:
-        var_r /= 12.92
-    if var_g > 0.04045:
-        var_g = ((var_g + 0.055) / 1.055) ** 2.4
-    else:
-        var_g /= 12.92
-    if var_b > 0.04045:
-        var_b = ((var_b + 0.055) / 1.055) ** 2.4
-    else:
-        var_b /= 12.92
-
-    var_r *= 100
-    var_g *= 100
-    var_b *= 100
-
+def rgb_to_xyz(rgb: tuple[int, int, int]) -> Lab:
+    var_r, var_g, var_b = map(_linearize, rgb)
     x = var_r * 0.4124 + var_g * 0.3576 + var_b * 0.1805
     y = var_r * 0.2126 + var_g * 0.7152 + var_b * 0.0722
     z = var_r * 0.0193 + var_g * 0.1192 + var_b * 0.9505
-
     return x, y, z
 
 
-@lru_cache(maxsize=1024)
-def xyz_to_cielab(xyz: tuple[float, float, float]) -> tuple[float, float, float]:
-    """
-    Convert XYZ color space values to CIELAB.
-    """
-    x_nat = xyz[0] / 95.047
-    y_nat = xyz[1] / 100
-    z_nat = xyz[2] / 108.883
-
-    if x_nat > 0.008856:
-        x_nat = x_nat ** (1 / 3)
-    else:
-        x_nat = (7.787 * x_nat) + (16 / 116)
-    if y_nat > 0.008856:
-        y_nat = y_nat ** (1 / 3)
-    else:
-        y_nat = (7.787 * y_nat) + (16 / 116)
-    if z_nat > 0.008856:
-        z_nat = z_nat ** (1 / 3)
-    else:
-        z_nat = (7.787 * z_nat) + (16 / 116)
-
-    l_star = (116 * y_nat) - 16
-    a_star = 500 * (x_nat - y_nat)
-    b_star = 200 * (y_nat - z_nat)
-
-    return l_star, a_star, b_star
+def _lab_curve(value: float) -> float:
+    if value > 0.008856:
+        return value ** (1 / 3)
+    return (7.787 * value) + (16 / 116)
 
 
 @lru_cache(maxsize=1024)
-def compare_delta_e_2000(
-    lab1: tuple[float, float, float], lab2: tuple[float, float, float]
-) -> float:
-    """
-    Calculate the Delta E 2000 color difference between two CIELAB colors.
-    """
+def xyz_to_cielab(xyz: Lab) -> Lab:
+    x_nat = _lab_curve(xyz[0] / 95.047)
+    y_nat = _lab_curve(xyz[1] / 100)
+    z_nat = _lab_curve(xyz[2] / 108.883)
+    return (116 * y_nat) - 16, 500 * (x_nat - y_nat), 200 * (y_nat - z_nat)
+
+
+@lru_cache(maxsize=1024)
+def compare_delta_e_2000(lab1: Lab, lab2: Lab) -> float:
     l1, a1, b1 = lab1
     c1 = math.sqrt(a1**2 + b1**2)
     l2, a2, b2 = lab2
@@ -185,14 +130,8 @@ def compare_delta_e_2000(
 
 
 @lru_cache(maxsize=1024)
-def compare_delta_cie(
-    lab1: tuple[float, float, float], lab2: tuple[float, float, float]
-) -> float:
-    """
-    Compute the Euclidean distance (Delta E CIE76) between two CIELAB colors.
-    """
+def compare_delta_cie(lab1: Lab, lab2: Lab) -> float:
+    """Return the CIE76 distance, which is the Euclidean distance in Lab space."""
     l1, a1, b1 = lab1
     l2, a2, b2 = lab2
-
-    similarity = math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2)
-    return similarity
+    return math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2)
