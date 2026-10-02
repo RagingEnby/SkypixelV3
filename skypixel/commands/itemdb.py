@@ -131,7 +131,7 @@ class ItemDBCog(commands.Cog):
                 inter=inter,
             )
             item_embed = await view.get_current_embed()
-            await view.update_buttons()
+            view.update_buttons()
             await inter.send(
                 embeds=utils.fit_embeds(
                     [i for i in [embed, item_embed] if i is not None]

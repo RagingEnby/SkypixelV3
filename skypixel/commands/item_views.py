@@ -161,7 +161,6 @@ class SoulSearchView(OwnedView):
         self.count = count
         self.main_embed = main_embed
         self.item_db = item_db
-        self.inter = inter
         self.index = 0
         self.item_cache: dict[int, dict] = {}
         self.embed_cache: dict[int, disnake.Embed] = {}
@@ -180,7 +179,7 @@ class SoulSearchView(OwnedView):
         except StopAsyncIteration as e:
             logger.error(f"SoulSearchView() ending iteration for {self.query}: {e}")
             self.count = self.index + 1
-            await self.update_buttons()
+            self.update_buttons()
             return None
 
     async def get_current_embed(self) -> disnake.Embed | None:
@@ -194,7 +193,7 @@ class SoulSearchView(OwnedView):
         self.embed_cache[self.index] = embed
         return embed
 
-    async def update_buttons(self):
+    def update_buttons(self):
         logger.debug("updating buttons")
         self.children[0].disabled = self.index == 0  # type: ignore[index]
         self.children[1].disabled = self.index == self.count - 1  # type: ignore[index]
@@ -205,7 +204,7 @@ class SoulSearchView(OwnedView):
     ):
         logger.debug("previous button clicked")
         self.index = max(self.index - 1, 0)
-        await self.update_buttons()
+        self.update_buttons()
         embed = await self.get_current_embed()
         if not embed:
             return await interaction.response.edit_message(
@@ -219,7 +218,7 @@ class SoulSearchView(OwnedView):
     async def next(self, button: disnake.ui.Button, interaction: disnake.Interaction):
         logger.debug("next button clicked")
         self.index = min(self.index + 1, max(self.count - 1, 0))
-        await self.update_buttons()
+        self.update_buttons()
         embed = await self.get_current_embed()
         if not embed:
             return await interaction.response.edit_message(

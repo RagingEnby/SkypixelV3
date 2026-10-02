@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from contextlib import suppress
 from typing import cast
@@ -46,7 +45,8 @@ class GotoPageModal(disnake.ui.Modal):
                 ephemeral=True,
             )
         self.view.page = page - 1
-        await asyncio.gather(self.view._update_buttons(), inter.response.defer())
+        self.view.update_buttons()
+        await inter.response.defer()
         with suppress(disnake.NotFound, disnake.HTTPException):
             await self.view.inter.edit_original_message(
                 embed=self.view.embeds[self.view.page], view=self.view
@@ -58,11 +58,9 @@ class RankListView(OwnedView):
         logger.debug("initializing RankListView()")
         super().__init__(inter)
         self.embeds = embeds
-        self.inter = inter
         self.page = 0
-        self.message: disnake.Message | None = None
 
-    async def _update_buttons(self):
+    def update_buttons(self):
         logger.debug("updating buttons")
         prev_btn = cast(disnake.ui.Button, self.children[0])
         next_btn = cast(disnake.ui.Button, self.children[2])
@@ -75,7 +73,7 @@ class RankListView(OwnedView):
     async def previous(self, _, interaction: disnake.Interaction):
         logger.debug("previous button clicked")
         self.page = max(self.page - 1, 0)
-        await self._update_buttons()
+        self.update_buttons()
         await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
 
     @disnake.ui.button(style=disnake.ButtonStyle.gray, emoji="🔢", row=0)
@@ -86,5 +84,5 @@ class RankListView(OwnedView):
     async def next(self, _, interaction: disnake.Interaction):
         logger.debug("next button clicked")
         self.page = min(self.page + 1, len(self.embeds) - 1)
-        await self._update_buttons()
+        self.update_buttons()
         await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
