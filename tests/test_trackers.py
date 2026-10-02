@@ -3,6 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+from skypixel import app
 from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
@@ -88,8 +89,9 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
             "WikiTrackerCog": 30,
             "ZoneTrackerCog": 12000,
         }
+        cogs = {cog.__name__: cog for cog in app.load_cogs()}
         for name, interval in expected.items():
-            self.assertEqual(support.extensions.get_extension(name).interval, interval)
+            self.assertEqual(cogs[name].interval, interval)
 
 
 class RankCacheTests(unittest.IsolatedAsyncioTestCase):

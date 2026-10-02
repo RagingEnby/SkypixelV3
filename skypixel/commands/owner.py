@@ -6,7 +6,7 @@ import traceback
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants, extensions, utils
+from skypixel import constants, utils
 from skypixel.clients import http
 
 logger = logging.getLogger(__name__)
@@ -42,10 +42,7 @@ def register(bot: commands.InteractionBot) -> None:
                 **locals(),
                 "constants": constants,
                 "asyncreqs": http,
-                **{
-                    name: extensions.get_extension(name)
-                    for name in extensions.EXTENSIONS
-                },
+                **{name: type(cog) for name, cog in bot.cogs.items()},
             }
             exec(compile(code, "<owner command>", "exec"), namespace)  # noqa: S102
             await namespace["temp_func"]()

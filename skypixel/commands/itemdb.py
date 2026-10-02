@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Literal
 
 import disnake
 from disnake.ext import commands
@@ -12,6 +12,9 @@ from skypixel.domain.items import PrefixRank, make_player_regex, search_souls_qu
 from skypixel.storage.items import ItemRepository
 
 logger = logging.getLogger(__name__)
+# Discord shows these as the memento option's choices. The item catalog must
+# load before this module is imported. See app.load_cogs.
+Memento = Literal[tuple(hypixel.MEMENTOS)] if hypixel.MEMENTOS else str  # type: ignore
 
 
 class ItemDBCog(commands.Cog):
@@ -232,7 +235,7 @@ class ItemDBCog(commands.Cog):
     async def memento_search_cmd(
         self,
         inter: disnake.AppCmdInter,
-        memento: hypixel.Memento | None = None,
+        memento: Memento | None = None,
         edition: int | None = None,
         recipient_rank: PrefixRank | None = None,
         recipient_name: str | None = None,
