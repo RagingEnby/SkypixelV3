@@ -101,7 +101,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             patch.object(ranktracker, "time", SimpleNamespace(monotonic=lambda: 86401)),
             patch.object(ranktracker, "RANK_LIST_CACHE_LOCK", asyncio.Lock()),
             patch.object(
-                ranktracker.asyncreqs,
+                ranktracker.http,
                 "get_json",
                 new_callable=AsyncMock,
                 return_value={},
@@ -118,7 +118,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             patch.object(ranktracker, "RANK_LIST_CACHE_TIME", 0.0),
             patch.object(ranktracker, "RANK_LIST_CACHE_LOCK", asyncio.Lock()),
             patch.object(
-                ranktracker.asyncreqs,
+                ranktracker.http,
                 "get_json",
                 new_callable=AsyncMock,
                 return_value=data,
@@ -144,9 +144,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
                 "time",
                 SimpleNamespace(monotonic=lambda: 100.0 + 86400 - 1),
             ),
-            patch.object(
-                ranktracker.asyncreqs, "get_json", new_callable=AsyncMock
-            ) as fetch,
+            patch.object(ranktracker.http, "get_json", new_callable=AsyncMock) as fetch,
             patch.object(ranktracker, "edit_stat_channels", new_callable=AsyncMock),
         ):
             self.assertEqual(await ranktracker.get_rank_lists(), cached)
@@ -277,7 +275,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_auction_fetch_rejects_a_malformed_response(self):
         with patch.object(
-            auctionhouse.asyncreqs,
+            auctionhouse.http,
             "get_json",
             new_callable=AsyncMock,
             return_value={"success": False},

@@ -5,7 +5,7 @@ from typing import cast
 
 import disnake
 
-from skypixel import discord as utils
+from skypixel import utils
 from skypixel.commands.views import OwnedView
 
 logger = logging.getLogger(__name__)

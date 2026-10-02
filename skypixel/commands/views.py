@@ -2,7 +2,7 @@ from contextlib import suppress
 
 import disnake
 
-from skypixel import discord as utils
+from skypixel import utils
 
 
 class OwnedView(disnake.ui.View):

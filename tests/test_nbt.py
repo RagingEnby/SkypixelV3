@@ -2,10 +2,11 @@ import gzip
 import io
 import unittest
 from base64 import b64encode
+from unittest.mock import patch
 
 from nbt import nbt
-from skypixel.domain import nbt as parser
-from tests import support
+from skypixel.domain import nbt as item_nbt
+from skypixel.domain.nbt import ItemDecodeError, decode_single, ensure_all_decoded
 
 
 class NbtTests(unittest.TestCase):
@@ -30,19 +31,19 @@ class NbtTests(unittest.TestCase):
         buffer = io.BytesIO()
         root.write_file(buffer=buffer)
         encoded = b64encode(gzip.compress(buffer.getvalue())).decode()
-        self.assertEqual(parser.decode_single(encoded), {"petInfo": {"type": "SHEEP"}})
+        self.assertEqual(decode_single(encoded), {"petInfo": {"type": "SHEEP"}})
 
     def test_nested_lists_decode(self):
         self.assertEqual(
-            parser.ensure_all_decoded({"nested": [[{"petInfo": '{"type":"SHEEP"}'}]]}),
+            ensure_all_decoded({"nested": [[{"petInfo": '{"type":"SHEEP"}'}]]}),
             {"nested": [[{"petInfo": {"type": "SHEEP"}}]]},
         )
 
     def test_bad_item_data_has_a_clear_error(self):
-        with self.assertRaises(parser.ItemDecodeError):
-            parser.decode_single("invalid")
+        with self.assertRaises(ItemDecodeError):
+            decode_single("invalid")
 
     def test_empty_item_list_has_a_clear_error(self):
-        with support.patch.object(parser, "decode", return_value=[]):
-            with self.assertRaises(parser.ItemDecodeError):
-                parser.decode_single("")
+        with patch.object(item_nbt, "decode", return_value=[]):
+            with self.assertRaises(ItemDecodeError):
+                decode_single("")

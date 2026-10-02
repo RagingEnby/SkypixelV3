@@ -1,7 +1,6 @@
 from disnake.ext.commands import InteractionBot
 
 from skypixel.domain.types import ArmorType, ExoticType
-from skypixel.settings import settings
 
 # Credit footer
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
@@ -305,7 +304,3 @@ OG_REFORGES: set[str] = {"forceful", "strong", "hurtful", "demonic", "rich", "od
 
 
 BOT: InteractionBot | None = None
-BOT_TOKEN = settings.bot_token
-MONGODB_URI = settings.mongodb_uri
-PROXIES = settings.proxies
-STORAGE_DIR = settings.storage_dir

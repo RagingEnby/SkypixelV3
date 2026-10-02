@@ -4,11 +4,11 @@ from typing import Any
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants
-from skypixel import discord as utils
-from skypixel.clients import http as asyncreqs
-from skypixel.storage import json as datamanager
-from skypixel.storage import mongo as mongodb
+from skypixel import constants, utils
+from skypixel.clients import http
+from skypixel.settings import settings
+from skypixel.storage.json import JsonWrapper
+from skypixel.storage.mongo import Collection, flush_queue
 from skypixel.trackers.base import PollingCog
 
 URL: str = "https://wiki.hypixel.net/api.php"
@@ -48,13 +48,13 @@ async def get_editor(name: str) -> dict[str, Any]:
     if name in EDITOR_CACHE:
         logger.debug(f"using cached data for wiki editor: {name}")
         return EDITOR_CACHE[name]
-    EDITOR_CACHE[name] = await asyncreqs.get_json(EDITOR_URL.format(name))
+    EDITOR_CACHE[name] = await http.get_json(EDITOR_URL.format(name))
     logger.debug(f"cached data for wiki editor {name} {EDITOR_CACHE[name]}")
     return EDITOR_CACHE[name]
 
 
 async def get_edits() -> list[dict[str, Any]]:
-    data = await asyncreqs.get_json(URL, proxy=True, params=PARAMS)
+    data = await http.get_json(URL, proxy=True, params=PARAMS)
     return data["query"]["recentchanges"]
 
 
@@ -67,9 +67,9 @@ class WikiTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.db: mongodb.Collection | None = None
+        self.db: Collection | None = None
         self.db_queue = []
-        self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "wikiedits.json")
+        self.data = JsonWrapper(settings.storage_dir / "wikiedits.json")
         if not self.data.get("edits"):
             logger.warning("wikiedits.json is empty")
             self.data["edits"] = []
@@ -78,8 +78,8 @@ class WikiTrackerCog(PollingCog):
         if not self.db_queue:
             return
         if not self.db:
-            self.db = mongodb.Collection("SkyBlock", "wikiedits")
-        await mongodb.flush_queue(self.db, self.db_queue)
+            self.db = Collection("SkyBlock", "wikiedits")
+        await flush_queue(self.db, self.db_queue)
 
     def log_edit(self, edit: dict[str, Any]):
         doc = edit.copy()

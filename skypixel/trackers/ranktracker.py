@@ -7,14 +7,12 @@ import disnake
 from curl_cffi.requests.exceptions import RequestException
 from disnake.ext import commands
 
-from skypixel import constants
-from skypixel import discord as utils
-from skypixel.clients import http as asyncreqs
-from skypixel.clients import mojang
-from skypixel.commands.rank_views import GotoPageModal as GotoPageModal
-from skypixel.commands.rank_views import RankListView as RankListView
-from skypixel.domain.types import SpecialRank as SpecialRank
-from skypixel.storage import json as datamanager
+from skypixel import constants, utils
+from skypixel.clients import http, mojang
+from skypixel.commands.rank_views import RankListView
+from skypixel.domain.types import SpecialRank
+from skypixel.settings import settings
+from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
@@ -28,13 +26,11 @@ RANK_LIST_CACHE: dict[str, list[dict[str, str]]] | None = None
 RANK_LIST_CACHE_TIME = 0.0
 RANK_LIST_CACHE_LOCK = asyncio.Lock()
 POI_UUIDS: set[str] = set()
-WATCH_LIST: datamanager.JsonWrapper = datamanager.JsonWrapper(
-    constants.STORAGE_DIR / "rankwatchlist.json"
-)
+WATCH_LIST: JsonWrapper = JsonWrapper(settings.storage_dir / "rankwatchlist.json")
 
 
 async def get_rankname(identifier: str) -> str:
-    response = await asyncreqs.get(RANKNAME_URL.format(identifier))
+    response = await http.get(RANKNAME_URL.format(identifier))
     if response.status_code == 404:
         raise mojang.PlayerNotFound(identifier)
     response.raise_for_status()
@@ -43,14 +39,14 @@ async def get_rankname(identifier: str) -> str:
 
 
 async def get_rank_counts() -> dict[str, int]:
-    data: dict[str, int] = await asyncreqs.get_json(COUNTS_URL)
+    data: dict[str, int] = await http.get_json(COUNTS_URL)
     logger.debug(f"rank counts: {data}")
     # sort highest -> lowest count
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
 
 async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
-    return await asyncreqs.get_json(RANK_URL.format(rank))
+    return await http.get_json(RANK_URL.format(rank))
 
 
 async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
@@ -94,7 +90,7 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
             RANK_LIST_CACHE is None
             or time.monotonic() - RANK_LIST_CACHE_TIME >= RANK_LIST_CACHE_TTL_SECONDS
         ):
-            data = await asyncreqs.get_json(URL)
+            data = await http.get_json(URL)
             if (
                 not isinstance(data, dict)
                 or not data
@@ -165,7 +161,7 @@ class RankTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = datamanager.JsonWrapper(constants.STORAGE_DIR / "ranks.json")
+        self.data = JsonWrapper(settings.storage_dir / "ranks.json")
         if not self.data.to_dict():
             logger.warning("ranks.json is empty")
         self.known_changes: set[str] = set()

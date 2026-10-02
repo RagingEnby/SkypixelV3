@@ -6,8 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import disnake
 from disnake.ext import commands
 
-from skypixel import checks
-from skypixel import discord as utils
+from skypixel import checks, utils
 from skypixel.commands import owner
 from skypixel.commands.logger import LoggerCog
 from skypixel.logging import RedactingFormatter

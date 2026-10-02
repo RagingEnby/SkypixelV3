@@ -6,9 +6,8 @@ import traceback
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants, extensions
-from skypixel import discord as utils
-from skypixel.clients import http as asyncreqs
+from skypixel import constants, extensions, utils
+from skypixel.clients import http
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ def register(bot: commands.InteractionBot) -> None:
                 **globals(),
                 **locals(),
                 "constants": constants,
-                "asyncreqs": asyncreqs,
+                "asyncreqs": http,
                 **{
                     name: extensions.get_extension(name)
                     for name in extensions.EXTENSIONS

@@ -4,7 +4,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import UpdateOne
 
-from skypixel import constants
+from skypixel.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +30,10 @@ class Collection:
         if self._closed:
             raise RuntimeError("The database collection has shut down.")
         if self._client is None:
-            if not constants.MONGODB_URI:
+            if not settings.mongodb_uri:
                 raise ValueError("Set SKYPIXEL_MONGODB_URI or scrts.MONGODB_URI.")
             self._client = AsyncIOMotorClient(
-                constants.MONGODB_URI, serverSelectionTimeoutMS=10000
+                settings.mongodb_uri, serverSelectionTimeoutMS=10000
             )
         return self._client
 

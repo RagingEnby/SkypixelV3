@@ -2,9 +2,8 @@ import logging
 import re
 from typing import Any
 
-from skypixel import constants
-from skypixel import discord as utils
-from skypixel.domain.types import PrefixRank as PrefixRank
+from skypixel import constants, utils
+from skypixel.domain.types import PrefixRank
 
 logger = logging.getLogger(__name__)
 
