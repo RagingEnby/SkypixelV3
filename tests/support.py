@@ -30,24 +30,12 @@ ITEMS = [
 ]
 
 
-def fixture_response(url, **kwargs):
-    data = (
-        {"staff": [{"id": "abc", "name": "Player"}]}
-        if url.endswith("/ranks")
-        else {"items": ITEMS}
-    )
-    return Mock(json=Mock(return_value=data))
+with patch("requests.get", side_effect=AssertionError("Imports must not fetch data.")):
+    from modules import colors, hypixel, utils
 
-
-original_directory = os.getcwd()
-sys.path.insert(0, original_directory)
-try:
-    os.chdir(TEST_STORAGE.name)
-    with patch("requests.get", side_effect=fixture_response):
-        import cogs
-        from modules import colors, hypixel, utils
-finally:
-    os.chdir(original_directory)
+    hypixel.initialize(ITEMS)
+    import cogs
+    from cogs import itemdb, ranktracker
 
 
 def command_schema():
