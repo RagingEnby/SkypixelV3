@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any
 
@@ -93,7 +94,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     else:
         embed.add_field(name="", value=" ", inline=False)
 
-    if item["extraAttributes"].get("captured_date"):
+    if item.get("extraAttributes", {}).get("captured_date"):
         embed.add_field(
             name="Captured At",
             value=f"<t:{item['extraAttributes']['captured_date'] // 1000}:d>\n-# <t:{item['extraAttributes']['captured_date'] // 1000}:R>",
@@ -148,6 +149,8 @@ def make_item_view(item: dict[str, Any]) -> disnake.ui.View:
 
 
 class SoulSearchView(OwnedView):
+    cache_limit = 128
+
     def __init__(
         self,
         query: dict,
@@ -164,66 +167,67 @@ class SoulSearchView(OwnedView):
         self.index = 0
         self.item_cache: dict[int, dict] = {}
         self.embed_cache: dict[int, disnake.Embed] = {}
+        self._page_lock = asyncio.Lock()
+        self.update_buttons()
 
     async def get_current_item(self) -> dict | None:
-        if self.item_cache.get(self.index):
-            return self.item_cache[self.index]
+        index = self.index
+        if index in self.item_cache:
+            return self.item_cache[index]
         cursor = self.item_db.find(self.query).sort(
             [("extraAttributes.captured_date", pymongo.DESCENDING)]
         )
-        cursor.skip(self.index).limit(1)
+        cursor.skip(index).limit(1)
         try:
             item = await cursor.next()
-            self.item_cache[self.index] = item
+            self.item_cache[index] = item
+            while len(self.item_cache) > self.cache_limit:
+                oldest = next(iter(self.item_cache))
+                self.item_cache.pop(oldest)
+                self.embed_cache.pop(oldest, None)
             return item
-        except StopAsyncIteration as e:
-            logger.error(f"SoulSearchView() ending iteration for {self.query}: {e}")
-            self.count = self.index + 1
+        except StopAsyncIteration:
+            logger.info("Soul search results ended at item %s.", index)
+            self.count = index
+            self.index = max(index - 1, 0)
             self.update_buttons()
             return None
 
     async def get_current_embed(self) -> disnake.Embed | None:
-        if self.embed_cache.get(self.index):
-            return self.embed_cache[self.index]
+        index = self.index
+        if index in self.embed_cache:
+            return self.embed_cache[index]
         item = await self.get_current_item()
         if not item:
             return None
         embed = await make_item_embed(item)
-        embed.set_footer(text=f"Item {self.index + 1}/{self.count}")
-        self.embed_cache[self.index] = embed
+        embed.set_footer(text=f"Item {index + 1}/{self.count}")
+        self.embed_cache[index] = embed
         return embed
 
     def update_buttons(self):
-        logger.debug("updating buttons")
-        self.children[0].disabled = self.index == 0  # type: ignore[index]
-        self.children[1].disabled = self.index == self.count - 1  # type: ignore[index]
+        self.previous.disabled = self.index <= 0
+        self.next.disabled = self.index >= self.count - 1
+
+    async def change_item(self, interaction: disnake.Interaction, offset: int) -> None:
+        await interaction.response.defer()
+        async with self._page_lock:
+            self.index = max(0, min(self.index + offset, self.count - 1))
+            embed = await self.get_current_embed()
+            self.update_buttons()
+            embeds = (
+                [self.main_embed, embed] if embed is not None else [self.main_embed]
+            )
+            await interaction.edit_original_message(
+                embeds=utils.fit_embeds(embeds), view=self
+            )
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)
     async def previous(
         self, button: disnake.ui.Button, interaction: disnake.Interaction
     ):
-        logger.debug("previous button clicked")
-        self.index = max(self.index - 1, 0)
-        self.update_buttons()
-        embed = await self.get_current_embed()
-        if not embed:
-            return await interaction.response.edit_message(
-                embeds=[self.main_embed], view=self
-            )
-        await interaction.response.edit_message(
-            embeds=utils.fit_embeds([self.main_embed, embed]), view=self
-        )
+        await self.change_item(interaction, -1)
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
     async def next(self, button: disnake.ui.Button, interaction: disnake.Interaction):
-        logger.debug("next button clicked")
-        self.index = min(self.index + 1, max(self.count - 1, 0))
-        self.update_buttons()
-        embed = await self.get_current_embed()
-        if not embed:
-            return await interaction.response.edit_message(
-                embeds=[self.main_embed], view=self
-            )
-        await interaction.response.edit_message(
-            embeds=utils.fit_embeds([self.main_embed, embed]), view=self
-        )
+        await self.change_item(interaction, 1)
