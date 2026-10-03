@@ -1,13 +1,9 @@
-import logging
 from contextlib import suppress
-from typing import cast
 
 import disnake
 
 from skypixel import utils
 from skypixel.commands.views import OwnedView
-
-logger = logging.getLogger(__name__)
 
 
 class GotoPageModal(disnake.ui.Modal):
@@ -55,23 +51,21 @@ class GotoPageModal(disnake.ui.Modal):
 
 class RankListView(OwnedView):
     def __init__(self, embeds: list[disnake.Embed], inter: disnake.Interaction):
-        logger.debug("initializing RankListView()")
+        if not embeds:
+            raise ValueError("The rank list needs at least one page.")
         super().__init__(inter)
         self.embeds = embeds
         self.page = 0
+        self.update_buttons()
 
     def update_buttons(self):
-        logger.debug("updating buttons")
-        prev_btn = cast(disnake.ui.Button, self.children[0])
-        next_btn = cast(disnake.ui.Button, self.children[2])
-        prev_btn.disabled = self.page == 0
-        next_btn.disabled = self.page == len(self.embeds) - 1
+        self.previous.disabled = self.page == 0
+        self.next.disabled = self.page == len(self.embeds) - 1
         current_embed = self.embeds[self.page]
         current_embed.set_footer(text=f"Page {self.page + 1}/{len(self.embeds)}")
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)
     async def previous(self, _, interaction: disnake.Interaction):
-        logger.debug("previous button clicked")
         self.page = max(self.page - 1, 0)
         self.update_buttons()
         await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
@@ -82,7 +76,6 @@ class RankListView(OwnedView):
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
     async def next(self, _, interaction: disnake.Interaction):
-        logger.debug("next button clicked")
         self.page = min(self.page + 1, len(self.embeds) - 1)
         self.update_buttons()
         await interaction.response.edit_message(embed=self.embeds[self.page], view=self)

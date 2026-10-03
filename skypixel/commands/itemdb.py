@@ -140,8 +140,10 @@ class ItemDBCog(commands.Cog):
             )
         else:
             result = await self.item_db.find_one(query)
-            item_embed = await make_item_embed(result)  # type: ignore
-            await inter.send(embeds=utils.fit_embeds([embed, item_embed]))
+            embeds = [embed]
+            if result is not None:
+                embeds.append(await make_item_embed(result))
+            await inter.send(embeds=utils.fit_embeds(embeds))
 
     @itemdb.sub_command(
         name="clay-search", description="Search the itemdb for a Builder's Clay"
@@ -309,23 +311,29 @@ class ItemDBCog(commands.Cog):
         button_id = inter.component.custom_id
         if not button_id or not button_id.startswith("view_lore|"):
             return
-        uuid = button_id.split("|")[1]
+        await inter.response.defer(ephemeral=True, with_message=True)
+        uuid = button_id.partition("|")[2]
         item = await self.item_db.get_item(uuid)
         if not item:
             return await inter.send(
                 embed=utils.make_error(
                     "Item Not Found",
-                    "The item was not found in my databsae. This seems bad:bangbang:",
-                )
-            )
-        lore = "\n".join([utils.remove_color_codes(line) for line in item["lore"]])
-        return await inter.send(
-            embed=disnake.Embed(
-                title=utils.remove_color_codes(
-                    item.get("friendlyName", item["itemId"])
+                    "This item is no longer in the database.",
                 ),
-                description=f"```\n{lore}```",
-                color=constants.DEFAULT_EMBED_COLOR,
+                ephemeral=True,
+            )
+        lore = "\n".join(
+            utils.remove_color_codes(line) for line in item.get("lore", [])
+        )
+        return await inter.send(
+            embed=utils.fit_embed(
+                disnake.Embed(
+                    title=utils.remove_color_codes(
+                        item.get("friendlyName", item["itemId"])
+                    ),
+                    description=f"```\n{lore}```",
+                    color=constants.DEFAULT_EMBED_COLOR,
+                )
             ),
             ephemeral=True,
         )
