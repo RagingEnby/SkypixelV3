@@ -1,12 +1,10 @@
 import asyncio
-import logging
 from datetime import UTC, datetime, timedelta
 from typing import ClassVar, TypedDict
 
 from skypixel import constants
 from skypixel.clients import http
 
-logger = logging.getLogger(__name__)
 PLAYER_URL = "https://api.ragingenby.dev/player/{}"
 PLAYERS_URL = "https://api.ragingenby.dev/players"
 
@@ -130,7 +128,7 @@ async def _fetch(identifier: str) -> MojangPlayer:
     response.raise_for_status()
     try:
         return MojangPlayer.from_dict(response.json())
-    except (ValueError, TypeError, OverflowError) as error:
+    except (ValueError, TypeError, OverflowError, OSError) as error:
         raise PlayerNotFound(identifier) from error
 
 

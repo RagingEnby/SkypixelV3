@@ -24,12 +24,13 @@ def raw_decode(data: bytes) -> list[dict[str, Any]]:
     try:
         with io.BytesIO(data) as fileobj:
             parsed = nbt_to_dict(nbt.NBTFile(fileobj=fileobj))
-    except (OSError, EOFError, ValueError, nbt.MalformedFileError) as error:
+    except (OSError, EOFError, ValueError, KeyError, nbt.MalformedFileError) as error:
         raise ItemDecodeError("Cannot decode the item NBT data.") from error
     if (
         not isinstance(parsed, dict)
         or set(parsed) != {"i"}
         or not isinstance(parsed["i"], list)
+        or any(not isinstance(item, dict) for item in parsed["i"])
     ):
         raise ItemDecodeError("Expected an NBT item list.")
     return parsed["i"]
@@ -51,8 +52,10 @@ def ensure_all_decoded(data: Any) -> Any:
 
 
 def decode(item_bytes: str) -> list[dict[str, Any]]:
+    if not isinstance(item_bytes, str):
+        raise ItemDecodeError("Expected base64 item data as text.")
     try:
-        raw = b64decode(item_bytes)
+        raw = b64decode(item_bytes, validate=True)
     except (Base64Error, ValueError) as error:
         raise ItemDecodeError("The item data is not valid base64.") from error
     return [ensure_all_decoded(item) for item in raw_decode(raw) if item]

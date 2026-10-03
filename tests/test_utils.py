@@ -13,6 +13,18 @@ from skypixel.logging import RedactingFormatter
 
 
 class DiscordTests(unittest.IsolatedAsyncioTestCase):
+    def test_timestamps_normalize_seconds_and_milliseconds(self):
+        for value, expected in (
+            (0, 0),
+            (946684800, 946684800),
+            (1700000000, 1700000000),
+            (1700000000000, 1700000000),
+            ("1700000000000", 1700000000),
+            ("1700000000000L", 1700000000),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(utils.normalize_timestamp(value), expected)
+
     async def test_response_uses_the_right_interaction_endpoint(self):
         embed = disnake.Embed(title="Error")
         for done in (False, True):
