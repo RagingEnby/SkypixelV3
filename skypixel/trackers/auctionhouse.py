@@ -249,8 +249,7 @@ class AuctionTrackerCog(PollingCog):
         self._scan_semaphore = asyncio.Semaphore(20)
 
     async def upload_queue(self):
-        await self.active_uploads.flush()
-        await self.ended_uploads.flush()
+        await finish_tasks(self.active_uploads.flush(), self.ended_uploads.flush())
 
     def log_auction(self, auction: dict[str, Any], item: dict[str, Any], ended: bool):
         doc = auction.copy()
@@ -408,5 +407,4 @@ class AuctionTrackerCog(PollingCog):
         return min(delays)
 
     async def close_resources(self):
-        await self.active_uploads.close()
-        await self.ended_uploads.close()
+        await finish_tasks(self.active_uploads.close(), self.ended_uploads.close())

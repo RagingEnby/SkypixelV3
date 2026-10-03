@@ -124,6 +124,62 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
 
 
 class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
+    async def test_concurrent_flushes_do_not_remove_new_records(self):
+        queue = UploadQueue("test", "items")
+        queue.append({"_id": "first"})
+        started, release = asyncio.Event(), asyncio.Event()
+        uploaded = []
+
+        async def update(docs):
+            if docs[0]["_id"] == "first":
+                started.set()
+                await release.wait()
+            uploaded.extend(docs)
+
+        with patch.object(queue.collection, "update_many", side_effect=update):
+            first = asyncio.create_task(queue.flush())
+            await asyncio.wait_for(started.wait(), timeout=1)
+            second = asyncio.create_task(queue.flush())
+            await asyncio.sleep(0)
+            queue.append({"_id": "second"})
+            release.set()
+            await asyncio.gather(first, second)
+        self.assertEqual(uploaded, [{"_id": "first"}, {"_id": "second"}])
+        self.assertEqual(queue.docs, [])
+
+    async def test_close_uploads_pending_records_before_closing_the_client(self):
+        queue = UploadQueue("test", "items")
+        queue.append({"_id": "pending"})
+        events = []
+
+        async def update(docs):
+            events.append(docs)
+
+        async def close():
+            events.append("closed")
+
+        with (
+            patch.object(queue.collection, "update_many", side_effect=update),
+            patch.object(queue.collection, "close", side_effect=close),
+        ):
+            await queue.close()
+            await queue.close()
+        self.assertEqual(events, [[{"_id": "pending"}], "closed"])
+        with self.assertRaises(RuntimeError):
+            queue.append({"_id": "late"})
+
+    async def test_failed_close_keeps_records_and_closes_the_client(self):
+        queue = UploadQueue("test", "items")
+        queue.append({"_id": "pending"})
+        with (
+            patch.object(queue.collection, "update_many", side_effect=OSError),
+            patch.object(queue.collection, "close", new_callable=AsyncMock) as close,
+        ):
+            with self.assertRaises(OSError):
+                await queue.close()
+        close.assert_awaited_once()
+        self.assertEqual(queue.docs, [{"_id": "pending"}])
+
     async def test_flush_sends_queued_documents_in_batches_of_1000(self):
         queue = UploadQueue("test", "items")
         for index in range(1500):

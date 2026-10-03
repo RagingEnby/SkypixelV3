@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any
 
@@ -93,12 +94,24 @@ class UploadQueue:
     def __init__(self, db: str, collection: str):
         self.docs: list[dict[str, Any]] = []
         self.collection = Collection(db, collection)
+        self._flush_lock = asyncio.Lock()
+        self._closed = False
 
     def append(self, doc: dict[str, Any]) -> None:
+        if self._closed:
+            raise RuntimeError("The upload queue has shut down.")
         self.docs.append(doc)
 
     async def flush(self) -> None:
-        await flush_queue(self.collection, self.docs)
+        async with self._flush_lock:
+            await flush_queue(self.collection, self.docs)
 
     async def close(self) -> None:
-        await self.collection.close()
+        async with self._flush_lock:
+            if self._closed:
+                return
+            self._closed = True
+            try:
+                await flush_queue(self.collection, self.docs)
+            finally:
+                await self.collection.close()

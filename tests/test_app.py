@@ -73,6 +73,17 @@ class SettingsTests(unittest.TestCase):
 
 
 class AppTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_player_client_close_does_not_skip_http_or_discord(self):
+        bot = app.SkypixelBot(command_sync_flags=commands.CommandSyncFlags.none())
+        with (
+            patch.object(app.mojang, "close", side_effect=OSError),
+            patch.object(app.http, "close", new_callable=AsyncMock) as close_http,
+            self.assertLogs(app.logger, level="ERROR"),
+        ):
+            await bot.close()
+        close_http.assert_awaited_once()
+        self.assertTrue(bot.is_closed())
+
     async def test_the_bot_registers_all_existing_cogs_and_commands(self):
         with patch.object(app.http, "close", new_callable=AsyncMock):
             bot = app.create_bot(command_sync_flags=commands.CommandSyncFlags.none())

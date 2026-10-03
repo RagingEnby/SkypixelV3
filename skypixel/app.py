@@ -39,12 +39,18 @@ class SkypixelBot(commands.InteractionBot):
                 for result in results:
                     if isinstance(result, BaseException):
                         logger.error("A cog failed to close.", exc_info=result)
-                await mojang.close()
-                await http.close()
+                results = await asyncio.gather(
+                    mojang.close(), http.close(), return_exceptions=True
+                )
+                for result in results:
+                    if isinstance(result, BaseException):
+                        logger.error("A client failed to close.", exc_info=result)
             finally:
-                await super().close()
-                if constants.BOT is self:
-                    constants.BOT = None
+                try:
+                    await super().close()
+                finally:
+                    if constants.BOT is self:
+                        constants.BOT = None
             logger.info("The bot has shut down.")
 
     async def on_ready(self) -> None:
