@@ -51,7 +51,6 @@ class MotdTrackerCog(PollingCog):
         embed.add_field(
             name="After", value="```" + "\n".join(after) + "```", inline=False
         )
-        # Wait at least ten minutes between role pings.
         should_ping = self.last_ping.total_seconds() / 60 > 10
         await send(embed, ping=should_ping)
         if should_ping:

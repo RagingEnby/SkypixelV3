@@ -107,9 +107,6 @@ class JobTrackerCog(PollingCog):
         )
         await send(embed)
 
-    def to_dict(self) -> dict:
-        return self.data.to_dict()
-
     async def poll(self):
         jobs = await get_jobs()
         current = {job.title: job.to_dict() for job in jobs}

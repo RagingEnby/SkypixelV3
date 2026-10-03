@@ -171,13 +171,13 @@ VARIANT_COLORS = {
 }
 
 
-for hex_code_ in CRYSTAL_COLORS:
+for hex_code_ in sorted(CRYSTAL_COLORS):
     MISC_HEXES[f"Crystal #{hex_code_}"] = hex_code_
-for hex_code_ in FAIRY_COLORS:
+for hex_code_ in sorted(FAIRY_COLORS):
     MISC_HEXES[f"Fairy #{hex_code_}"] = hex_code_
-for hex_code_ in OG_FAIRY_COLORS:
+for hex_code_ in sorted(OG_FAIRY_COLORS):
     MISC_HEXES[f"OG Fairy #{hex_code_}"] = hex_code_
-for hex_code_ in SPOOK_COLORS:
+for hex_code_ in sorted(SPOOK_COLORS):
     MISC_HEXES[f"Great Spook #{hex_code_}"] = hex_code_
 
 OG_FAIRY: dict[ArmorType, list[str]] = {
@@ -275,14 +275,12 @@ def is_glitched(item_id: str, hex_code: str) -> bool:
 
 
 def is_variant(item_id: str, hex_code: str) -> bool:
-    if any(
-        [
-            item_id in constants.SEYMOUR_IDS,
-            item_id.startswith("LEATHER_"),
-            item_id == "GHOST_BOOTS",
-            hex_code == DEFAULT_HEXES.get(item_id),
-            hex_code in VARIANT_COLORS.get(item_id, []),
-        ]
+    if (
+        item_id in constants.SEYMOUR_IDS
+        or item_id.startswith("LEATHER_")
+        or item_id == "GHOST_BOOTS"
+        or hex_code == DEFAULT_HEXES.get(item_id)
+        or hex_code in VARIANT_COLORS.get(item_id, ())
     ):
         return True
 
@@ -332,34 +330,23 @@ def find_closest_pieces(armor_type: ArmorType, color: str | int) -> dict[str, fl
     matches = {}
     for name, candidate_lab in candidates.items():
         matches[name] = colorcompare.compare_delta_cie(lab, candidate_lab)
-    # sort matches by lowest closest to farthest
-    return {k: v for k, v in sorted(matches.items(), key=lambda item: item[1])}
+    return dict(sorted(matches.items(), key=lambda item: item[1]))
 
 
 @lru_cache(maxsize=1024)
 def get_top_5(armor_type: ArmorType, color: str | int) -> dict[str, float]:
-    data = find_closest_pieces(armor_type, color)
     top_5 = {}
-    fairy = False
-    crystal = False
-    great_spook = False
-    for k, v in data.items():
+    groups = set()
+    for name, distance in find_closest_pieces(armor_type, color).items():
         if len(top_5) >= 5:
             break
-        if "Great Spook" in k:
-            if not great_spook:
-                great_spook = True
-                top_5[k] = v
-            continue
-        elif "Crystal" in k:
-            if not crystal:
-                crystal = True
-                top_5[k] = v
-            continue
-        elif "Fairy" in k:
-            if not fairy:
-                fairy = True
-                top_5[k] = v
-            continue
-        top_5[k] = v
+        group = next(
+            (group for group in ("Great Spook", "Crystal", "Fairy") if group in name),
+            None,
+        )
+        if group is not None:
+            if group in groups:
+                continue
+            groups.add(group)
+        top_5[name] = distance
     return top_5

@@ -46,8 +46,7 @@ async def get_rankname(identifier: str) -> str:
 
 async def get_rank_counts() -> dict[str, int]:
     data: dict[str, int] = await http.get_json(COUNTS_URL)
-    logger.debug(f"rank counts: {data}")
-    # sort highest -> lowest count
+    logger.debug("rank counts: %s", data)
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
 
@@ -56,8 +55,7 @@ async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
 
 
 async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
-    # Use the player lists because the count endpoint caches its results for an hour.
-    rank_data = {**rank_data}
+    rank_data = rank_data.copy()
     rank_data["special"] = [
         player
         for key, players in rank_data.items()
@@ -67,9 +65,7 @@ async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
     tasks = []
     for rank in constants.RANK_TRACKER_CHANNELS:
         players = rank_data.get(rank, [])
-        channels = constants.RANK_TRACKER_CHANNELS.get(
-            rank, constants.RANK_TRACKER_CHANNELS["special"]
-        )
+        channels = constants.RANK_TRACKER_CHANNELS[rank]
         for channel_id in channels:
             if constants.BOT is None:
                 return
@@ -77,11 +73,11 @@ async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
             name = f"{rank}-{len(players)}"
             if not isinstance(channel, disnake.TextChannel):
                 logger.error(
-                    f"channel {channel_id} is not a text channel: {type(channel)}"
+                    "channel %s is not a text channel: %s", channel_id, type(channel)
                 )
                 continue
-            if channel and channel.name.startswith(f"{rank}-") and channel.name != name:
-                logger.info(f"renaming #{channel.name} ({channel.id}) to {name}")
+            if channel.name.startswith(f"{rank}-") and channel.name != name:
+                logger.info("renaming #%s (%s) to %s", channel.name, channel.id, name)
                 tasks.append(channel.edit(name=name))
     results = await asyncio.gather(*tasks, return_exceptions=True)
     for result in results:
@@ -214,11 +210,10 @@ class RankTrackerCog(PollingCog):
         for uuid, last_rankname in list(WATCH_LIST.items()):
             try:
                 rankname = await get_rankname(uuid)
-                logger.info(f"rank watchlist: {last_rankname} -> {rankname}")
+                logger.info("rank watchlist: %s -> %s", last_rankname, rankname)
                 if last_rankname is None:
                     await WATCH_LIST.set_and_save(uuid, rankname)
                     continue
-                # The rank-name endpoint updates the rank lists after a change.
                 if rankname != last_rankname:
                     await WATCH_LIST.remove_and_save(uuid)
             except (RequestException, KeyError, ValueError):
@@ -233,7 +228,7 @@ class RankTrackerCog(PollingCog):
     async def ranks(self, inter: disnake.AppCmdInter):
         await inter.response.defer()
 
-    @ranks.sub_command(  # type: ignore[reportUnknownReturnType]
+    @ranks.sub_command(
         name="update", description="Update's a player's rank in my database"
     )
     async def update(self, inter: disnake.AppCmdInter, player: str):
@@ -256,7 +251,7 @@ class RankTrackerCog(PollingCog):
         embed.set_image(url=utils.to_mc_text(rankname))
         return await inter.send(embed=embed)
 
-    @ranks.sub_command(  # type: ignore[reportUnknownReturnType]
+    @ranks.sub_command(
         name="watch", description="Watch a player for rank changes closer than others"
     )
     async def watch(self, inter: disnake.AppCmdInter, player: str):
@@ -286,7 +281,7 @@ class RankTrackerCog(PollingCog):
             )
         )
 
-    @ranks.sub_command(  # type: ignore[reportUnknownReturnType]
+    @ranks.sub_command(
         name="counts", description="Get the amount of players with each rank"
     )
     async def counts(self, inter: disnake.AppCmdInter):
@@ -306,7 +301,7 @@ class RankTrackerCog(PollingCog):
         )
         return await inter.send(embed=embed)
 
-    @ranks.sub_command(  # type: ignore[reportUnknownReturnType]
+    @ranks.sub_command(
         name="list", description="Get a list of players with a specific rank"
     )
     async def list(self, inter: disnake.AppCmdInter, rank: SpecialRank):
@@ -342,9 +337,7 @@ class RankTrackerCog(PollingCog):
         if len(embeds) == 1:
             return await inter.send(embed=utils.add_footer(embeds[0]))
         view = RankListView(embeds, inter)
-        view.update_buttons()
-        msg = await inter.send(embed=view.embeds[view.page], view=view)
-        view.message = msg
+        await inter.send(embed=view.embeds[view.page], view=view)
 
     async def poll(self):
         await self.do_watchlist()

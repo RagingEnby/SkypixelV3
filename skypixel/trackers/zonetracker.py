@@ -36,7 +36,7 @@ class ZoneTrackerCog(PollingCog):
 
     @staticmethod
     async def on_new_zone(zones: set[str]):
-        logger.debug(f"new zones detected: {zones}")
+        logger.debug("new zones detected: %s", zones)
         embed = utils.add_footer(
             disnake.Embed(
                 title="New SkyBlock Zone Added!",
@@ -57,6 +57,3 @@ class ZoneTrackerCog(PollingCog):
             await self.data.replace(
                 {**self.data, "zones": self.data["zones"] + sorted(new)}
             )
-
-    async def close_resources(self):
-        logger.debug("closing...")

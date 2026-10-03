@@ -38,7 +38,6 @@ with patch(
 ):
     from skypixel.clients import hypixel
 
-    # ItemDBCog reads the memento list when its module loads.
     hypixel.initialize(ITEMS)
 
 

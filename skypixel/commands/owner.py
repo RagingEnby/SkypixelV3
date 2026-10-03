@@ -44,7 +44,7 @@ def register(bot: commands.InteractionBot) -> None:
                 "asyncreqs": http,
                 **{name: type(cog) for name, cog in bot.cogs.items()},
             }
-            exec(compile(code, "<owner command>", "exec"), namespace)  # noqa: S102
+            exec(compile(code, "<owner command>", "exec"), namespace)
             await namespace["temp_func"]()
             await message.add_reaction("\u2705")
         except Exception:

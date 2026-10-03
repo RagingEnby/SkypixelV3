@@ -18,7 +18,7 @@ async def get_version() -> str:
     version = data.get("version")
     if not isinstance(version, str) or not version:
         raise ValueError("The skills API did not return a version.")
-    logger.debug(f"got version: {version}")
+    logger.debug("got version: %s", version)
     return version
 
 
@@ -49,7 +49,7 @@ class VersionTrackerCog(PollingCog):
     async def poll(self):
         version = await get_version()
         if version != self.data.get("version"):
-            logger.debug(f"version update: {self.data.get('version')} => {version}")
+            logger.debug("version update: %s => %s", self.data.get("version"), version)
             if self.data.get("version"):
                 await self.on_version_change(self.data["version"], version)
             await self.data.replace({**self.data, "version": version})

@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 import random
@@ -164,8 +165,6 @@ async def broadcast(
     embeds: list[disnake.Embed] | None = None,
     ping: bool = True,
 ) -> None:
-    import asyncio
-
     batches = []
     if embeds is None:
         batches.append(None)

@@ -2,7 +2,6 @@ from disnake.ext.commands import InteractionBot
 
 from skypixel.domain.types import ArmorType, ExoticType
 
-# Credit footer
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
 DISCORD_INVITE: str = "https://discord.gg/uSQx2rWHu2"
 CREDIT_FOOTERS: set[str] = {
@@ -11,7 +10,6 @@ CREDIT_FOOTERS: set[str] = {
     "Support me on Patreon! patreon.com/RagingEnby",
 }
 
-# Discord IDs
 OWNER_ID: int = 447861538095759365
 DEV_SERVER_ID: int = 1066589212348006401
 JOIN_LOG_CHANNEL: int = 1340389033951629525
@@ -20,7 +18,6 @@ INVITE_LOG_CHANNEL: int = 1150164916578299945
 COMMAND_LOG_CHANNEL: int = 1111050267975221326
 DM_LOG_CHANNEL: int = 1173328319320698941
 PATRON_ROLE: int = 1198471307013132379
-# Auction channels
 ADMIN_SPAWNED_ITEMS_CHANNEL: int = 1359366355819823334
 OG_REFORGES_CHANNEL: int = 1359367040091295854
 SEMI_OG_REFORGES_CHANNEL: int = 1359367058009358536
@@ -42,67 +39,65 @@ EXOTIC_AUCTIONS_THREADS: dict[ExoticType, int] = {
     "glitched": 1425549032729739305,
     "exotic": 1425549071636107346,
 }
-# Tracker channels
 VERSION_TRACKER_CHANNELS: dict[int, str] = {
-    1172205656112123994: "<@&1139315700339593256>",  # RagingEnby's Dev Server
-    1210333444563935295: "",  # Derailcord
-    1391179788164530276: "<@&1400911988305039370>",  # Soul Hunters & Co.
+    1172205656112123994: "<@&1139315700339593256>",
+    1210333444563935295: "",
+    1391179788164530276: "<@&1400911988305039370>",
 }
 MOTD_TRACKER_CHANNELS: dict[int, str] = {
-    1177121432820527144: "<@&1177330036664193084>",  # RagingEnby's Dev Server
-    1177328270006554826: "<@&1177329389550178354>",  # Derailcord
-    1391179788164530276: "",  # Soul Hunters & Co.
+    1177121432820527144: "<@&1177330036664193084>",
+    1177328270006554826: "<@&1177329389550178354>",
+    1391179788164530276: "",
 }
 JOB_TRACKER_CHANNELS: dict[int, str] = {
-    1425521819179286588: "<@&1425521864775569408>",  # RagingEnby's Dev Server
+    1425521819179286588: "<@&1425521864775569408>",
 }
 FIRE_SALE_TRACKER_CHANNELS: dict[int, str] = {
-    1179543769905893416: "<@&1190093109938368552>",  # RagingEnby's Dev Server
-    1190098169703448576: "use code rail :)",  # Derailcord
-    938088437200846948: "<@&937729428430151770>",  # Collector's Hub
-    1314670732374180013: "",  # Collector's Cafe
-    1399601296931164252: "<@&1399600281422921777> use code yadi :)",  # Yadi | Official Discord
-    1391179788164530276: "",  # Soul Hunters & Co.
-    1396953342932029612: "",  # SkyBlock Resource Creators
+    1179543769905893416: "<@&1190093109938368552>",
+    1190098169703448576: "use code rail :)",
+    938088437200846948: "<@&937729428430151770>",
+    1314670732374180013: "",
+    1399601296931164252: "<@&1399600281422921777> use code yadi :)",
+    1391179788164530276: "",
+    1396953342932029612: "",
 }
 ALPHA_TRACKER_CHANNELS: dict[int, str] = {
-    1210999395865202688: "<@&1358904280165126434>",  # RagingEnby's Dev Server
-    1210333444563935295: "",  # Derailcord
-    1382202837856944289: "",  # Kathund's Test Server
-    1391179788164530276: "<@&1400910798368407712>",  # Soul Hunters & Co.
-    1396953342932029612: "",  # SkyBlock Resource Creators
-    1463223163772207300: "",  # @vrachel private server
+    1210999395865202688: "<@&1358904280165126434>",
+    1210333444563935295: "",
+    1382202837856944289: "",
+    1391179788164530276: "<@&1400910798368407712>",
+    1396953342932029612: "",
+    1463223163772207300: "",
 }
 ZONE_TRACKER_CHANNELS: dict[int, str] = {
-    1256334830048903198: "<@&1210085254635724840>",  # RagingEnby's Dev Server
-    1210333444563935295: "",  # Derailcord
-    1391179788164530276: "",  # Soul Hunters & Co.
+    1256334830048903198: "<@&1210085254635724840>",
+    1210333444563935295: "",
+    1391179788164530276: "",
 }
 WIKI_TRACKER_CHANNELS: dict[int, str] = {
-    1287466083267121162: "",  # RagingEnby's Dev Server
+    1287466083267121162: "",
 }
 RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
     "youtube": {
-        1121130539097784401: "<@&1122272183733977249>",  # RagingEnby's Dev Server
-        1173855870568902747: "<@&1177329153607991428>",  # Derailcord
-        1365021125628919898: "<@&1400910189678301276>",  # Soul Hunters & Co.
-        1444771276597100584: "<@&1444771346671341589>",  # Secret server
+        1121130539097784401: "<@&1122272183733977249>",
+        1173855870568902747: "<@&1177329153607991428>",
+        1365021125628919898: "<@&1400910189678301276>",
+        1444771276597100584: "<@&1444771346671341589>",
     },
     "staff": {
-        1364997652323897415: "<@&1122272183733977249>",  # RagingEnby's Dev Server
-        1173855870568902747: "<@&1177329153607991428>",  # Derailcord
-        1365021125628919898: "<@&1400910189678301276>",  # Soul Hunters & Co.
-        1444771255424254013: "<@&1444771346671341589>",  # Secret server
+        1364997652323897415: "<@&1122272183733977249>",
+        1173855870568902747: "<@&1177329153607991428>",
+        1365021125628919898: "<@&1400910189678301276>",
+        1444771255424254013: "<@&1444771346671341589>",
     },
     "special": {
-        1269021624338878464: "<@&1122272183733977249>",  # RagingEnby's Dev Server
-        1173855870568902747: "<@&1177329153607991428>",  # Derailcord
-        1365021125628919898: "<@&1400910189678301276>",  # Soul Hunters & Co.
-        1444771291390546221: "<@&1444771346671341589>",  # Secret server
+        1269021624338878464: "<@&1122272183733977249>",
+        1173855870568902747: "<@&1177329153607991428>",
+        1365021125628919898: "<@&1400910189678301276>",
+        1444771291390546221: "<@&1444771346671341589>",
     },
 }
 
-# API and image URLs
 ITEM_IMAGE: str = "https://sky.shiiyu.moe/api/item/{}"
 LEATHER_IMAGE: str = "https://api.ragingenby.dev/leather/{}/{}.png"
 MC_HEAD_IMAGE: str = "https://cravatar.eu/helmavatar/{}/600.png"
@@ -110,8 +105,7 @@ MC_TEXT_IMAGE: str = "https://api.ragingenby.dev/render.png?text={}"
 AUCTION_URL: str = "https://sky.coflnet.com/auction/{}"
 STATS_URL: str = "https://sky.shiiyu.moe/stats/{}"
 PATREON_URL: str = "https://patreon.com/ragingenby"
-# Minecraft colors
-COLOR_CODES: dict[str, int] = {  # all minecraft color codes and their hex code
+COLOR_CODES: dict[str, int] = {
     "0": 0x000000,
     "1": 0x0000AA,
     "2": 0x00AA00,
@@ -129,9 +123,7 @@ COLOR_CODES: dict[str, int] = {  # all minecraft color codes and their hex code
     "e": 0xFFFF55,
     "f": 0xFFFFFF,
 }
-COLOR_CODE_NAMES: dict[
-    str, str
-] = {  # all minecraft color codes and their official name
+COLOR_CODE_NAMES: dict[str, str] = {
     "black": "0",
     "dark_blue": "1",
     "dark_green": "2",
@@ -169,9 +161,7 @@ RANK_COLORS: dict[str, int] = {
     "owner": COLOR_CODES["c"],
     "pig_plus_plus_plus": COLOR_CODES["d"],
     "innit": COLOR_CODES["d"],
-    "innit_plus": COLOR_CODES[
-        "d"
-    ],  # future rank for if TommyInnit gets a netflix special
+    "innit_plus": COLOR_CODES["d"],
     "events": COLOR_CODES["6"],
     "mojang": COLOR_CODES["6"],
     "mcp": COLOR_CODES["c"],
@@ -274,7 +264,6 @@ MINECRAFT_DYES: dict[int, dict[str, str | int]] = {
         "image": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/white.png?raw=true",
     },
 }
-# Item IDs and reforge names
 SEYMOUR_IDS: dict[str, ArmorType] = {
     "VELVET_TOP_HAT": "helmet",
     "CASHMERE_JACKET": "chestplate",
