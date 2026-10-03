@@ -3,6 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+import tests.support as support
 from skypixel import app
 from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import flush_queue
@@ -14,7 +15,6 @@ from skypixel.trackers import (
 )
 from skypixel.trackers.base import PollingCog
 from skypixel.trackers.status import StatusUpdaterCog
-from tests import support
 
 
 class ProbeCog(PollingCog):
