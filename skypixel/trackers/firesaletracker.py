@@ -66,17 +66,17 @@ class FireSaleTrackerCog(PollingCog):
         embeds: list[disnake.Embed] = []
         sales = await get_fire_sales()
         initialized = bool(self.data)
-        changed = False
+        new_sales = {}
         for item_id, sale in sales.items():
             self.log_firesale(item_id, sale)
             if item_id not in self.data:
                 if initialized:
                     embeds.append(self.make_fire_sale_embed(item_id, sale))
-                self.data[item_id] = sale
-                changed = True
+                new_sales[item_id] = sale
         if embeds:
             await send(embeds)
-        if changed:
+        if new_sales:
+            self.data.update(new_sales)
             await self.data.save()
         await self.uploads.flush()
 
