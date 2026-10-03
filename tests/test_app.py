@@ -15,6 +15,18 @@ from tests import support
 
 
 class SettingsTests(unittest.TestCase):
+    def test_empty_proxy_environment_value_clears_the_legacy_proxy(self):
+        with (
+            patch.dict(os.environ, {"SKYPIXEL_HTTP_PROXY": ""}, clear=True),
+            patch.object(
+                settings,
+                "import_module",
+                return_value=SimpleNamespace(PROXIES={"http": "old-proxy"}),
+            ),
+        ):
+            loaded = settings.Settings.load()
+        self.assertEqual(loaded.proxies["http"], "")
+
     def test_environment_overrides_legacy_credentials(self):
         legacy = SimpleNamespace(
             BOT_TOKEN="old-token",
