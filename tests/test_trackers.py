@@ -178,6 +178,26 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
 
 
 class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_active_upload_does_not_skip_ended_uploads(self):
+        cog = auctionhouse.AuctionTrackerCog(Mock())
+        with (
+            patch.object(cog.active_uploads, "flush", side_effect=OSError),
+            patch.object(cog.ended_uploads, "flush", new_callable=AsyncMock) as flush,
+        ):
+            with self.assertRaises(OSError):
+                await cog.upload_queue()
+        flush.assert_awaited_once()
+
+    async def test_failed_active_close_does_not_skip_the_ended_collection(self):
+        cog = auctionhouse.AuctionTrackerCog(Mock())
+        with (
+            patch.object(cog.active_uploads, "close", side_effect=OSError),
+            patch.object(cog.ended_uploads, "close", new_callable=AsyncMock) as close,
+        ):
+            with self.assertRaises(OSError):
+                await cog.close_resources()
+        close.assert_awaited_once()
+
     async def test_auction_failure_waits_for_other_tasks(self):
         completed = False
 
