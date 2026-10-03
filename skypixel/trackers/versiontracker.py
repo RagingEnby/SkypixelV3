@@ -52,5 +52,4 @@ class VersionTrackerCog(PollingCog):
             logger.debug(f"version update: {self.data.get('version')} => {version}")
             if self.data.get("version"):
                 await self.on_version_change(self.data["version"], version)
-            self.data["version"] = version
-            await self.data.save()
+            await self.data.replace({**self.data, "version": version})

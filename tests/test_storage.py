@@ -23,6 +23,37 @@ class JsonStorageTests(unittest.IsolatedAsyncioTestCase):
         await state.save()
         self.assertEqual(JsonWrapper(self.path).to_dict(), state.to_dict())
 
+    async def test_replace_updates_memory_only_after_a_successful_write(self):
+        self.path.write_text('{"old": 1}')
+        state = JsonWrapper(self.path)
+        with patch.object(storage, "_write_atomic", side_effect=OSError):
+            with self.assertRaises(OSError):
+                await state.replace({"new": 2})
+        self.assertEqual(state.to_dict(), {"old": 1})
+        self.assertEqual(json.loads(self.path.read_text()), {"old": 1})
+        await state.replace({"new": 2})
+        self.assertEqual(state.to_dict(), {"new": 2})
+        self.assertEqual(json.loads(self.path.read_text()), {"new": 2})
+
+    async def test_concurrent_watchlist_edits_preserve_both_updates(self):
+        state = JsonWrapper(self.path)
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def write(path, data, indent=2):
+            if data == {"first": 1}:
+                started.set()
+                await release.wait()
+
+        with patch.object(storage, "write_json", side_effect=write):
+            first = asyncio.create_task(state.set_and_save("first", 1))
+            await asyncio.wait_for(started.wait(), timeout=1)
+            second = asyncio.create_task(state.set_and_save("second", 2))
+            await asyncio.sleep(0)
+            release.set()
+            await asyncio.gather(first, second)
+            await state.remove_and_save("first")
+        self.assertEqual(state.to_dict(), {"second": 2})
+
     async def test_mapping_views_follow_loaded_and_replaced_data(self):
         self.path.write_text('{"old": 1}')
         state = JsonWrapper(self.path)

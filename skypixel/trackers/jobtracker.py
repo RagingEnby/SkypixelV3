@@ -119,5 +119,4 @@ class JobTrackerCog(PollingCog):
         for title, data in list(self.data.items()):
             if title not in current:
                 await self.on_job_update(Job.from_dict(data), False)
-        self.data.data = current
-        await self.data.save()
+        await self.data.replace(current)

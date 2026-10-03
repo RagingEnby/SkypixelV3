@@ -216,13 +216,11 @@ class RankTrackerCog(PollingCog):
                 rankname = await get_rankname(uuid)
                 logger.info(f"rank watchlist: {last_rankname} -> {rankname}")
                 if last_rankname is None:
-                    WATCH_LIST[uuid] = rankname
-                    await WATCH_LIST.save()
+                    await WATCH_LIST.set_and_save(uuid, rankname)
                     continue
                 # The rank-name endpoint updates the rank lists after a change.
                 if rankname != last_rankname:
-                    del WATCH_LIST[uuid]
-                    await WATCH_LIST.save()
+                    await WATCH_LIST.remove_and_save(uuid)
             except (RequestException, KeyError, ValueError):
                 logger.exception("Cannot update player %s in the rank watchlist.", uuid)
 
@@ -277,8 +275,7 @@ class RankTrackerCog(PollingCog):
                     f"`{player_obj.name}` is already in the watchlist.",
                 )
             )
-        WATCH_LIST[player_obj.id] = None
-        await WATCH_LIST.save()
+        await WATCH_LIST.set_and_save(player_obj.id, None)
         await inter.send(
             embed=utils.add_footer(
                 disnake.Embed(
@@ -353,8 +350,7 @@ class RankTrackerCog(PollingCog):
         await self.do_watchlist()
         player_ranks = await get_player_ranks()
         if not self.data.to_dict():
-            self.data.data = player_ranks
-            await self.data.save()
+            await self.data.replace(player_ranks)
             logger.info("wrote rank data to empty ranks.json")
             return
         for uuid, data in player_ranks.items():
@@ -401,6 +397,5 @@ class RankTrackerCog(PollingCog):
                     data["name"],
                     data["rank"],
                 )
-        self.data.data = player_ranks
-        await self.data.save()
+        await self.data.replace(player_ranks)
         self.known_changes.clear()
