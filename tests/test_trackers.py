@@ -13,6 +13,7 @@ from skypixel.trackers import (
     wikitracker,
 )
 from skypixel.trackers.base import PollingCog
+from skypixel.trackers.status import StatusUpdaterCog
 from tests import support
 
 
@@ -22,6 +23,24 @@ class ProbeCog(PollingCog):
 
 
 class PollingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_status_failure_does_not_stop_the_rotation(self):
+        bot = Mock(change_presence=AsyncMock(), guilds=[])
+        cog = StatusUpdaterCog(bot)
+        cog.index = 2
+        with patch.object(cog, "_rank_status", side_effect=[OSError, None]) as rank:
+            with self.assertRaises(OSError):
+                await cog.poll()
+            await cog.poll()
+        self.assertEqual(
+            [call.args[0] for call in rank.await_args_list], ["staff", "youtube"]
+        )
+        cog.index = 15
+        with patch.object(cog, "_item_count_status", new_callable=AsyncMock):
+            await cog.poll()
+        self.assertEqual(cog.index, 0)
+        await cog.poll()
+        bot.change_presence.assert_awaited_once()
+
     async def test_reconnect_keeps_one_task(self):
         cog = ProbeCog(Mock())
         await cog.on_ready()

@@ -24,7 +24,7 @@ class Settings:
                 raise
             legacy = None
         proxies = dict(getattr(legacy, "PROXIES", {}))
-        if proxy := os.environ.get("SKYPIXEL_HTTP_PROXY"):
+        if (proxy := os.environ.get("SKYPIXEL_HTTP_PROXY")) is not None:
             proxies["http"] = proxy
         return cls(
             bot_token=os.environ.get(
