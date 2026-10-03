@@ -17,6 +17,7 @@ def normalize_identifier(identifier: str) -> str:
 
 class Cache:
     TTL = timedelta(minutes=30)
+    MAX_ENTRIES = 2048
     CACHE: ClassVar[dict[str, "MojangPlayer"]] = {}
 
     @staticmethod
@@ -28,13 +29,25 @@ class Cache:
 
     @staticmethod
     def cache_player(player: "MojangPlayer") -> None:
-        Cache.CACHE[normalize_identifier(player.id)] = player
+        Cache.cleanup()
+        uuid = normalize_identifier(player.id)
+        previous = Cache.CACHE.get(uuid)
+        if previous is not None and Cache.CACHE.get(previous.name.lower()) is previous:
+            Cache.CACHE.pop(previous.name.lower())
+        Cache.CACHE.pop(uuid, None)
+        Cache.CACHE[uuid] = player
         Cache.CACHE[player.name.lower()] = player
+        while len(Cache.CACHE) > Cache.MAX_ENTRIES:
+            Cache.CACHE.pop(next(iter(Cache.CACHE)))
 
     @staticmethod
     def get(key: str) -> "MojangPlayer | None":
-        Cache.cleanup()
-        return Cache.CACHE.get(normalize_identifier(key))
+        key = normalize_identifier(key)
+        player = Cache.CACHE.get(key)
+        if player is not None and datetime.now(UTC) - player.last_updated >= Cache.TTL:
+            Cache.CACHE.pop(key)
+            return None
+        return player
 
 
 class PlayerNotFound(KeyError):
@@ -134,17 +147,14 @@ async def get(identifier: str) -> MojangPlayer:
 
 async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
     players = {}
-    missing = []
-    for identifier in dict.fromkeys(identifiers):
-        key = normalize_identifier(identifier)
+    missing = {}
+    for key in dict.fromkeys(map(normalize_identifier, identifiers)):
         if cached := Cache.get(key):
             players[key] = cached
         else:
-            missing.append(key)
+            missing[key] = None
     if missing:
-        response = await http.post(
-            PLAYERS_URL, json={"identifiers": list(dict.fromkeys(missing))}
-        )
+        response = await http.post(PLAYERS_URL, json={"identifiers": list(missing)})
         response.raise_for_status()
         data = response.json()
         if not isinstance(data, dict) or not isinstance(data.get("players"), list):
@@ -156,7 +166,7 @@ async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
                     players[key] = player
     return {
         identifier
-        if normalize_identifier(identifier) == player.id.lower()
+        if normalize_identifier(identifier) == normalize_identifier(player.id)
         else identifier.lower(): player
         for identifier in identifiers
         if (player := players.get(normalize_identifier(identifier))) is not None

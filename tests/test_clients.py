@@ -98,6 +98,27 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
         self.assertIs(await mojang.get("PLAYER"), player)
         self.assertIs(await mojang.get("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), player)
 
+    async def test_cache_removes_the_previous_name_after_a_rename(self):
+        mojang.MojangPlayer("Before", "a" * 32)
+        current = mojang.MojangPlayer("After", "a" * 32)
+        self.assertIsNone(mojang.Cache.get("Before"))
+        self.assertIs(mojang.Cache.get("After"), current)
+        self.assertIs(mojang.Cache.get("a" * 32), current)
+
+    async def test_cache_evicts_old_entries_at_its_size_limit(self):
+        with patch.object(mojang.Cache, "MAX_ENTRIES", 4):
+            for index in range(3):
+                mojang.MojangPlayer(f"Player{index}", f"{index:032x}")
+        self.assertLessEqual(len(mojang.Cache.CACHE), 4)
+        self.assertIsNone(mojang.Cache.get("Player0"))
+        self.assertEqual(mojang.Cache.get("Player2").name, "Player2")
+
+    async def test_cached_lookup_does_not_scan_other_players(self):
+        player = mojang.MojangPlayer("Player", "a" * 32)
+        with patch.object(mojang.Cache, "cleanup") as cleanup:
+            self.assertIs(await mojang.get("Player"), player)
+        cleanup.assert_not_called()
+
     async def test_concurrent_requests_share_the_fetch(self):
         with patch.object(
             mojang.http,
