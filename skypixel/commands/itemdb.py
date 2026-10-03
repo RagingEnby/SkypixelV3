@@ -12,9 +12,7 @@ from skypixel.domain.items import PrefixRank, make_player_regex, search_souls_qu
 from skypixel.storage.items import ItemRepository
 
 logger = logging.getLogger(__name__)
-# Discord shows these as the memento option's choices. The item catalog must
-# load before this module is imported. See app.load_cogs.
-Memento = Literal[tuple(hypixel.MEMENTOS)] if hypixel.MEMENTOS else str  # type: ignore
+Memento = Literal[tuple(hypixel.MEMENTOS)] if hypixel.MEMENTOS else str
 
 
 class ItemDBCog(commands.Cog):
@@ -38,7 +36,7 @@ class ItemDBCog(commands.Cog):
                     "Invalid Query", "You must provide search arguments!"
                 )
             )
-        logger.info(f"searching item db for: {json.dumps(query, indent=2)}")
+        logger.info("searching item db for: %s", json.dumps(query, indent=2))
         results = await self.item_db.search(query, limit=limit)
         if not results:
             return await inter.send(
@@ -131,7 +129,6 @@ class ItemDBCog(commands.Cog):
                 inter=inter,
             )
             item_embed = await view.get_current_embed()
-            view.update_buttons()
             await inter.send(
                 embeds=utils.fit_embeds(
                     [i for i in [embed, item_embed] if i is not None]

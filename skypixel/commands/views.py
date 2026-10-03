@@ -9,7 +9,6 @@ class OwnedView(disnake.ui.View):
     def __init__(self, inter: disnake.Interaction, *, timeout: float = 180):
         super().__init__(timeout=timeout)
         self.inter = inter
-        self.message: disnake.Message | None = None
 
     async def interaction_check(self, interaction: disnake.Interaction) -> bool:
         if interaction.user == self.inter.user:
@@ -28,7 +27,4 @@ class OwnedView(disnake.ui.View):
             if isinstance(item, disnake.ui.Button):
                 item.disabled = True
         with suppress(disnake.HTTPException):
-            if self.message is not None:
-                await self.message.edit(view=self)
-            else:
-                await self.inter.edit_original_message(view=self)
+            await self.inter.edit_original_message(view=self)

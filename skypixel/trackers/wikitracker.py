@@ -88,7 +88,7 @@ class WikiTrackerCog(PollingCog):
         self.uploads.append(doc)
 
     async def on_wiki_edit(self, edit: dict[str, Any]):
-        logger.debug(f"wiki edit: {edit}")
+        logger.debug("wiki edit: %s", edit)
         self.log_edit(edit)
         editor = await get_editor(edit["user"])
         verb = "Created" if edit["type"] == "new" else "Edited"
@@ -116,13 +116,13 @@ class WikiTrackerCog(PollingCog):
             if edit.get("type") not in {"edit", "new"} or not edit.get("revid"):
                 continue
             if edit["revid"] in seen:
-                logger.debug(f"skipping already-processed edit: {edit['revid']}")
+                logger.debug("skipping already-processed edit: %s", edit["revid"])
                 continue
             if initialized:
                 await self.on_wiki_edit(edit)
             history.append(edit["revid"])
             seen.add(edit["revid"])
-            logger.debug(f"finished processing edit: {edit['revid']}")
+            logger.debug("finished processing edit: %s", edit["revid"])
         await self.data.replace({**self.data, "edits": history[-self.history_limit :]})
         await self.uploads.flush()
 

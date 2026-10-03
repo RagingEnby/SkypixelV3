@@ -37,16 +37,16 @@ class StatusUpdaterCog(PollingCog):
         self.index = 0
 
     async def change_presence(self, activity_type: disnake.ActivityType, name: str):
-        logger.debug(f"Changing status to {activity_type} '{name}'")
+        logger.debug("Changing status to %s '%s'", activity_type, name)
         return await self.bot.change_presence(
-            status=disnake.Status.online,  # type: ignore[assignment]
+            status=disnake.Status.online,
             activity=disnake.Activity(type=activity_type, name=name),
         )
 
     async def _rank_status(self, rank: str):
         rank_counts = await ranktracker.get_rank_counts()
         return await self.change_presence(
-            activity_type=disnake.ActivityType.listening,  # type: ignore[assignment]
+            activity_type=disnake.ActivityType.listening,
             name=(
                 f"{utils.commaize(rank_counts[rank])} "
                 f"{ranktracker.format_rank(rank)} ranks"
@@ -60,11 +60,11 @@ class StatusUpdaterCog(PollingCog):
             name = item_id
         itemdb_cog = self.bot.get_cog("ItemDBCog")
         if itemdb_cog:
-            count = await itemdb_cog.item_db.count_documents({"itemId": item_id})  # type: ignore[attr-defined]
+            count = await itemdb_cog.item_db.count_documents({"itemId": item_id})
         else:
             count = 0
         return await self.change_presence(
-            activity_type=disnake.ActivityType.watching,  # type: ignore[assignment]
+            activity_type=disnake.ActivityType.watching,
             name=f"{utils.commaize(count)} {name} items",
         )
 
@@ -78,7 +78,7 @@ class StatusUpdaterCog(PollingCog):
             )
         elif self.index == 1:
             await self.change_presence(
-                activity_type=disnake.ActivityType.playing,  # type: ignore[assignment]
+                activity_type=disnake.ActivityType.playing,
                 name="Owner: @ragingenby",
             )
         elif self.index < 2 + len(self.rank_statuses):

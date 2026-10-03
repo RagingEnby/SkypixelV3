@@ -184,10 +184,10 @@ class AHListener:
     @staticmethod
     async def on_cake_soul_auction(auction: dict[str, Any], item: dict[str, Any]):
         embed = await make_auction_embed(auction, item)
-        dye_data = constants.MINECRAFT_DYES.get(item.get("Damage"))  # type: ignore
+        dye_data = constants.MINECRAFT_DYES.get(item.get("Damage"))
         if dye_data:
-            embed.title = dye_data["colorName"].title() + " Cake Soul"  # type: ignore[index]
-            embed.color = dye_data["hex"]  # type: ignore
+            embed.title = dye_data["colorName"].title() + " Cake Soul"
+            embed.color = dye_data["hex"]
         cake_owner = (
             item.get("tag", {}).get("ExtraAttributes", {}).get("cake_owner") or "None"
         )
@@ -313,10 +313,9 @@ class AuctionTrackerCog(PollingCog):
         if exotic_type and hex_code:
             tasks.append(
                 AHListener.on_exotic_auction(auction, item, exotic_type, hex_code)
-            )  # type: ignore[assignment]
+            )
         if item_id == "CAKE_SOUL":
             tasks.append(AHListener.on_cake_soul_auction(auction, item))
-        # for some reason there are mementos with edition -1 (missing)
         if edition and edition > 0:
             tasks.append(
                 AHListener.on_editioned_auction(auction, item, edition, timestamp)
@@ -357,7 +356,7 @@ class AuctionTrackerCog(PollingCog):
                 for a in page_0["auctions"]
                 if a.get("last_updated", a.get("start", 0)) >= self.last_scanned_active
             ]
-            logger.debug(f"got {len(auctions)} auctions")
+            logger.debug("got %s auctions", len(auctions))
             await finish_tasks(
                 *[
                     self.process_auction(
@@ -384,7 +383,7 @@ class AuctionTrackerCog(PollingCog):
                 for a in data["auctions"]
                 if a.get("timestamp", 0) >= self.last_scanned_ended
             ]
-            logger.debug(f"got {len(auctions)} ended auctions")
+            logger.debug("got %s ended auctions", len(auctions))
             await finish_tasks(
                 *(self.process_auction(auction=a, ended=True) for a in auctions)
             )
