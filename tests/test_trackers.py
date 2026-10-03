@@ -95,6 +95,16 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
 
 
 class RankCacheTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rank_lookup_invalidates_the_player_lists(self):
+        response = Mock(json=Mock(return_value={"rankname": "[ADMIN] Player"}))
+        with (
+            patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": []}),
+            patch.object(ranktracker, "RANK_LIST_CACHE_LOCK", asyncio.Lock()),
+            patch.object(ranktracker.http, "get", return_value=response),
+        ):
+            self.assertEqual(await ranktracker.get_rankname("Player"), "[ADMIN] Player")
+            self.assertIsNone(ranktracker.RANK_LIST_CACHE)
+
     async def test_empty_rank_response_does_not_replace_the_cache(self):
         cached = {"staff": [{"id": "abc", "name": "Player"}]}
         with (
@@ -178,6 +188,49 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
 
 
 class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rank_change_retries_only_the_failed_notifications(self):
+        cog = ranktracker.RankTrackerCog(Mock())
+        before = {"player": {"name": "Before", "rank": "youtube"}}
+        after = {"player": {"name": "After", "rank": "staff"}}
+        cog.data.data = before
+        cog.data.save = AsyncMock()
+        with (
+            patch.object(ranktracker.RankTrackerCog, "do_watchlist", AsyncMock()),
+            patch.object(ranktracker, "get_player_ranks", return_value=after),
+            patch.object(cog, "on_rank_add", new_callable=AsyncMock) as add,
+            patch.object(
+                cog, "on_rank_remove", side_effect=[OSError("send failed"), None]
+            ) as remove,
+            patch.object(cog, "on_name_change", new_callable=AsyncMock) as rename,
+        ):
+            with self.assertRaises(OSError):
+                await cog.poll()
+            self.assertEqual(cog.data.to_dict(), before)
+            await cog.poll()
+        add.assert_awaited_once_with("player", "After", "staff")
+        self.assertEqual(remove.await_count, 2)
+        rename.assert_awaited_once_with("player", "Before", "After", "staff")
+        self.assertEqual(cog.data.to_dict(), after)
+        self.assertEqual(cog.known_changes, set())
+
+    async def test_fire_sale_notification_failure_keeps_the_sale_for_retry(self):
+        cog = firesaletracker.FireSaleTrackerCog(Mock())
+        cog.data.data = {"OLD": {"amount": 1}}
+        cog.data.save = AsyncMock()
+        sales = {"NEW": {"amount": 2}}
+        with (
+            patch.object(firesaletracker, "get_fire_sales", return_value=sales),
+            patch.object(cog, "make_fire_sale_embed", return_value=Mock()),
+            patch.object(firesaletracker, "send", side_effect=[OSError, None]) as send,
+            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
+        ):
+            with self.assertRaises(OSError):
+                await cog.poll()
+            self.assertNotIn("NEW", cog.data)
+            await cog.poll()
+        self.assertEqual(send.await_count, 2)
+        self.assertEqual(cog.data["NEW"], sales["NEW"])
+
     async def test_failed_active_upload_does_not_skip_ended_uploads(self):
         cog = auctionhouse.AuctionTrackerCog(Mock())
         with (

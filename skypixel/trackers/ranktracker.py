@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from typing import Any, Literal
 
 import disnake
@@ -30,11 +31,16 @@ WATCH_LIST: JsonWrapper = JsonWrapper(settings.storage_dir / "rankwatchlist.json
 
 
 async def get_rankname(identifier: str) -> str:
+    global RANK_LIST_CACHE
     response = await http.get(RANKNAME_URL.format(identifier))
     if response.status_code == 404:
         raise mojang.PlayerNotFound(identifier)
     response.raise_for_status()
     data = response.json()
+    if not isinstance(data, dict) or not isinstance(data.get("rankname"), str):
+        raise ValueError("The rank API did not return a rank name.")
+    async with RANK_LIST_CACHE_LOCK:
+        RANK_LIST_CACHE = None
     return data["rankname"]
 
 
@@ -164,7 +170,14 @@ class RankTrackerCog(PollingCog):
         self.data = JsonWrapper(settings.storage_dir / "ranks.json")
         if not self.data.to_dict():
             logger.warning("ranks.json is empty")
-        self.known_changes: set[str] = set()
+        self.known_changes: set[tuple[str, ...]] = set()
+
+    async def notify_change(
+        self, key: tuple[str, ...], notify: Callable[..., Awaitable[None]], *args: str
+    ) -> None:
+        if key not in self.known_changes:
+            await notify(*args)
+            self.known_changes.add(key)
 
     @staticmethod
     async def on_rank_add(uuid: str, name: str, rank: SpecialRank):
@@ -281,7 +294,7 @@ class RankTrackerCog(PollingCog):
     )
     async def counts(self, inter: disnake.AppCmdInter):
         counts = await get_rank_counts()
-        del counts["normal"]
+        counts.pop("normal", None)
         embed = utils.add_footer(
             disnake.Embed(
                 title="Rank Counts",
@@ -347,43 +360,47 @@ class RankTrackerCog(PollingCog):
         for uuid, data in player_ranks.items():
             old_data: dict[str, Any] | None = self.data.get(uuid)
             if not old_data:
-                key = f"{uuid}-add"
-                if key in self.known_changes:
-                    logger.error(f"Known rank change detected: {data} {key}")
-                    continue
-                self.known_changes.add(key)
-                await self.on_rank_add(uuid, data["name"], data["rank"])  # type: ignore
+                await self.notify_change(
+                    ("add", uuid, data["rank"]),
+                    self.on_rank_add,
+                    uuid,
+                    data["name"],
+                    data["rank"],
+                )
                 continue
             if old_data["rank"] != data["rank"]:
-                key = f"{uuid}-rankchange-{old_data['rank']}-{data['rank']}"
-                if key in self.known_changes:
-                    logger.error(f"Known rank change detected: {data} {key}")
-                    continue
-                self.known_changes.add(key)
-                await asyncio.gather(
-                    self.on_rank_add(uuid, data["name"], data["rank"]),  # type: ignore
-                    self.on_rank_remove(uuid, data["name"], old_data["rank"]),
+                await self.notify_change(
+                    ("add", uuid, data["rank"]),
+                    self.on_rank_add,
+                    uuid,
+                    data["name"],
+                    data["rank"],
+                )
+                await self.notify_change(
+                    ("remove", uuid, old_data["rank"]),
+                    self.on_rank_remove,
+                    uuid,
+                    data["name"],
+                    old_data["rank"],
                 )
             if old_data["name"] != data["name"]:
-                key = f"{uuid}-namechange-{old_data['name']}-{data['name']}"
-                if key in self.known_changes:
-                    logger.error(f"Known name change detected: {data} {key}")
-                    continue
-                self.known_changes.add(key)
-                await self.on_name_change(
-                    uuid=uuid,
-                    before=old_data["name"],
-                    after=data["name"],
-                    rank=data["rank"],  # type: ignore
+                await self.notify_change(
+                    ("name", uuid, old_data["name"], data["name"]),
+                    self.on_name_change,
+                    uuid,
+                    old_data["name"],
+                    data["name"],
+                    data["rank"],
                 )
         for uuid, data in self.data.data.items():
             if uuid not in player_ranks:
-                key = f"{uuid}-remove"
-                if key in self.known_changes:
-                    logger.error(f"Known rank removal detected: {data} {key}")
-                    continue
-                self.known_changes.add(key)
-                await self.on_rank_remove(uuid, data["name"], data["rank"])  # type: ignore
+                await self.notify_change(
+                    ("remove", uuid, data["rank"]),
+                    self.on_rank_remove,
+                    uuid,
+                    data["name"],
+                    data["rank"],
+                )
         self.data.data = player_ranks
         await self.data.save()
         self.known_changes.clear()
