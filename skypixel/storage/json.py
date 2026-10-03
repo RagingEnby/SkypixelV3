@@ -90,6 +90,23 @@ class JsonWrapper(MutableMapping[str, Any]):
         return self.data
 
     async def save(self, indent: int = 2) -> None:
+        await self.replace(self.data, indent)
+
+    async def replace(self, data: dict[str, Any], indent: int = 2) -> None:
         async with self._save_lock:
-            await write_json(self.file_path, self.data, indent)
+            await self._replace(data, indent)
+
+    async def set_and_save(self, key: str, value: Any) -> None:
+        async with self._save_lock:
+            await self._replace({**self.data, key: value})
+
+    async def remove_and_save(self, key: str) -> None:
+        async with self._save_lock:
+            await self._replace(
+                {name: value for name, value in self.data.items() if name != key}
+            )
+
+    async def _replace(self, data: dict[str, Any], indent: int = 2) -> None:
+        await write_json(self.file_path, data, indent)
+        self.data = data
         logger.debug("Saved tracker state to %s", self.file_path)

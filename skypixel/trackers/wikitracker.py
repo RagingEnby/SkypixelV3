@@ -110,6 +110,7 @@ class WikiTrackerCog(PollingCog):
     async def poll(self):
         edits = await get_edits()
         seen = set(self.data["edits"])
+        history = self.data["edits"].copy()
         initialized = bool(seen)
         for edit in edits:
             if edit.get("type") not in {"edit", "new"} or not edit.get("revid"):
@@ -119,13 +120,11 @@ class WikiTrackerCog(PollingCog):
                 continue
             if initialized:
                 await self.on_wiki_edit(edit)
-            self.data["edits"].append(edit["revid"])
+            history.append(edit["revid"])
             seen.add(edit["revid"])
             logger.debug(f"finished processing edit: {edit['revid']}")
+        await self.data.replace({**self.data, "edits": history[-self.history_limit :]})
         await self.uploads.flush()
-        logger.debug("logged edits to mongo")
-        self.data["edits"] = self.data["edits"][-self.history_limit :]
-        await self.data.save()
 
     async def close_resources(self):
         await self.uploads.close()

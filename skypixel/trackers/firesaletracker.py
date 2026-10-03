@@ -76,8 +76,7 @@ class FireSaleTrackerCog(PollingCog):
         if embeds:
             await send(embeds)
         if new_sales:
-            self.data.update(new_sales)
-            await self.data.save()
+            await self.data.replace({**self.data, **new_sales})
         await self.uploads.flush()
 
     async def close_resources(self):

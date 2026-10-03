@@ -175,7 +175,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
     async def test_watchlist_can_remove_more_than_one_player(self):
         state = JsonWrapper(support.TEST_STORAGE.name + "/watch-test.json")
         state.data = {"a": "old", "b": "old"}
-        state.save = AsyncMock()
+        state.remove_and_save = AsyncMock(wraps=state.remove_and_save)
         with (
             patch.object(ranktracker, "WATCH_LIST", state),
             patch.object(
@@ -184,10 +184,42 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
         ):
             await ranktracker.RankTrackerCog.do_watchlist()
         self.assertEqual(state.to_dict(), {})
-        self.assertEqual(state.save.await_count, 2)
+        self.assertEqual(state.remove_and_save.await_count, 2)
 
 
 class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_fire_sale_save_keeps_the_sale_for_retry(self):
+        cog = firesaletracker.FireSaleTrackerCog(Mock())
+        cog.data.data = {"OLD": {"amount": 1}}
+        with (
+            patch.object(firesaletracker, "get_fire_sales", return_value={"NEW": {}}),
+            patch.object(cog, "make_fire_sale_embed", return_value=Mock()),
+            patch.object(firesaletracker, "send", new_callable=AsyncMock),
+            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
+            patch("skypixel.storage.json.write_json", side_effect=[OSError, None]),
+        ):
+            with self.assertRaises(OSError):
+                await cog.poll()
+            self.assertNotIn("NEW", cog.data)
+            await cog.poll()
+        self.assertIn("NEW", cog.data)
+
+    async def test_wiki_upload_failure_does_not_repeat_saved_notifications(self):
+        cog = wikitracker.WikiTrackerCog(Mock())
+        cog.data.data = {"edits": [1]}
+        edit = {"type": "edit", "revid": 2}
+        with (
+            patch.object(wikitracker, "get_edits", return_value=[edit]),
+            patch.object(cog, "on_wiki_edit", new_callable=AsyncMock) as notify,
+            patch.object(cog.uploads, "flush", side_effect=[OSError, None]),
+            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+        ):
+            with self.assertRaises(OSError):
+                await cog.poll()
+            await cog.poll()
+        notify.assert_awaited_once_with(edit)
+        self.assertEqual(cog.data["edits"], [1, 2])
+
     async def test_wiki_editor_cache_expires_and_evicts_old_entries(self):
         now = 0.0
         with (
@@ -212,7 +244,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         cog = wikitracker.WikiTrackerCog(Mock())
         cog.history_limit = 3
         cog.data.data = {"edits": [1, 2, 3]}
-        cog.data.save = AsyncMock()
+        cog.data.replace = AsyncMock(wraps=cog.data.replace)
         edits = [{"type": "edit", "revid": 4}, {"type": "edit", "revid": 3}]
         with (
             patch.object(wikitracker, "get_edits", return_value=edits),
@@ -229,7 +261,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         before = {"player": {"name": "Before", "rank": "youtube"}}
         after = {"player": {"name": "After", "rank": "staff"}}
         cog.data.data = before
-        cog.data.save = AsyncMock()
+        cog.data.replace = AsyncMock(wraps=cog.data.replace)
         with (
             patch.object(ranktracker.RankTrackerCog, "do_watchlist", AsyncMock()),
             patch.object(ranktracker, "get_player_ranks", return_value=after),
@@ -252,7 +284,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
     async def test_fire_sale_notification_failure_keeps_the_sale_for_retry(self):
         cog = firesaletracker.FireSaleTrackerCog(Mock())
         cog.data.data = {"OLD": {"amount": 1}}
-        cog.data.save = AsyncMock()
+        cog.data.replace = AsyncMock(wraps=cog.data.replace)
         sales = {"NEW": {"amount": 2}}
         with (
             patch.object(firesaletracker, "get_fire_sales", return_value=sales),
@@ -328,7 +360,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
     async def test_first_fire_sale_poll_saves_without_notifications(self):
         cog = firesaletracker.FireSaleTrackerCog(Mock())
         cog.data.data = {}
-        cog.data.save = AsyncMock()
+        cog.data.replace = AsyncMock(wraps=cog.data.replace)
         sales = {"ONE": {"amount": 1}, "TWO": {"amount": 2}}
         with (
             patch.object(
@@ -342,13 +374,13 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         ):
             await cog.poll()
         send.assert_not_awaited()
-        cog.data.save.assert_awaited_once()
+        cog.data.replace.assert_awaited_once()
         self.assertEqual(cog.data.to_dict(), sales)
 
     async def test_first_wiki_poll_seeds_all_edits_without_notifications(self):
         cog = wikitracker.WikiTrackerCog(Mock())
         cog.data.data = {"edits": []}
-        cog.data.save = AsyncMock()
+        cog.data.replace = AsyncMock(wraps=cog.data.replace)
         edits = [
             {"type": "edit", "revid": 1},
             {"type": "new", "revid": 2},

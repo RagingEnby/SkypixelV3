@@ -63,5 +63,4 @@ class AlphaTrackerCog(PollingCog):
             if self.data.to_dict():
                 logger.info(f"{status} != {self.data.to_dict()}")
                 await self.on_status_update(self.data.to_dict(), status)
-            self.data.data = status
-            await self.data.save()
+            await self.data.replace(status)

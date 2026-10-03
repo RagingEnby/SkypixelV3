@@ -63,5 +63,4 @@ class MotdTrackerCog(PollingCog):
             logger.info("MOTD changed from %s to %s.", self.data.get("motd"), motd)
             if self.data.get("motd"):
                 await self.on_motd_update(self.data.get("motd", []), motd)
-            self.data["motd"] = motd
-            await self.data.save()
+            await self.data.replace({**self.data, "motd": motd})

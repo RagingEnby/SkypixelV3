@@ -54,8 +54,9 @@ class ZoneTrackerCog(PollingCog):
         if new:
             if self.data.get("zones"):
                 await self.on_new_zone(new)
-            self.data["zones"].extend(new)
-            await self.data.save()
+            await self.data.replace(
+                {**self.data, "zones": self.data["zones"] + sorted(new)}
+            )
 
     async def close_resources(self):
         logger.debug("closing...")
