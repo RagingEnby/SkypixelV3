@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 
 import disnake
@@ -40,17 +41,24 @@ PARAMS: dict[str, str] = {
     "rctype": "|".join(["categorize", "edit", "external", "log", "new"]),
 }
 EDITOR_URL: str = "https://api.ragingenby.dev/wiki/user/{}"
-EDITOR_CACHE: dict[str, dict[str, Any]] = {}
+EDITOR_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+EDITOR_CACHE_TTL = 24 * 60 * 60
+EDITOR_CACHE_LIMIT = 512
 logger = logging.getLogger(__name__)
 
 
 async def get_editor(name: str) -> dict[str, Any]:
-    if name in EDITOR_CACHE:
-        logger.debug(f"using cached data for wiki editor: {name}")
-        return EDITOR_CACHE[name]
-    EDITOR_CACHE[name] = await http.get_json(EDITOR_URL.format(name))
-    logger.debug(f"cached data for wiki editor {name} {EDITOR_CACHE[name]}")
-    return EDITOR_CACHE[name]
+    cached = EDITOR_CACHE.get(name)
+    if cached is not None and time.monotonic() - cached[0] < EDITOR_CACHE_TTL:
+        return cached[1]
+    editor = await http.get_json(EDITOR_URL.format(name))
+    if not isinstance(editor, dict):
+        raise ValueError("The wiki API did not return an editor object.")
+    EDITOR_CACHE.pop(name, None)
+    EDITOR_CACHE[name] = (time.monotonic(), editor)
+    while len(EDITOR_CACHE) > EDITOR_CACHE_LIMIT:
+        EDITOR_CACHE.pop(next(iter(EDITOR_CACHE)))
+    return editor
 
 
 async def get_edits() -> list[dict[str, Any]]:
@@ -64,6 +72,7 @@ async def send(embed: disnake.Embed):
 
 class WikiTrackerCog(PollingCog):
     interval = 30
+    history_limit = 1000
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
@@ -115,6 +124,7 @@ class WikiTrackerCog(PollingCog):
             logger.debug(f"finished processing edit: {edit['revid']}")
         await self.uploads.flush()
         logger.debug("logged edits to mongo")
+        self.data["edits"] = self.data["edits"][-self.history_limit :]
         await self.data.save()
 
     async def close_resources(self):

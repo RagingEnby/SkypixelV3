@@ -188,6 +188,42 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
 
 
 class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
+    async def test_wiki_editor_cache_expires_and_evicts_old_entries(self):
+        now = 0.0
+        with (
+            patch.object(wikitracker, "EDITOR_CACHE", {}),
+            patch.object(wikitracker, "EDITOR_CACHE_LIMIT", 2),
+            patch.object(wikitracker.time, "monotonic", side_effect=lambda: now),
+            patch.object(
+                wikitracker.http, "get_json", return_value={"displayName": "Editor"}
+            ) as fetch,
+        ):
+            await wikitracker.get_editor("First")
+            await wikitracker.get_editor("First")
+            self.assertEqual(fetch.await_count, 1)
+            now = wikitracker.EDITOR_CACHE_TTL
+            await wikitracker.get_editor("First")
+            self.assertEqual(fetch.await_count, 2)
+            await wikitracker.get_editor("Second")
+            await wikitracker.get_editor("Third")
+            self.assertEqual(set(wikitracker.EDITOR_CACHE), {"Second", "Third"})
+
+    async def test_wiki_history_is_bounded_without_repeating_recent_edits(self):
+        cog = wikitracker.WikiTrackerCog(Mock())
+        cog.history_limit = 3
+        cog.data.data = {"edits": [1, 2, 3]}
+        cog.data.save = AsyncMock()
+        edits = [{"type": "edit", "revid": 4}, {"type": "edit", "revid": 3}]
+        with (
+            patch.object(wikitracker, "get_edits", return_value=edits),
+            patch.object(cog, "on_wiki_edit", new_callable=AsyncMock) as notify,
+            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
+        ):
+            await cog.poll()
+            await cog.poll()
+        notify.assert_awaited_once_with(edits[0])
+        self.assertEqual(cog.data["edits"], [2, 3, 4])
+
     async def test_rank_change_retries_only_the_failed_notifications(self):
         cog = ranktracker.RankTrackerCog(Mock())
         before = {"player": {"name": "Before", "rank": "youtube"}}
