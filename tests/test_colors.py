@@ -1,8 +1,8 @@
 import unittest
 
+import tests.support as support
 from skypixel.clients import hypixel
 from skypixel.domain import colorcompare, colors
-from tests import support
 
 
 class ColorTests(unittest.TestCase):

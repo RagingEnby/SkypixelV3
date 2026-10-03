@@ -9,12 +9,17 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from disnake.ext import commands
 
+import tests.support as support
 from skypixel import app, checks, constants, settings
 from skypixel.clients import hypixel
-from tests import support
 
 
 class SettingsTests(unittest.TestCase):
+    def test_test_settings_use_temporary_storage_and_fixture_credentials(self):
+        self.assertEqual(settings.settings.storage_dir, Path(support.TEST_STORAGE.name))
+        self.assertEqual(settings.settings.bot_token, "test-token")
+        self.assertEqual(settings.settings.mongodb_uri, "mongodb://localhost:27017")
+
     def test_empty_proxy_environment_value_clears_the_legacy_proxy(self):
         with (
             patch.dict(os.environ, {"SKYPIXEL_HTTP_PROXY": ""}, clear=True),
