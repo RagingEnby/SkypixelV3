@@ -15,6 +15,12 @@ def response(status=200, data=None):
 
 
 class HttpTests(unittest.IsolatedAsyncioTestCase):
+    async def test_invalid_attempt_count_does_not_open_a_session(self):
+        with patch.object(http, "get_session", new_callable=AsyncMock) as session:
+            with self.assertRaises(ValueError):
+                await http.get("https://example.com/resource", attempts=0)
+        session.assert_not_awaited()
+
     async def test_get_retries_transient_statuses(self):
         session = Mock(
             request=AsyncMock(side_effect=[response(503), response(429), response(200)])

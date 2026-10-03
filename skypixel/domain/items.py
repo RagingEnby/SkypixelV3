@@ -13,12 +13,15 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     item = item.copy()
     if not isinstance(item.get("previousOwners"), list):
         item["previousOwners"] = []
-    for field in ("lastChecked", "start", "createdAt"):
+    if "createdAt" in item:
+        item["created_at"] = item.pop("createdAt")
+    for field in ("lastChecked", "start", "created_at"):
         if isinstance(item.get(field), dict):
             item[field] = 0
-    if item.get("createdAt"):
-        item["created_at"] = item.pop("createdAt")
-    if isinstance(item.get("created_at"), int) and len(str(item["created_at"])) == 10:
+    if (
+        isinstance(item.get("created_at"), int)
+        and abs(item["created_at"]) < 100_000_000_000
+    ):
         item["created_at"] *= 1000
     return item
 

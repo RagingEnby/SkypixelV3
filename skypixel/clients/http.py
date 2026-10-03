@@ -41,10 +41,10 @@ async def get_session() -> curl_cffi.AsyncSession:
 async def request(
     method: Literal["GET", "POST"], *args, **kwargs
 ) -> curl_cffi.Response:
-    session = await get_session()
     attempts = kwargs.pop("attempts", 3 if method == "GET" else 1)
     if not isinstance(attempts, int) or attempts < 1:
         raise ValueError("The request attempt count must be a positive integer.")
+    session = await get_session()
     for attempt in range(attempts):
         try:
             response = await session.request(method, *args, **kwargs)

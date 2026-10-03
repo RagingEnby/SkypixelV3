@@ -10,6 +10,31 @@ from skypixel.domain.nbt import ItemDecodeError, decode_single, ensure_all_decod
 
 
 class NbtTests(unittest.TestCase):
+    def test_non_compound_items_have_a_clear_error(self):
+        root = nbt.NBTFile()
+        items = nbt.TAG_List(name="i", type=nbt.TAG_Int)
+        items.tags.append(nbt.TAG_Int(value=1))
+        root.tags.append(items)
+        buffer = io.BytesIO()
+        root.write_file(buffer=buffer)
+        encoded = b64encode(gzip.compress(buffer.getvalue())).decode()
+        with self.assertRaises(ItemDecodeError):
+            decode_single(encoded)
+
+    def test_invalid_base64_characters_are_rejected(self):
+        root = nbt.NBTFile()
+        root.tags.append(nbt.TAG_List(name="i", type=nbt.TAG_Compound))
+        buffer = io.BytesIO()
+        root.write_file(buffer=buffer)
+        encoded = b64encode(gzip.compress(buffer.getvalue())).decode()
+        with self.assertRaisesRegex(ItemDecodeError, "base64"):
+            decode_single("!" + encoded)
+
+    def test_non_text_item_data_has_a_clear_error(self):
+        for value in (None, {}, 1):
+            with self.subTest(value=value), self.assertRaises(ItemDecodeError):
+                decode_single(value)
+
     def test_fork_reads_modified_utf8_strings(self):
         encoded = b"\x00\x09a\xc0\x80\xed\xa0\xbd\xed\xb8\x80"
         tag = nbt.TAG_String(buffer=io.BytesIO(encoded))

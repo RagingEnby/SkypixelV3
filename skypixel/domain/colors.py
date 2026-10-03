@@ -12,7 +12,7 @@ from skypixel.domain.types import ArmorType, ExoticType
 logger = logging.getLogger(__name__)
 
 DYE_PATTERN = re.compile(
-    r"Combinable in Anvil Changes the color of an armor piece to #([0-9A-Fa-f]+)!"
+    r"Combinable in Anvil Changes the color of an armor piece to #([0-9A-Fa-f]{6})!"
 )
 ITEMS: list[dict] = []
 DEFAULT_HEXES: dict[str, str] = {}
@@ -221,10 +221,10 @@ def configure(items: list[dict]) -> None:
                 for color in OG_FAIRY[armor_type]
             )
     for item in items:
-        material = item.get("material", "")
+        material = item.get("material")
         armor_type = (
             material.removeprefix("LEATHER_").lower()
-            if material.startswith("LEATHER_")
+            if isinstance(material, str) and material.startswith("LEATHER_")
             else None
         )
         if armor_type in ARMOR_COLORS and item.get("color"):
@@ -238,7 +238,10 @@ def configure(items: list[dict]) -> None:
                 )
             except (ValueError, TypeError, AttributeError):
                 logger.warning("Skipped an invalid default color for %s.", item["id"])
-        dye = DYE_PATTERN.fullmatch(item.get("description", ""))
+        description = item.get("description")
+        dye = (
+            DYE_PATTERN.fullmatch(description) if isinstance(description, str) else None
+        )
         if item["id"].startswith("DYE_") and dye:
             ARMOR_COLORS["other"][item.get("name", item["id"])] = (
                 colorcompare.hex_to_lab(dye.group(1))
