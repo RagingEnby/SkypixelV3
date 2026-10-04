@@ -4,6 +4,7 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import UpdateOne
+from pymongo.errors import BulkWriteError
 
 from skypixel.settings import settings
 
@@ -13,7 +14,20 @@ logger = logging.getLogger(__name__)
 async def flush_queue(collection: Collection, queue: list[dict[str, Any]]) -> None:
     while queue:
         batch = queue[:1000]
-        await collection.update_many(batch)
+        try:
+            await collection.update_many(batch)
+        except BulkWriteError as error:
+            # The batch is unordered, so MongoDB wrote every document it did not
+            # reject. Retrying would only repeat the rejected documents forever.
+            write_errors = error.details.get("writeErrors", [])
+            if not write_errors:
+                raise
+            logger.error(
+                "MongoDB rejected %s documents in %s: %s",
+                len(write_errors),
+                getattr(collection, "collection_name", "a collection"),
+                [batch[e["index"]].get("_id") for e in write_errors[:10]],
+            )
         del queue[: len(batch)]
 
 
@@ -69,7 +83,7 @@ class Collection:
             )
             for doc in docs
         ]
-        return await self.bulk_write(operations)
+        return await self.bulk_write(operations, ordered=False)
 
     async def close(self) -> None:
         if self._closed:
@@ -91,20 +105,40 @@ class Collection:
 class UploadQueue:
     """Collect documents and upsert them into one collection in batches."""
 
+    max_docs = 50_000
+
     def __init__(self, db: str, collection: str):
         self.docs: list[dict[str, Any]] = []
         self.collection = Collection(db, collection)
+        self.dropped = 0
         self._flush_lock = asyncio.Lock()
         self._closed = False
 
     def append(self, doc: dict[str, Any]) -> None:
         if self._closed:
             raise RuntimeError("The upload queue has shut down.")
+        # Drop new documents rather than old ones. A flush in progress removes
+        # its batch from the front of the list by position.
+        if len(self.docs) >= self.max_docs:
+            if not self.dropped:
+                logger.warning(
+                    "The %s upload queue is full. Dropping new documents.",
+                    self.collection.collection_name,
+                )
+            self.dropped += 1
+            return
         self.docs.append(doc)
 
     async def flush(self) -> None:
         async with self._flush_lock:
             await flush_queue(self.collection, self.docs)
+            if self.dropped:
+                logger.warning(
+                    "The %s upload queue dropped %s documents.",
+                    self.collection.collection_name,
+                    self.dropped,
+                )
+                self.dropped = 0
 
     async def close(self) -> None:
         async with self._flush_lock:

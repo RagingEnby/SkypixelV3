@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
+from pymongo.errors import BulkWriteError
+
 from skypixel.storage import json as storage
 from skypixel.storage.json import JsonWrapper, StorageError
 from skypixel.storage.mongo import Collection, UploadQueue
@@ -230,3 +232,48 @@ class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
             await queue.flush()
             await queue.close()
         factory.assert_not_called()
+
+    async def test_rejected_documents_do_not_block_the_queue(self):
+        queue = UploadQueue("test", "items")
+        for index in range(3):
+            queue.append({"_id": index})
+        error = BulkWriteError(
+            {"writeErrors": [{"index": 1, "code": 2, "errmsg": "bad document"}]}
+        )
+        with (
+            patch.object(queue.collection, "update_many", side_effect=error),
+            self.assertLogs("skypixel.storage.mongo", level="ERROR") as logs,
+        ):
+            await queue.flush()
+        self.assertEqual(queue.docs, [])
+        self.assertIn("[1]", logs.output[0])
+
+    async def test_write_concern_errors_keep_the_batch_for_retry(self):
+        queue = UploadQueue("test", "items")
+        queue.append({"_id": "pending"})
+        error = BulkWriteError({"writeErrors": [], "writeConcernErrors": [{}]})
+        with patch.object(queue.collection, "update_many", side_effect=error):
+            with self.assertRaises(BulkWriteError):
+                await queue.flush()
+        self.assertEqual(queue.docs, [{"_id": "pending"}])
+
+    async def test_full_queue_drops_new_documents(self):
+        queue = UploadQueue("test", "items")
+        queue.max_docs = 2
+        with self.assertLogs("skypixel.storage.mongo", level="WARNING"):
+            for index in range(4):
+                queue.append({"_id": index})
+        self.assertEqual(queue.docs, [{"_id": 0}, {"_id": 1}])
+        self.assertEqual(queue.dropped, 2)
+        with (
+            patch.object(queue.collection, "update_many", new_callable=AsyncMock),
+            self.assertLogs("skypixel.storage.mongo", level="WARNING"),
+        ):
+            await queue.flush()
+        self.assertEqual(queue.dropped, 0)
+
+    async def test_bulk_writes_are_unordered(self):
+        collection = Collection("test", "items")
+        with patch.object(collection, "bulk_write", new_callable=AsyncMock) as write:
+            await collection.update_many([{"_id": "item"}])
+        self.assertFalse(write.call_args.kwargs["ordered"])
