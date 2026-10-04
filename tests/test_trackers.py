@@ -513,3 +513,12 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             self.assertLogs(auctionhouse.logger, level="ERROR"),
         ):
             self.assertEqual(await cog.poll(), 30.0)
+
+    async def test_late_auction_api_backs_off_until_it_updates(self):
+        cog = auctionhouse.AuctionTrackerCog(Mock())
+        with patch.object(auctionhouse.time, "time", return_value=1000.0):
+            self.assertEqual(cog.next_delay("active", 950_000, False), 10.0)
+            delays = [cog.next_delay("active", 900_000, False) for _ in range(6)]
+            self.assertEqual(delays, [1.0, 2.0, 4.0, 8.0, 16.0, 16.0])
+            self.assertEqual(cog.next_delay("ended", 900_000, False), 1.0)
+            self.assertEqual(cog.next_delay("active", 900_000, True), 1.0)

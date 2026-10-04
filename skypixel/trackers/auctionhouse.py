@@ -247,6 +247,18 @@ class AuctionTrackerCog(PollingCog):
         self.last_scanned_active = 0
         self.last_scanned_ended = 0
         self._scan_semaphore = asyncio.Semaphore(20)
+        self._late_polls = {"active": 0, "ended": 0}
+
+    def next_delay(self, scanner: str, last_updated: int, changed: bool) -> float:
+        """Wait for the next API update, backing off while the API is late."""
+        if changed:
+            self._late_polls[scanner] = 0
+        time_until_update = last_updated / 1000 + 60 - time.time()
+        if time_until_update > 0:
+            return time_until_update
+        late_polls = self._late_polls[scanner]
+        self._late_polls[scanner] = late_polls + 1
+        return float(min(2**late_polls, 16))
 
     async def upload_queue(self):
         await finish_tasks(self.active_uploads.flush(), self.ended_uploads.flush())
@@ -350,7 +362,8 @@ class AuctionTrackerCog(PollingCog):
         page_0 = await get_active_auctions()
         if not self.last_scanned_active:
             self.last_scanned_active = page_0["lastUpdated"]
-        if page_0["lastUpdated"] != self.last_scanned_active:
+        changed = page_0["lastUpdated"] != self.last_scanned_active
+        if changed:
             auctions = [
                 a
                 for a in page_0["auctions"]
@@ -370,17 +383,14 @@ class AuctionTrackerCog(PollingCog):
             finally:
                 self.last_scanned_active = page_0["lastUpdated"]
             logger.debug("processed auctions")
-        next_update = self.last_scanned_active // 1000 + 60
-        time_until_update = next_update - time.time()
-        if time_until_update < 0:
-            return 1.0
-        return time_until_update
+        return self.next_delay("active", self.last_scanned_active, changed)
 
     async def ended_scanner(self) -> float:
         data = await get_ended_auctions()
         if not self.last_scanned_ended:
             self.last_scanned_ended = data["lastUpdated"]
-        if data["lastUpdated"] != self.last_scanned_ended:
+        changed = data["lastUpdated"] != self.last_scanned_ended
+        if changed:
             auctions = [
                 a
                 for a in data["auctions"]
@@ -394,11 +404,7 @@ class AuctionTrackerCog(PollingCog):
             finally:
                 self.last_scanned_ended = data["lastUpdated"]
             logger.debug("processed ended auctions")
-        next_update = self.last_scanned_ended // 1000 + 60
-        time_until_update = next_update - time.time()
-        if time_until_update < 0:
-            return 1.0
-        return time_until_update
+        return self.next_delay("ended", self.last_scanned_ended, changed)
 
     async def poll(self):
         delays = await asyncio.gather(
