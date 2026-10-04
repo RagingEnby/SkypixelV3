@@ -25,6 +25,12 @@ class JsonStorageTests(unittest.IsolatedAsyncioTestCase):
         await state.save()
         self.assertEqual(JsonWrapper(self.path).to_dict(), state.to_dict())
 
+    async def test_save_keeps_the_existing_file_mode(self):
+        self.path.write_text("{}")
+        self.path.chmod(0o640)
+        await storage.write_json(self.path, {"value": 1})
+        self.assertEqual(self.path.stat().st_mode & 0o777, 0o640)
+
     async def test_replace_updates_memory_only_after_a_successful_write(self):
         self.path.write_text('{"old": 1}')
         state = JsonWrapper(self.path)
