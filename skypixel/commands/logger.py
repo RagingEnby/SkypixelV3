@@ -9,6 +9,8 @@ from skypixel.logging import redact
 from skypixel.settings import settings
 
 logger = logging.getLogger(__name__)
+# Discord's default upload limit for bots is 10 MiB per message.
+ATTACHMENT_BUDGET = 8 * 1024 * 1024
 
 
 def prettify_params(options: disnake.AppCmdInter | dict) -> list[str]:
@@ -120,11 +122,13 @@ class LoggerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: disnake.Message):
-        if message.author.bot or message.guild or not message.content:
+        if message.author.bot or message.guild:
+            return
+        if not message.content and not message.attachments:
             return
         logger.info("DM received from %s.", message.author.name)
         embed = disnake.Embed(
-            description=message.content,
+            description=message.content or None,
             timestamp=message.created_at,
             color=message.author.color or constants.DEFAULT_EMBED_COLOR,
         )
@@ -132,7 +136,14 @@ class LoggerCog(commands.Cog):
             name=f"{message.author.display_name} ({message.author.id})",
             icon_url=message.author.display_avatar,
         )
-        attachments = [await attachment.to_file() for attachment in message.attachments]
-        await utils.send_to_channel(
-            constants.DM_LOG_CHANNEL, embed=embed, files=attachments
-        )
+        files, links, size = [], [], 0
+        for attachment in message.attachments:
+            # Large files would make the whole log message fail, so link them.
+            if size + attachment.size <= ATTACHMENT_BUDGET:
+                files.append(await attachment.to_file())
+                size += attachment.size
+            else:
+                links.append(attachment.url)
+        if links:
+            embed.add_field(name="Attachments", value="\n".join(links), inline=False)
+        await utils.send_to_channel(constants.DM_LOG_CHANNEL, embed=embed, files=files)

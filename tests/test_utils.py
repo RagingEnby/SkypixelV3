@@ -10,7 +10,7 @@ from disnake.ext import commands
 
 from skypixel import checks, utils
 from skypixel.commands import owner
-from skypixel.commands.logger import LoggerCog
+from skypixel.commands.logger import ATTACHMENT_BUDGET, LoggerCog
 from skypixel.logging import RedactingFormatter, configure_logging
 
 
@@ -191,3 +191,26 @@ class LoggingTests(unittest.TestCase):
                             logger.removeHandler(handler)
                             handler.close()
                 root.setLevel(level)
+
+
+class DirectMessageLogTests(unittest.IsolatedAsyncioTestCase):
+    def attachment(self, size, url):
+        return Mock(size=size, url=url, to_file=AsyncMock(return_value=url))
+
+    async def test_large_attachments_are_linked_instead_of_uploaded(self):
+        small = self.attachment(1024, "small")
+        large = self.attachment(ATTACHMENT_BUDGET, "large")
+        message = Mock(
+            content="",
+            guild=None,
+            attachments=[small, large],
+            created_at=None,
+            author=Mock(
+                bot=False, display_name="User", id=1, color=None, display_avatar=None
+            ),
+        )
+        with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
+            await LoggerCog(Mock()).on_message(message)
+        large.to_file.assert_not_awaited()
+        self.assertEqual(send.await_args.kwargs["files"], ["small"])
+        self.assertEqual(send.await_args.kwargs["embed"].fields[0].value, "large")
