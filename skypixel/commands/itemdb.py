@@ -64,6 +64,12 @@ class ItemDBCog(commands.Cog):
         description="**ADMIN ONLY** Search the item database using json params",
     )
     async def search(self, inter: disnake.AppCmdInter, query: str):
+        if not await self.bot.is_owner(inter.author):
+            return await inter.send(
+                embed=utils.make_error(
+                    "Not Owner", "You must be the bot owner to use this command!"
+                )
+            )
         try:
             parsed_query = json.loads(query)
         except json.JSONDecodeError:
