@@ -29,6 +29,7 @@ RANK_LIST_CACHE_TIME = 0.0
 RANK_LIST_CACHE_LOCK = asyncio.Lock()
 RANK_LIST_GENERATION = 0
 POI_UUIDS: set[str] = set()
+WATCH_LIST_LIMIT = 25
 WATCH_LIST: JsonWrapper = JsonWrapper(settings.storage_dir / "rankwatchlist.json")
 
 
@@ -40,6 +41,8 @@ def invalidate_rank_lists() -> None:
 
 
 async def get_rankname(identifier: str) -> str:
+    if not mojang.is_valid_identifier(identifier):
+        raise mojang.PlayerNotFound(identifier)
     response = await http.get(RANKNAME_URL.format(identifier))
     if response.status_code == 404:
         raise mojang.PlayerNotFound(identifier)
@@ -263,6 +266,13 @@ class RankTrackerCog(PollingCog):
             rankname = await get_rankname(player)
             invalidate_rank_lists()
         except mojang.PlayerNotFound:
+            if not mojang.is_valid_identifier(player):
+                return await inter.send(
+                    embed=utils.make_error(
+                        "Invalid player!",
+                        "Enter a Minecraft username or UUID.",
+                    )
+                )
             return await inter.send(
                 embed=utils.make_error(
                     "Player not found!",
@@ -288,7 +298,16 @@ class RankTrackerCog(PollingCog):
         except mojang.PlayerNotFound:
             return await inter.send(
                 embed=utils.make_error(
-                    "Player not found!", f"I couldn't find the player `{player}`!"
+                    "Player not found!",
+                    f"I couldn't find the player `{player.replace('`', '')}`!",
+                )
+            )
+        if len(WATCH_LIST) >= WATCH_LIST_LIMIT:
+            return await inter.send(
+                embed=utils.make_error(
+                    "Watchlist Full!",
+                    f"The watchlist can hold {WATCH_LIST_LIMIT} players. "
+                    "Wait for a watched player's rank to change.",
                 )
             )
         if player_obj.id in WATCH_LIST:

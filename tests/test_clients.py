@@ -211,3 +211,14 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(mojang.http, "post", new_callable=AsyncMock) as fetch:
             self.assertEqual(await mojang.bulk([]), {})
         fetch.assert_not_awaited()
+
+    async def test_invalid_identifiers_never_reach_the_api(self):
+        with patch.object(mojang.http, "get", new_callable=AsyncMock) as fetch:
+            for identifier in ("../ranks/counts", "a?b", "a" * 17, ""):
+                with self.assertRaises(mojang.PlayerNotFound):
+                    await mojang.get(identifier)
+        fetch.assert_not_awaited()
+        self.assertTrue(mojang.is_valid_identifier("Some_Player1"))
+        self.assertTrue(
+            mojang.is_valid_identifier("AAAAAAAA-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        )
