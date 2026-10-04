@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import stat
 import tempfile
 from collections.abc import Iterator, MutableMapping
 from pathlib import Path
@@ -45,6 +46,11 @@ def _write_atomic(path: Path, content: str) -> None:
             file.write(content)
             file.flush()
             os.fsync(file.fileno())
+        # Temporary files are created with mode 0600. Keep the old file's mode.
+        try:
+            os.chmod(temporary, stat.S_IMODE(path.stat().st_mode))
+        except FileNotFoundError:
+            pass
         os.replace(temporary, path)
     finally:
         if temporary is not None:
