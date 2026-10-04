@@ -16,7 +16,7 @@ def normalize_identifier(identifier: str) -> str:
 class Cache:
     TTL = timedelta(minutes=30)
     MAX_ENTRIES = 2048
-    CACHE: ClassVar[dict[str, "MojangPlayer"]] = {}
+    CACHE: ClassVar[dict[str, MojangPlayer]] = {}
 
     @staticmethod
     def cleanup() -> None:
@@ -26,7 +26,7 @@ class Cache:
                 del Cache.CACHE[key]
 
     @staticmethod
-    def cache_player(player: "MojangPlayer") -> None:
+    def cache_player(player: MojangPlayer) -> None:
         Cache.cleanup()
         uuid = normalize_identifier(player.id)
         previous = Cache.CACHE.get(uuid)
@@ -39,7 +39,7 @@ class Cache:
             Cache.CACHE.pop(next(iter(Cache.CACHE)))
 
     @staticmethod
-    def get(key: str) -> "MojangPlayer | None":
+    def get(key: str) -> MojangPlayer | None:
         key = normalize_identifier(key)
         player = Cache.CACHE.get(key)
         if player is not None and datetime.now(UTC) - player.last_updated >= Cache.TTL:

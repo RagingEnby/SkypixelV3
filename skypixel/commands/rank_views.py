@@ -7,7 +7,7 @@ from skypixel.commands.views import OwnedView
 
 
 class GotoPageModal(disnake.ui.Modal):
-    def __init__(self, view: "RankListView"):
+    def __init__(self, view: RankListView):
         super().__init__(
             title="Go to page",
             components=[
@@ -27,7 +27,7 @@ class GotoPageModal(disnake.ui.Modal):
         page_str = inter.text_values.get("goto_page")
         try:
             page = int(page_str or "")
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return await inter.response.send_message(
                 embed=utils.make_error("Invalid Page", "Please enter a valid number"),
                 ephemeral=True,

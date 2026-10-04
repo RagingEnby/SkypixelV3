@@ -10,7 +10,7 @@ from skypixel.settings import settings
 logger = logging.getLogger(__name__)
 
 
-async def flush_queue(collection: "Collection", queue: list[dict[str, Any]]) -> None:
+async def flush_queue(collection: Collection, queue: list[dict[str, Any]]) -> None:
     while queue:
         batch = queue[:1000]
         await collection.update_many(batch)
