@@ -180,7 +180,10 @@ class SoulSearchView(OwnedView):
         if index in self.item_cache:
             return self.item_cache[index]
         cursor = self.item_db.find(self.query).sort(
-            [("extraAttributes.captured_date", pymongo.DESCENDING)]
+            [
+                ("extraAttributes.captured_date", pymongo.DESCENDING),
+                ("_id", pymongo.ASCENDING),
+            ]
         )
         cursor.skip(index).limit(1)
         try:
