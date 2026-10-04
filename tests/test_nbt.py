@@ -72,3 +72,9 @@ class NbtTests(unittest.TestCase):
         with patch.object(item_nbt, "decode", return_value=[]):
             with self.assertRaises(ItemDecodeError):
                 decode_single("")
+
+    def test_corrupt_compressed_data_has_a_clear_error(self):
+        data = gzip.compress(b"\x0a\x00\x00\x00" * 64)
+        corrupt = data[:10] + bytes(len(data) - 10)
+        with self.assertRaises(ItemDecodeError):
+            decode_single(b64encode(corrupt).decode())
