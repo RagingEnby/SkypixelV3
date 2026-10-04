@@ -461,3 +461,26 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
                 cog.process_auction({"uuid": "good"}),
             )
         self.assertEqual(process.await_count, 2)
+
+    async def test_failed_alert_does_not_repeat_the_scanned_auctions(self):
+        cog = auctionhouse.AuctionTrackerCog(Mock())
+        cog.last_scanned_active = 1000
+        auctions = [{"uuid": "a", "start": 1500}, {"uuid": "b", "start": 1500}]
+        pages = [
+            {"lastUpdated": 2000, "auctions": auctions},
+            {"lastUpdated": 3000, "auctions": auctions},
+        ]
+        with (
+            patch.object(auctionhouse, "get_active_auctions", side_effect=pages),
+            patch.object(
+                cog,
+                "on_auction",
+                new_callable=AsyncMock,
+                side_effect=[RuntimeError("player lookup failed"), None],
+            ) as process,
+            self.assertLogs(auctionhouse.logger, level="ERROR"),
+        ):
+            await cog.active_scanner()
+            await cog.active_scanner()
+        self.assertEqual(process.await_count, 2)
+        self.assertEqual(cog.last_scanned_active, 3000)

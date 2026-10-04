@@ -343,8 +343,8 @@ class AuctionTrackerCog(PollingCog):
                     await self.on_auction_end(auction)
                 else:
                     await self.on_auction(auction, new=new)
-            except KeyError, TypeError, ValueError:
-                logger.exception("Skipped a malformed auction record.")
+            except Exception:
+                logger.exception("Cannot process auction record.")
 
     async def active_scanner(self) -> float:
         page_0 = await get_active_auctions()
@@ -357,16 +357,19 @@ class AuctionTrackerCog(PollingCog):
                 if a.get("last_updated", a.get("start", 0)) >= self.last_scanned_active
             ]
             logger.debug("got %s auctions", len(auctions))
-            await finish_tasks(
-                *[
-                    self.process_auction(
-                        auction=a, new=a.get("start", 0) >= self.last_scanned_active
-                    )
-                    for a in auctions
-                ]
-            )
+            try:
+                await finish_tasks(
+                    *[
+                        self.process_auction(
+                            auction=a,
+                            new=a.get("start", 0) >= self.last_scanned_active,
+                        )
+                        for a in auctions
+                    ]
+                )
+            finally:
+                self.last_scanned_active = page_0["lastUpdated"]
             logger.debug("processed auctions")
-            self.last_scanned_active = page_0["lastUpdated"]
         next_update = self.last_scanned_active // 1000 + 60
         time_until_update = next_update - time.time()
         if time_until_update < 0:
@@ -384,11 +387,13 @@ class AuctionTrackerCog(PollingCog):
                 if a.get("timestamp", 0) >= self.last_scanned_ended
             ]
             logger.debug("got %s ended auctions", len(auctions))
-            await finish_tasks(
-                *(self.process_auction(auction=a, ended=True) for a in auctions)
-            )
+            try:
+                await finish_tasks(
+                    *(self.process_auction(auction=a, ended=True) for a in auctions)
+                )
+            finally:
+                self.last_scanned_ended = data["lastUpdated"]
             logger.debug("processed ended auctions")
-            self.last_scanned_ended = data["lastUpdated"]
         next_update = self.last_scanned_ended // 1000 + 60
         time_until_update = next_update - time.time()
         if time_until_update < 0:
