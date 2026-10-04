@@ -154,6 +154,25 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
             embed = await make_item_embed(item)
         self.assertEqual(embed.author.name, "player")
 
+    async def test_missing_item_fields_show_as_unknown(self):
+        item = {
+            "_id": "item",
+            "itemId": "TEST_MEMENTO",
+            "previousOwners": [{"owner": {"playerUuid": "old"}}],
+            "currentOwner": {"playerUuid": "player"},
+            "lastChecked": {},
+        }
+        with patch(
+            "skypixel.commands.item_views.mojang.bulk",
+            new_callable=AsyncMock,
+            return_value={},
+        ):
+            embed = await make_item_embed(item)
+        self.assertIn("Cofl UID:** unknown", embed.fields[0].value)
+        self.assertIn("since unknown", embed.fields[1].value)
+        self.assertIn("last seen unknown", embed.fields[1].value)
+        self.assertEqual(embed.fields[2].value, "old (unknown - unknown)")
+
 
 class ViewTests(unittest.IsolatedAsyncioTestCase):
     async def test_soul_buttons_defer_and_serialize_concurrent_page_loads(self):

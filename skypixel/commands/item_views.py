@@ -14,6 +14,13 @@ from skypixel.storage.mongo import Collection
 logger = logging.getLogger(__name__)
 
 
+def discord_time(milliseconds: Any, style: str = "d") -> str:
+    """Format a millisecond timestamp, or show that it is unknown."""
+    if isinstance(milliseconds, int) and milliseconds > 0:
+        return f"<t:{milliseconds // 1000}:{style}>"
+    return "unknown"
+
+
 async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     item = fix_item(item)
     previous_owners = list(reversed(item["previousOwners"]))[:5]
@@ -45,13 +52,13 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
 
     embed.add_field(
         name="UUID",
-        value=f"{item['_id']}\n-# **Cofl UID:** {item['coflUid']}",
+        value=f"{item['_id']}\n-# **Cofl UID:** {item.get('coflUid', 'unknown')}",
         inline=False,
     )
 
     embed.add_field(
         name="Current Owner",
-        value=f"{utils.esc_mrkdwn(owner_name)} (since <t:{item['start'] // 1000}:d>)\n-# Item last seen <t:{item['lastChecked'] // 1000}:d>",
+        value=f"{utils.esc_mrkdwn(owner_name)} (since {discord_time(item.get('start'))})\n-# Item last seen {discord_time(item.get('lastChecked'))}",
         inline=False,
     )
 
@@ -63,7 +70,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
                 utils.esc_mrkdwn(player.name) if player else po["owner"]["playerUuid"]
             )
             lines.append(
-                f"{player_name} (<t:{po['start'] // 1000}:d> - <t:{po['end'] // 1000}:d>)"
+                f"{player_name} ({discord_time(po.get('start'))} - {discord_time(po.get('end'))})"
             )
         embed.add_field(
             name=f"Previous {len(previous_owners)} Owners",
@@ -102,14 +109,14 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     if item.get("extraAttributes", {}).get("captured_date"):
         embed.add_field(
             name="Captured At",
-            value=f"<t:{item['extraAttributes']['captured_date'] // 1000}:d>\n-# <t:{item['extraAttributes']['captured_date'] // 1000}:R>",
+            value=f"{discord_time(item['extraAttributes']['captured_date'])}\n-# {discord_time(item['extraAttributes']['captured_date'], 'R')}",
             inline=True,
         )
 
     if item.get("created_at"):
         embed.add_field(
             name="Creation Time",
-            value=f"<t:{item['created_at'] // 1000}:f>\n-# <t:{item['created_at'] // 1000}:R>",
+            value=f"{discord_time(item['created_at'], 'f')}\n-# {discord_time(item['created_at'], 'R')}",
             inline=True,
         )
 
