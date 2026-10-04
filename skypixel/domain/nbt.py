@@ -1,5 +1,6 @@
 import io
 import json
+import zlib
 from base64 import b64decode
 from binascii import Error as Base64Error
 from contextlib import suppress
@@ -24,7 +25,14 @@ def raw_decode(data: bytes) -> list[dict[str, Any]]:
     try:
         with io.BytesIO(data) as fileobj:
             parsed = nbt_to_dict(nbt.NBTFile(fileobj=fileobj))
-    except (OSError, EOFError, ValueError, KeyError, nbt.MalformedFileError) as error:
+    except (
+        OSError,
+        EOFError,
+        ValueError,
+        KeyError,
+        zlib.error,
+        nbt.MalformedFileError,
+    ) as error:
         raise ItemDecodeError("Cannot decode the item NBT data.") from error
     if (
         not isinstance(parsed, dict)
