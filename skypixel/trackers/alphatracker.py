@@ -4,7 +4,6 @@ from typing import Any
 import disnake
 from disnake.ext import commands
 from mcstatus import JavaServer
-from mcstatus.responses._raw import RawJavaResponse
 
 from skypixel import constants, utils
 from skypixel.settings import settings
@@ -14,7 +13,7 @@ from skypixel.trackers.base import PollingCog
 logger = logging.getLogger(__name__)
 
 
-def flatten_status(status: RawJavaResponse) -> dict[str, Any]:
+def flatten_status(status: dict[str, Any]) -> dict[str, Any]:
     return {
         "MC Version": status["version"]["name"],
         "Version Protocol": status["version"]["protocol"],
