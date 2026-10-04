@@ -76,6 +76,14 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
         search.assert_not_awaited()
         self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Invalid Query")
 
+    async def test_raw_search_rejects_users_other_than_the_owner(self):
+        cog = ItemDBCog(Mock(is_owner=AsyncMock(return_value=False)))
+        inter = Mock(send=AsyncMock())
+        with patch.object(cog.item_db, "search", new_callable=AsyncMock) as search:
+            await cog.search.callback(cog, inter, '{"$where": "sleep(1000)"}')
+        search.assert_not_awaited()
+        self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Not Owner")
+
     async def test_item_cache_has_a_size_limit_and_expires(self):
         repository = ItemRepository()
         repository.cache_limit = 2
