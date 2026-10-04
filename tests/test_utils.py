@@ -1,5 +1,7 @@
 import logging
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -9,7 +11,7 @@ from disnake.ext import commands
 from skypixel import checks, utils
 from skypixel.commands import owner
 from skypixel.commands.logger import LoggerCog
-from skypixel.logging import RedactingFormatter
+from skypixel.logging import RedactingFormatter, configure_logging
 
 
 class DiscordTests(unittest.IsolatedAsyncioTestCase):
@@ -167,3 +169,25 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         result = RedactingFormatter("%(message)s", ("private-token",)).format(record)
         self.assertNotIn("private-token", result)
         self.assertIn("[redacted]", result)
+
+
+class LoggingTests(unittest.TestCase):
+    def test_only_the_bot_logs_debug_messages(self):
+        root = logging.getLogger()
+        level = root.level
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                configure_logging(Path(directory))
+                self.assertFalse(
+                    logging.getLogger("pymongo.command").isEnabledFor(logging.DEBUG)
+                )
+                self.assertTrue(
+                    logging.getLogger("skypixel.trackers").isEnabledFor(logging.DEBUG)
+                )
+            finally:
+                for logger in (root, logging.getLogger("disnake")):
+                    for handler in list(logger.handlers):
+                        if getattr(handler, "_skypixel_handler", False):
+                            logger.removeHandler(handler)
+                            handler.close()
+                root.setLevel(level)
