@@ -223,6 +223,10 @@ class ViewTests(unittest.IsolatedAsyncioTestCase):
                 view.index = index
                 await view.get_current_embed()
         self.assertEqual(set(view.item_cache), {3, 4})
+        self.assertEqual(
+            cursor.sort.call_args.args[0],
+            [("extraAttributes.captured_date", -1), ("_id", 1)],
+        )
         self.assertEqual(set(view.embed_cache), {3, 4})
 
     async def test_another_user_cannot_click_the_view(self):
