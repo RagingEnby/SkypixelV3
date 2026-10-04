@@ -114,15 +114,45 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
 
 
 class RankCacheTests(unittest.IsolatedAsyncioTestCase):
-    async def test_rank_lookup_invalidates_the_player_lists(self):
+    async def test_rank_lookup_keeps_the_player_lists(self):
         response = Mock(json=Mock(return_value={"rankname": "[ADMIN] Player"}))
         with (
             patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": []}),
-            patch.object(ranktracker, "RANK_LIST_CACHE_LOCK", asyncio.Lock()),
             patch.object(ranktracker.http, "get", return_value=response),
         ):
             self.assertEqual(await ranktracker.get_rankname("Player"), "[ADMIN] Player")
-            self.assertIsNone(ranktracker.RANK_LIST_CACHE)
+            self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
+
+    async def test_unchanged_watchlist_keeps_the_player_lists(self):
+        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-same.json")
+        state.data = {"a": "same"}
+        with (
+            patch.object(ranktracker, "WATCH_LIST", state),
+            patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": []}),
+            patch.object(
+                ranktracker, "get_rankname", new_callable=AsyncMock, return_value="same"
+            ),
+        ):
+            await ranktracker.RankTrackerCog.do_watchlist()
+            self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
+
+    async def test_invalidation_during_a_fetch_expires_the_fetched_lists(self):
+        data = {"staff": [{"id": "abc", "name": "Player"}]}
+
+        async def fetch(url):
+            ranktracker.invalidate_rank_lists()
+            return data
+
+        with (
+            patch.object(ranktracker, "RANK_LIST_CACHE", None),
+            patch.object(ranktracker, "RANK_LIST_GENERATION", 0),
+            patch.object(ranktracker, "RANK_LIST_CACHE_LOCK", asyncio.Lock()),
+            patch.object(ranktracker.http, "get_json", side_effect=fetch) as get,
+            patch.object(ranktracker, "edit_stat_channels", new_callable=AsyncMock),
+        ):
+            self.assertEqual(await ranktracker.get_rank_lists(), data)
+            await ranktracker.get_rank_lists()
+        self.assertEqual(get.await_count, 2)
 
     async def test_empty_rank_response_does_not_replace_the_cache(self):
         cached = {"staff": [{"id": "abc", "name": "Player"}]}

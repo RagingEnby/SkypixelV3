@@ -26,12 +26,19 @@ RANK_LIST_CACHE_TTL_SECONDS = 24 * 60 * 60
 RANK_LIST_CACHE: dict[str, list[dict[str, str]]] | None = None
 RANK_LIST_CACHE_TIME = 0.0
 RANK_LIST_CACHE_LOCK = asyncio.Lock()
+RANK_LIST_GENERATION = 0
 POI_UUIDS: set[str] = set()
 WATCH_LIST: JsonWrapper = JsonWrapper(settings.storage_dir / "rankwatchlist.json")
 
 
+def invalidate_rank_lists() -> None:
+    """Refetch the player lists on the next read, even during a fetch."""
+    global RANK_LIST_CACHE, RANK_LIST_GENERATION
+    RANK_LIST_CACHE = None
+    RANK_LIST_GENERATION += 1
+
+
 async def get_rankname(identifier: str) -> str:
-    global RANK_LIST_CACHE
     response = await http.get(RANKNAME_URL.format(identifier))
     if response.status_code == 404:
         raise mojang.PlayerNotFound(identifier)
@@ -39,8 +46,6 @@ async def get_rankname(identifier: str) -> str:
     data = response.json()
     if not isinstance(data, dict) or not isinstance(data.get("rankname"), str):
         raise ValueError("The rank API did not return a rank name.")
-    async with RANK_LIST_CACHE_LOCK:
-        RANK_LIST_CACHE = None
     return data["rankname"]
 
 
@@ -92,6 +97,7 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
             RANK_LIST_CACHE is None
             or time.monotonic() - RANK_LIST_CACHE_TIME >= RANK_LIST_CACHE_TTL_SECONDS
         ):
+            generation = RANK_LIST_GENERATION
             data = await http.get_json(URL)
             if (
                 not isinstance(data, dict)
@@ -109,7 +115,11 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
             ):
                 raise ValueError("The rank API did not return player lists.")
             RANK_LIST_CACHE = data
-            RANK_LIST_CACHE_TIME = time.monotonic()
+            RANK_LIST_CACHE_TIME = (
+                time.monotonic()
+                if generation == RANK_LIST_GENERATION
+                else float("-inf")
+            )
         data = {
             rank: [player.copy() for player in players]
             for rank, players in RANK_LIST_CACHE.items()
@@ -215,6 +225,7 @@ class RankTrackerCog(PollingCog):
                     await WATCH_LIST.set_and_save(uuid, rankname)
                     continue
                 if rankname != last_rankname:
+                    invalidate_rank_lists()
                     await WATCH_LIST.remove_and_save(uuid)
             except RequestException, KeyError, ValueError:
                 logger.exception("Cannot update player %s in the rank watchlist.", uuid)
@@ -234,6 +245,7 @@ class RankTrackerCog(PollingCog):
     async def update(self, inter: disnake.AppCmdInter, player: str):
         try:
             rankname = await get_rankname(player)
+            invalidate_rank_lists()
         except mojang.PlayerNotFound:
             return await inter.send(
                 embed=utils.make_error(
