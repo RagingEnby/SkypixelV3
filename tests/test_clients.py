@@ -176,8 +176,17 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(stopped.is_set())
         self.assertEqual(mojang._inflight, {})
 
+    async def test_old_api_timestamp_does_not_expire_the_cache(self):
+        player = mojang.MojangPlayer(
+            "Player", "a" * 32, datetime.now(UTC) - timedelta(days=30)
+        )
+        with patch.object(mojang.http, "get", new_callable=AsyncMock) as fetch:
+            self.assertIs(await mojang.get("Player"), player)
+        fetch.assert_not_awaited()
+
     async def test_expired_cache_fetches_again(self):
-        mojang.MojangPlayer("Player", "a" * 32, datetime.now(UTC) - timedelta(hours=1))
+        player = mojang.MojangPlayer("Player", "a" * 32)
+        player.cached_at -= mojang.Cache.TTL.total_seconds()
         with patch.object(
             mojang.http,
             "get",

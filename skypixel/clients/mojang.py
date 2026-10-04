@@ -1,5 +1,6 @@
 import asyncio
 import re
+import time
 from datetime import UTC, datetime, timedelta
 from typing import ClassVar, TypedDict
 
@@ -30,10 +31,15 @@ class Cache:
     CACHE: ClassVar[dict[str, MojangPlayer]] = {}
 
     @staticmethod
+    def expired(player: MojangPlayer) -> bool:
+        # last_updated comes from the API and can be older than the TTL, so the
+        # cache measures age from when this process stored the player.
+        return time.monotonic() - player.cached_at >= Cache.TTL.total_seconds()
+
+    @staticmethod
     def cleanup() -> None:
-        now = datetime.now(UTC)
         for key, player in list(Cache.CACHE.items()):
-            if now - player.last_updated >= Cache.TTL:
+            if Cache.expired(player):
                 del Cache.CACHE[key]
 
     @staticmethod
@@ -53,7 +59,7 @@ class Cache:
     def get(key: str) -> MojangPlayer | None:
         key = normalize_identifier(key)
         player = Cache.CACHE.get(key)
-        if player is not None and datetime.now(UTC) - player.last_updated >= Cache.TTL:
+        if player is not None and Cache.expired(player):
             Cache.CACHE.pop(key)
             return None
         return player
@@ -77,6 +83,7 @@ class MojangPlayer:
         self.name = name
         self.id = uuid
         self.last_updated = (last_updated or datetime.now(UTC)).astimezone(UTC)
+        self.cached_at = time.monotonic()
         Cache.cache_player(self)
 
     @property
