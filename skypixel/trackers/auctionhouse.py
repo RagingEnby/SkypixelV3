@@ -275,7 +275,7 @@ class AuctionTrackerCog(PollingCog):
 
     async def on_auction(self, auction: dict[str, Any], new: bool = True):
         try:
-            item = decode_single(auction["item_bytes"])
+            item = await asyncio.to_thread(decode_single, auction["item_bytes"])
         except ItemDecodeError, KeyError:
             logger.warning(
                 "Skipped malformed item data in auction %s.", auction.get("uuid")
@@ -337,7 +337,7 @@ class AuctionTrackerCog(PollingCog):
 
     async def on_auction_end(self, auction: dict[str, Any]):
         try:
-            item = decode_single(auction["item_bytes"])
+            item = await asyncio.to_thread(decode_single, auction["item_bytes"])
         except ItemDecodeError, KeyError:
             logger.warning(
                 "Skipped malformed item data in ended auction %s.",

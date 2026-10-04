@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -655,3 +656,17 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
             await cog.watch.callback(cog, inter, "Player")
         self.assertEqual(state.to_dict(), {"a": None})
         self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Watchlist Full!")
+
+    async def test_auction_items_decode_off_the_event_loop(self):
+        cog = auctionhouse.AuctionTrackerCog(Mock())
+        loop_thread = threading.get_ident()
+        threads = []
+
+        def decode(item_bytes):
+            threads.append(threading.get_ident())
+            return {}
+
+        with patch.object(auctionhouse, "decode_single", side_effect=decode):
+            await cog.on_auction_end({"auction_id": "a", "item_bytes": ""})
+        self.assertNotEqual(threads, [loop_thread])
+        self.assertEqual(cog.ended_uploads.docs[0]["_id"], "a")
