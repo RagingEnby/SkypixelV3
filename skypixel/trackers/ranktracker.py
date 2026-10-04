@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from collections import Counter
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal
 
@@ -149,6 +150,19 @@ async def send(
     await utils.broadcast(constants.RANK_TRACKER_CHANNELS[rank], embed=embed, ping=ping)
 
 
+def shrunken_ranks(
+    before: dict[str, dict[str, Any]], after: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Return ranks with at least five players that lost more than half."""
+    old_counts = Counter(player["rank"] for player in before.values())
+    new_counts = Counter(player["rank"] for player in after.values())
+    return sorted(
+        rank
+        for rank, count in old_counts.items()
+        if count >= 5 and new_counts[rank] < count / 2
+    )
+
+
 def format_rank(rank: str) -> str:
     if rank.lower() == "staff":
         return "[ዞ]"
@@ -170,6 +184,7 @@ def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.E
 
 class RankTrackerCog(PollingCog):
     interval = 240
+    confirm_polls = 3
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
@@ -177,6 +192,7 @@ class RankTrackerCog(PollingCog):
         if not self.data.to_dict():
             logger.warning("ranks.json is empty")
         self.known_changes: set[tuple[str, ...]] = set()
+        self.shrunken_polls = 0
 
     async def notify_change(
         self, key: tuple[str, ...], notify: Callable[..., Awaitable[None]], *args: str
@@ -358,6 +374,20 @@ class RankTrackerCog(PollingCog):
             await self.data.replace(player_ranks)
             logger.info("wrote rank data to empty ranks.json")
             return
+        if shrunken := shrunken_ranks(self.data.to_dict(), player_ranks):
+            self.shrunken_polls += 1
+            if self.shrunken_polls < self.confirm_polls:
+                # A partial API response would announce mass rank removals.
+                # Refetch and require the same result before trusting it.
+                logger.error(
+                    "Rank lists shrank by more than half for %s. Check %s of %s.",
+                    ", ".join(shrunken),
+                    self.shrunken_polls,
+                    self.confirm_polls,
+                )
+                invalidate_rank_lists()
+                return
+        self.shrunken_polls = 0
         for uuid, data in player_ranks.items():
             old_data: dict[str, Any] | None = self.data.get(uuid)
             if not old_data:
