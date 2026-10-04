@@ -24,6 +24,10 @@ async def patron_only_check(
     owners = inter.authorizing_integration_owners
     if owners is None or owners.user_id is None:
         return True
+    # A command installed both ways carries both keys. The server's install
+    # authorizes it without a patron role. A guild_id of 0 means the bot's DMs.
+    if owners.guild_id:
+        return True
     guild = bot.get_guild(constants.DEV_SERVER_ID)
     if guild is None:
         raise DevServerUnavailable("The dev server is unavailable.")
