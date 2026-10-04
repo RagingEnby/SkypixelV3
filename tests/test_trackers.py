@@ -503,3 +503,13 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         embed = send.await_args.args[0]
         self.assertEqual(embed.author.name, "Editor")
         self.assertEqual(embed.description.count("```"), 2)
+
+    async def test_upload_failure_keeps_the_scanner_schedule(self):
+        cog = auctionhouse.AuctionTrackerCog(Mock())
+        with (
+            patch.object(cog, "active_scanner", return_value=40.0),
+            patch.object(cog, "ended_scanner", return_value=30.0),
+            patch.object(cog, "upload_queue", side_effect=OSError),
+            self.assertLogs(auctionhouse.logger, level="ERROR"),
+        ):
+            self.assertEqual(await cog.poll(), 30.0)

@@ -404,7 +404,12 @@ class AuctionTrackerCog(PollingCog):
         delays = await asyncio.gather(
             self.active_scanner(), self.ended_scanner(), return_exceptions=True
         )
-        await self.upload_queue()
+        try:
+            await self.upload_queue()
+        except Exception:
+            # The queues keep failed batches, so the next poll retries them.
+            # Scanning should keep its own schedule while MongoDB is down.
+            logger.exception("Cannot upload auction records.")
         for delay in delays:
             if isinstance(delay, BaseException):
                 raise delay
