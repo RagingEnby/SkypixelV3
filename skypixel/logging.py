@@ -39,7 +39,10 @@ def configure_logging(storage_dir: Path, *, secrets: tuple[str, ...] = ()) -> No
         "[%(asctime)s:%(levelname)s:%(name)s:%(lineno)d] %(message)s", secrets
     )
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    # Libraries such as PyMongo log every command at DEBUG, which would rotate
+    # skypixel.log within minutes. Only the bot's own loggers record DEBUG.
+    root.setLevel(logging.INFO)
+    logging.getLogger("skypixel").setLevel(logging.DEBUG)
     disnake_logger = logging.getLogger("disnake")
     disnake_logger.setLevel(logging.DEBUG)
     disnake_logger.propagate = False
