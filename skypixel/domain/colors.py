@@ -15,6 +15,7 @@ DYE_PATTERN = re.compile(
     r"Combinable in Anvil Changes the color of an armor piece to #([0-9A-Fa-f]{6})!"
 )
 ITEMS: list[dict] = []
+CATEGORIES: dict[str, str] = {}
 DEFAULT_HEXES: dict[str, str] = {}
 MISC_HEXES = {
     "Bleached": "A06540",
@@ -207,6 +208,12 @@ for piece, hexes in OG_FAIRY.items():
 def configure(items: list[dict]) -> None:
     """Build color tables after the item catalog loads."""
     ITEMS[:] = items
+    CATEGORIES.clear()
+    CATEGORIES.update(
+        (item["id"], item["category"])
+        for item in items
+        if isinstance(item.get("category"), str)
+    )
     DEFAULT_HEXES.clear()
     for armor_type, candidates in ARMOR_COLORS.items():
         candidates.clear()
@@ -259,7 +266,18 @@ def is_fairy(item_id: str, hex_code: str) -> bool:
 
 
 def is_og_fairy(item_id: str, hex_code: str) -> bool:
-    return hex_code in OG_FAIRY.get(constants.FAIRY_IDS.get(item_id, ""), [])
+    """Match iTEM's FairyColours.isOGFairyColour.
+
+    Any piece can have an original fairy color. The other colors in each
+    OG_FAIRY list were original only for that armor slot.
+    """
+    if hex_code in OG_FAIRY_COLORS:
+        return True
+    category = CATEGORIES.get(item_id, "")
+    for armor_type in ("boots", "leggings", "chestplate", "helmet"):
+        if armor_type.upper() in item_id or category == armor_type.upper():
+            return hex_code in OG_FAIRY[armor_type]
+    return False
 
 
 def is_spook(item_id: str, hex_code: str) -> bool:

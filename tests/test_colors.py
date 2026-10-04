@@ -63,3 +63,22 @@ class ColorTests(unittest.TestCase):
             with self.subTest(distance=distance.__name__):
                 self.assertEqual(distance(first, first), 0)
                 self.assertAlmostEqual(distance(first, second), distance(second, first))
+
+    def test_og_fairy_colors_match_the_item_rules(self):
+        hypixel.initialize(
+            [
+                *support.ITEMS,
+                {"id": "TEST_HAT", "material": "SKULL_ITEM", "category": "HELMET"},
+            ]
+        )
+        cases = {
+            ("DIAMOND_BOOTS", "FF99FF"): "og_fairy",
+            ("DIAMOND_BOOTS", "CC0066"): "og_fairy",
+            ("DIAMOND_HELMET", "CC0066"): "fairy",
+            ("TEST_HAT", "FF66B2"): "og_fairy",
+            ("FAIRY_BOOTS", "FF99FF"): None,
+            ("FAIRY_BOOTS", "CC0066"): None,
+        }
+        for (item_id, hex_code), expected in cases.items():
+            with self.subTest(item_id=item_id, hex_code=hex_code):
+                self.assertEqual(colors.get_exotic_type(item_id, hex_code), expected)
