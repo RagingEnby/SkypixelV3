@@ -670,3 +670,23 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
             await cog.on_auction_end({"auction_id": "a", "item_bytes": ""})
         self.assertNotEqual(threads, [loop_thread])
         self.assertEqual(cog.ended_uploads.docs[0]["_id"], "a")
+
+    async def test_leather_colors_use_the_low_24_bits(self):
+        auction = {
+            "uuid": "a",
+            "item_name": "Boots",
+            "bin": True,
+            "starting_bid": 1,
+            "auctioneer": "b" * 32,
+        }
+        item = {
+            "tag": {
+                "display": {"color": 0x1123456},
+                "ExtraAttributes": {"id": "TEST_HELMET"},
+            }
+        }
+        player = Mock(name="Player", avatar="", id="b" * 32)
+        with patch.object(auctionhouse.mojang, "get", return_value=player):
+            embed = await auctionhouse.make_auction_embed(auction, item)
+        self.assertEqual(embed.color.value, 0x123456)
+        self.assertTrue(embed.thumbnail.url.endswith("/123456.png"))
