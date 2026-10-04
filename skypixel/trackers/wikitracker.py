@@ -90,12 +90,17 @@ class WikiTrackerCog(PollingCog):
     async def on_wiki_edit(self, edit: dict[str, Any]):
         logger.debug("wiki edit: %s", edit)
         self.log_edit(edit)
-        editor = await get_editor(edit["user"])
+        try:
+            editor = await get_editor(edit["user"])
+        except Exception:
+            logger.exception("Cannot load wiki editor %s.", edit["user"])
+            editor = {}
         verb = "Created" if edit["type"] == "new" else "Edited"
+        comment = edit.get("comment", "").replace("`", "\u02cb")
         embed = utils.add_footer(
             disnake.Embed(
                 title=f"{verb} {edit['title']}",
-                description=f"```\n{edit['parsedcomment']}\n```\n-# **ID:** {edit['revid']}",
+                description=f"```\n{comment}\n```\n-# **ID:** {edit['revid']}",
                 url="https://hypixel.wiki/" + edit["title"].replace(" ", "_"),
                 color=constants.DEFAULT_EMBED_COLOR,
             )
