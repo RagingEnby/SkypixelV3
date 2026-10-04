@@ -216,7 +216,7 @@ class RankTrackerCog(PollingCog):
                     continue
                 if rankname != last_rankname:
                     await WATCH_LIST.remove_and_save(uuid)
-            except (RequestException, KeyError, ValueError):
+            except RequestException, KeyError, ValueError:
                 logger.exception("Cannot update player %s in the rank watchlist.", uuid)
 
     @commands.slash_command(

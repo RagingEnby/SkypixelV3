@@ -264,7 +264,7 @@ class AuctionTrackerCog(PollingCog):
     async def on_auction(self, auction: dict[str, Any], new: bool = True):
         try:
             item = decode_single(auction["item_bytes"])
-        except (ItemDecodeError, KeyError):
+        except ItemDecodeError, KeyError:
             logger.warning(
                 "Skipped malformed item data in auction %s.", auction.get("uuid")
             )
@@ -326,7 +326,7 @@ class AuctionTrackerCog(PollingCog):
     async def on_auction_end(self, auction: dict[str, Any]):
         try:
             item = decode_single(auction["item_bytes"])
-        except (ItemDecodeError, KeyError):
+        except ItemDecodeError, KeyError:
             logger.warning(
                 "Skipped malformed item data in ended auction %s.",
                 auction.get("auction_id"),
@@ -343,7 +343,7 @@ class AuctionTrackerCog(PollingCog):
                     await self.on_auction_end(auction)
                 else:
                     await self.on_auction(auction, new=new)
-            except (KeyError, TypeError, ValueError):
+            except KeyError, TypeError, ValueError:
                 logger.exception("Skipped a malformed auction record.")
 
     async def active_scanner(self) -> float:

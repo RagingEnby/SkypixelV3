@@ -56,7 +56,7 @@ class Job:
         return "\n".join(lines)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Job":
+    def from_dict(cls, data: dict) -> Job:
         return cls(
             title=data["title"],
             listing_id=data["listingId"],

@@ -203,7 +203,7 @@ def get_item_image(
         return default
     try:
         material = hypixel.get_material(item_id)
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         logger.debug("Cannot find a material for item %s.", item_id)
         return default
     if not material.startswith("LEATHER_"):

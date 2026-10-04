@@ -47,7 +47,7 @@ async def load_items() -> None:
     for url in (ITEMS_URL, FALLBACK_URL):
         try:
             items = validate_items(await http.get_json(url))
-        except (RequestException, ValueError):
+        except RequestException, ValueError:
             logger.warning("Cannot load item data from %s.", url)
             continue
         initialize(items)
