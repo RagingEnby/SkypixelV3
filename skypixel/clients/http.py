@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 SESSION: curl_cffi.AsyncSession | None = None
 CLOSED = False
 RETRY_STATUSES = {429, 500, 502, 503, 504}
+MAX_RETRY_AFTER = 30
 
 
 def safe_url(url: str) -> str:
@@ -46,6 +47,7 @@ async def request(
         raise ValueError("The request attempt count must be a positive integer.")
     session = await get_session()
     for attempt in range(attempts):
+        delay = min(2**attempt, 5)
         try:
             response = await session.request(method, *args, **kwargs)
         except RequestException:
@@ -62,7 +64,10 @@ async def request(
                 or attempt == attempts - 1
             ):
                 return response
-        await asyncio.sleep(min(2**attempt, 5))
+            retry_after = response.headers.get("Retry-After")
+            if isinstance(retry_after, str) and retry_after.isdigit():
+                delay = min(int(retry_after), MAX_RETRY_AFTER)
+        await asyncio.sleep(delay)
     raise RuntimeError("The HTTP request did not complete.")
 
 

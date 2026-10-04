@@ -34,6 +34,23 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(session.request.await_count, 3)
 
+    async def test_retry_waits_for_the_retry_after_header(self):
+        limited = response(429)
+        limited.headers = {"Retry-After": "12"}
+        flooded = response(429)
+        flooded.headers = {"Retry-After": "600"}
+        session = Mock(request=AsyncMock(side_effect=[limited, flooded, response()]))
+        with (
+            patch.object(http, "SESSION", session),
+            patch.object(http, "CLOSED", False),
+            patch.object(http.asyncio, "sleep", new_callable=AsyncMock) as sleep,
+        ):
+            await http.get("https://example.com/resource")
+        self.assertEqual(
+            [call.args[0] for call in sleep.await_args_list],
+            [12, http.MAX_RETRY_AFTER],
+        )
+
     async def test_get_retry_count_is_bounded(self):
         session = Mock(request=AsyncMock(return_value=response(503)))
         with (
