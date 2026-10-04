@@ -1,6 +1,7 @@
 import logging
 import time
 from typing import Any
+from urllib.parse import quote
 
 import disnake
 from disnake.ext import commands
@@ -51,7 +52,7 @@ async def get_editor(name: str) -> dict[str, Any]:
     cached = EDITOR_CACHE.get(name)
     if cached is not None and time.monotonic() - cached[0] < EDITOR_CACHE_TTL:
         return cached[1]
-    editor = await http.get_json(EDITOR_URL.format(name))
+    editor = await http.get_json(EDITOR_URL.format(quote(name, safe="")))
     if not isinstance(editor, dict):
         raise ValueError("The wiki API did not return an editor object.")
     EDITOR_CACHE.pop(name, None)

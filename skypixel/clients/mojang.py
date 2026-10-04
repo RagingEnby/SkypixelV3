@@ -1,4 +1,5 @@
 import asyncio
+import re
 from datetime import UTC, datetime, timedelta
 from typing import ClassVar, TypedDict
 
@@ -7,10 +8,20 @@ from skypixel.clients import http
 
 PLAYER_URL = "https://api.ragingenby.dev/player/{}"
 PLAYERS_URL = "https://api.ragingenby.dev/players"
+NAME_PATTERN = re.compile(r"[A-Za-z0-9_]{1,16}")
+UUID_PATTERN = re.compile(r"[0-9a-f]{32}")
 
 
 def normalize_identifier(identifier: str) -> str:
     return identifier.replace("-", "").lower()
+
+
+def is_valid_identifier(identifier: str) -> bool:
+    """Accept a Minecraft username or a UUID with or without dashes."""
+    return bool(
+        NAME_PATTERN.fullmatch(identifier)
+        or UUID_PATTERN.fullmatch(normalize_identifier(identifier))
+    )
 
 
 class Cache:
@@ -133,6 +144,8 @@ async def _fetch(identifier: str) -> MojangPlayer:
 
 
 async def get(identifier: str) -> MojangPlayer:
+    if not is_valid_identifier(identifier):
+        raise PlayerNotFound(identifier)
     if cached := Cache.get(identifier):
         return cached
     key = normalize_identifier(identifier)

@@ -630,3 +630,28 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         ):
             await cog.poll()
         notify.assert_awaited_once()
+
+    async def test_invalid_rank_lookup_never_reaches_the_api(self):
+        with patch.object(ranktracker.http, "get", new_callable=AsyncMock) as fetch:
+            with self.assertRaises(ranktracker.mojang.PlayerNotFound):
+                await ranktracker.get_rankname("../ranks")
+        fetch.assert_not_awaited()
+
+    async def test_full_watchlist_rejects_new_players(self):
+        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-full.json")
+        state.data = {"a": None}
+        cog = ranktracker.RankTrackerCog(Mock())
+        inter = Mock(send=AsyncMock())
+        with (
+            patch.object(ranktracker, "WATCH_LIST", state),
+            patch.object(ranktracker, "WATCH_LIST_LIMIT", 1),
+            patch.object(
+                ranktracker.mojang,
+                "get",
+                new_callable=AsyncMock,
+                return_value=Mock(id="b", name="Player"),
+            ),
+        ):
+            await cog.watch.callback(cog, inter, "Player")
+        self.assertEqual(state.to_dict(), {"a": None})
+        self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Watchlist Full!")
