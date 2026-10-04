@@ -207,7 +207,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_guild_installed_commands_do_not_need_a_patron_check(self):
         inter = SimpleNamespace(
-            authorizing_integration_owners=SimpleNamespace(user_id=None)
+            authorizing_integration_owners=SimpleNamespace(user_id=None, guild_id=1)
         )
         bot = Mock()
         self.assertTrue(await checks.patron_only_check(bot, inter))
@@ -219,11 +219,22 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             get_guild=Mock(return_value=Mock(get_member=Mock(return_value=member)))
         )
         inter = SimpleNamespace(
-            authorizing_integration_owners=SimpleNamespace(user_id=1),
+            authorizing_integration_owners=SimpleNamespace(user_id=1, guild_id=None),
             author=SimpleNamespace(id=1),
         )
         with self.assertRaises(checks.UserNotAPatron):
             await checks.patron_only_check(bot, inter)
+        inter.authorizing_integration_owners.guild_id = 0
+        with self.assertRaises(checks.UserNotAPatron):
+            await checks.patron_only_check(bot, inter)
+
+    async def test_server_install_authorizes_a_command_installed_both_ways(self):
+        inter = SimpleNamespace(
+            authorizing_integration_owners=SimpleNamespace(user_id=1, guild_id=2)
+        )
+        bot = Mock()
+        self.assertTrue(await checks.patron_only_check(bot, inter))
+        bot.get_guild.assert_not_called()
 
 
 class ImportTests(unittest.TestCase):
