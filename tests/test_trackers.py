@@ -410,6 +410,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_first_fire_sale_poll_saves_without_notifications(self):
         cog = firesaletracker.FireSaleTrackerCog(Mock())
+        cog.initialized = False
         cog.data.data = {}
         cog.data.replace = AsyncMock(wraps=cog.data.replace)
         sales = {"ONE": {"amount": 1}, "TWO": {"amount": 2}}
@@ -690,3 +691,25 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
             embed = await auctionhouse.make_auction_embed(auction, item)
         self.assertEqual(embed.color.value, 0x123456)
         self.assertTrue(embed.thumbnail.url.endswith("/123456.png"))
+
+    async def test_ended_fire_sales_are_forgotten_and_can_repeat(self):
+        cog = firesaletracker.FireSaleTrackerCog(Mock())
+        cog.initialized = False
+        cog.data.data = {"OLD": {"end": 1_000}, "LIVE": {"end": 10**15}}
+        with (
+            patch.object(firesaletracker, "get_fire_sales", return_value={}),
+            patch.object(firesaletracker, "send", new_callable=AsyncMock),
+            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
+            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+        ):
+            await cog.poll()
+            self.assertEqual(set(cog.data), {"LIVE"})
+            cog.data.data = {}
+            with patch.object(
+                firesaletracker,
+                "get_fire_sales",
+                return_value={"OLD": {"end": 10**15}},
+            ):
+                with patch.object(cog, "make_fire_sale_embed") as make:
+                    await cog.poll()
+        make.assert_called_once()

@@ -1,4 +1,6 @@
 import logging
+import time
+from pathlib import Path
 from typing import Any
 
 import disnake
@@ -36,6 +38,8 @@ class FireSaleTrackerCog(PollingCog):
         super().__init__(bot)
         self.data = JsonWrapper(settings.storage_dir / "firesales.json")
         self.uploads = UploadQueue("SkyBlock", "firesales")
+        # Ended sales are pruned, so an empty file does not mean the first run.
+        self.initialized = Path(self.data.file_path).exists()
 
     def log_firesale(self, item_id: str, sale: dict[str, Any]):
         doc = sale.copy()
@@ -65,7 +69,7 @@ class FireSaleTrackerCog(PollingCog):
     async def poll(self):
         embeds: list[disnake.Embed] = []
         sales = await get_fire_sales()
-        initialized = bool(self.data)
+        initialized = self.initialized or bool(self.data)
         new_sales = {}
         for item_id, sale in sales.items():
             self.log_firesale(item_id, sale)
@@ -75,8 +79,18 @@ class FireSaleTrackerCog(PollingCog):
                 new_sales[item_id] = sale
         if embeds:
             await send(embeds)
-        if new_sales:
-            await self.data.replace({**self.data, **new_sales})
+        # Forget ended sales so a later sale of the same item is announced.
+        now = time.time() * 1000
+        kept = {
+            item_id: sale
+            for item_id, sale in self.data.items()
+            if item_id in sales
+            or not isinstance(sale.get("end"), int | float)
+            or sale["end"] > now
+        }
+        if new_sales or len(kept) != len(self.data):
+            await self.data.replace({**kept, **new_sales})
+            self.initialized = True
         await self.uploads.flush()
 
     async def close_resources(self):
