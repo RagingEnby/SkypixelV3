@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import disnake
 from disnake.ext import commands
@@ -89,10 +90,14 @@ async def send(embed: disnake.Embed):
 
 class JobTrackerCog(PollingCog):
     interval = 1800
+    confirm_polls = 3
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
         self.data = JsonWrapper(settings.storage_dir / "jobs.json")
+        self.empty_polls = 0
+        # An empty file means no open jobs. A missing file means the first run.
+        self.initialized = Path(self.data.file_path).exists()
 
     @staticmethod
     async def on_job_update(job: Job, added: bool):
@@ -109,11 +114,23 @@ class JobTrackerCog(PollingCog):
 
     async def poll(self):
         jobs = await get_jobs()
+        if not jobs and self.data:
+            self.empty_polls += 1
+            if self.empty_polls < self.confirm_polls:
+                # An empty response would announce every job as removed.
+                logger.warning(
+                    "The job API returned no jobs. Check %s of %s.",
+                    self.empty_polls,
+                    self.confirm_polls,
+                )
+                return
+        self.empty_polls = 0
         current = {job.title: job.to_dict() for job in jobs}
         for job in jobs:
-            if job.title not in self.data:
+            if self.initialized and job.title not in self.data:
                 await self.on_job_update(job, True)
         for title, data in list(self.data.items()):
             if title not in current:
                 await self.on_job_update(Job.from_dict(data), False)
         await self.data.replace(current)
+        self.initialized = True

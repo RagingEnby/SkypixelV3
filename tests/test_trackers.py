@@ -10,6 +10,7 @@ from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
     auctionhouse,
     firesaletracker,
+    jobtracker,
     ranktracker,
     wikitracker,
 )
@@ -552,3 +553,80 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(delays, [1.0, 2.0, 4.0, 8.0, 16.0, 16.0])
             self.assertEqual(cog.next_delay("ended", 900_000, False), 1.0)
             self.assertEqual(cog.next_delay("active", 900_000, True), 1.0)
+
+    async def test_rank_list_that_shrinks_by_half_needs_confirmation(self):
+        cog = ranktracker.RankTrackerCog(Mock())
+        before = {str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)}
+        after = {"0": {"name": "P0", "rank": "youtube"}}
+        cog.data.data = before
+        with (
+            patch.object(ranktracker.RankTrackerCog, "do_watchlist", AsyncMock()),
+            patch.object(ranktracker, "get_player_ranks", return_value=after),
+            patch.object(ranktracker, "invalidate_rank_lists") as invalidate,
+            patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
+            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            self.assertLogs(ranktracker.logger, level="ERROR"),
+        ):
+            await cog.poll()
+            await cog.poll()
+            remove.assert_not_awaited()
+            self.assertEqual(invalidate.call_count, 2)
+            await cog.poll()
+        self.assertEqual(remove.await_count, 5)
+        self.assertEqual(cog.data.to_dict(), after)
+        self.assertEqual(cog.shrunken_polls, 0)
+
+    async def test_small_rank_changes_do_not_need_confirmation(self):
+        before = {str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)}
+        after = {key: value for key, value in before.items() if key != "0"}
+        self.assertEqual(ranktracker.shrunken_ranks(before, after), [])
+        self.assertEqual(
+            ranktracker.shrunken_ranks({"a": {"name": "A", "rank": "mojang"}}, {}), []
+        )
+
+
+class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
+    def job(self, title):
+        return jobtracker.Job(title, 1, ["q"], None, ["o"])
+
+    async def test_empty_job_list_needs_confirmation(self):
+        cog = jobtracker.JobTrackerCog(Mock())
+        cog.data.data = {"Dev": self.job("Dev").to_dict()}
+        with (
+            patch.object(jobtracker, "get_jobs", return_value=[]),
+            patch.object(cog, "on_job_update", new_callable=AsyncMock) as notify,
+            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            self.assertLogs(jobtracker.logger, level="WARNING"),
+        ):
+            await cog.poll()
+            await cog.poll()
+            notify.assert_not_awaited()
+            await cog.poll()
+        notify.assert_awaited_once()
+        self.assertEqual(cog.data.to_dict(), {})
+
+    async def test_first_run_saves_jobs_without_notifications(self):
+        cog = jobtracker.JobTrackerCog(Mock())
+        cog.data.data = {}
+        cog.initialized = False
+        with (
+            patch.object(jobtracker, "get_jobs", return_value=[self.job("Dev")]),
+            patch.object(cog, "on_job_update", new_callable=AsyncMock) as notify,
+            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+        ):
+            await cog.poll()
+        notify.assert_not_awaited()
+        self.assertIn("Dev", cog.data)
+        self.assertTrue(cog.initialized)
+
+    async def test_new_job_after_an_empty_saved_list_is_announced(self):
+        cog = jobtracker.JobTrackerCog(Mock())
+        cog.data.data = {}
+        cog.initialized = True
+        with (
+            patch.object(jobtracker, "get_jobs", return_value=[self.job("Dev")]),
+            patch.object(cog, "on_job_update", new_callable=AsyncMock) as notify,
+            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+        ):
+            await cog.poll()
+        notify.assert_awaited_once()
