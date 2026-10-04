@@ -17,10 +17,15 @@ logger = logging.getLogger(__name__)
 async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     item = fix_item(item)
     previous_owners = list(reversed(item["previousOwners"]))[:5]
-    players = await mojang.bulk(
-        [item["currentOwner"]["playerUuid"]]
-        + [po["owner"]["playerUuid"] for po in previous_owners]
-    )
+    try:
+        players = await mojang.bulk(
+            [item["currentOwner"]["playerUuid"]]
+            + [po["owner"]["playerUuid"] for po in previous_owners]
+        )
+    except Exception:
+        # The embed shows UUIDs for players it cannot name.
+        logger.exception("Cannot load the owners of item %s.", item.get("_id"))
+        players = {}
 
     embed = utils.add_footer(
         disnake.Embed(

@@ -133,6 +133,27 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.fields[0].value, "item\n-# **Cofl UID:** cofl")
         self.assertIn("<t:1700000000:d>", embed.fields[1].value)
 
+    async def test_failed_owner_lookup_still_builds_the_item_embed(self):
+        item = {
+            "_id": "item",
+            "coflUid": "cofl",
+            "itemId": "TEST_MEMENTO",
+            "previousOwners": [],
+            "currentOwner": {"playerUuid": "player"},
+            "start": 1700000000000,
+            "lastChecked": 1700000000000,
+        }
+        with (
+            patch(
+                "skypixel.commands.item_views.mojang.bulk",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("player api down"),
+            ),
+            self.assertLogs("skypixel.commands.item_views", level="ERROR"),
+        ):
+            embed = await make_item_embed(item)
+        self.assertEqual(embed.author.name, "player")
+
 
 class ViewTests(unittest.IsolatedAsyncioTestCase):
     async def test_soul_buttons_defer_and_serialize_concurrent_page_loads(self):
