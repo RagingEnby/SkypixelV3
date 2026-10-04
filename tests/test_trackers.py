@@ -484,3 +484,22 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             await cog.active_scanner()
         self.assertEqual(process.await_count, 2)
         self.assertEqual(cog.last_scanned_active, 3000)
+
+    async def test_failed_editor_lookup_still_posts_the_edit(self):
+        cog = wikitracker.WikiTrackerCog(Mock())
+        edit = {
+            "type": "edit",
+            "revid": 5,
+            "user": "Editor",
+            "title": "Page",
+            "comment": "fixed `code`",
+        }
+        with (
+            patch.object(wikitracker, "get_editor", side_effect=RuntimeError),
+            patch.object(wikitracker, "send", new_callable=AsyncMock) as send,
+            self.assertLogs(wikitracker.logger, level="ERROR"),
+        ):
+            await cog.on_wiki_edit(edit)
+        embed = send.await_args.args[0]
+        self.assertEqual(embed.author.name, "Editor")
+        self.assertEqual(embed.description.count("```"), 2)
