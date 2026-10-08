@@ -74,6 +74,23 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         self.assertLessEqual(len(embed.fields), 25)
         self.assertTrue(all(len(field.value) <= 1024 for field in embed.fields))
 
+    def test_cut_code_blocks_stay_closed(self):
+        embed = disnake.Embed(description="```\n" + "d" * 5000 + "```")
+        embed.add_field(name="Attributes", value="```\n" + "v" * 2000 + "```")
+        utils.fit_embed(embed)
+        small = disnake.Embed(description="```\n" + "d" * 5000 + "```")
+        utils.fit_embed(small, max_length=3000)
+        for text in (embed.description, embed.fields[0].value, small.description):
+            self.assertTrue(text.endswith("```"))
+            self.assertEqual(text.count("```") % 2, 0)
+        self.assertLessEqual(len(embed.fields[0].value), 1024)
+        self.assertLessEqual(len(small), 3000)
+
+    def test_truncate_keeps_closed_code_blocks_and_plain_text(self):
+        self.assertEqual(utils.truncate("```a``` bcdef", 9), "```a``` b")
+        self.assertEqual(utils.truncate("abcdef", 3), "abc")
+        self.assertEqual(utils.truncate("abc", 3), "abc")
+
     async def test_broadcast_splits_large_embeds_without_cutting_text(self):
         embeds = [disnake.Embed(description="x" * 4000) for _ in range(3)]
         with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:

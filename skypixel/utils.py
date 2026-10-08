@@ -27,17 +27,33 @@ def make_error(title: str, *args) -> disnake.Embed:
     )
 
 
+def truncate(text: str, limit: int) -> str:
+    """Cut text to the limit and close a code block that the cut left open."""
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    if cut.count("```") % 2 == 0:
+        return cut
+    cut = text[: max(0, limit - 4)]
+    if cut.count("```") % 2:
+        return cut + "\u2026```"
+    return cut.rstrip("`")
+
+
 def fit_embed(embed: disnake.Embed, max_length: int = 6000) -> disnake.Embed:
     if embed.title:
         embed.title = embed.title[:256]
     if embed.description:
-        embed.description = embed.description[:4096]
+        embed.description = truncate(embed.description, 4096)
     for index, field in enumerate(embed.fields):
         if index >= 25:
             embed.remove_field(25)
             continue
         embed.set_field_at(
-            index, name=field.name[:256], value=field.value[:1024], inline=field.inline
+            index,
+            name=field.name[:256],
+            value=truncate(field.value, 1024),
+            inline=field.inline,
         )
     if embed.author.name:
         embed.set_author(
@@ -54,15 +70,19 @@ def fit_embed(embed: disnake.Embed, max_length: int = 6000) -> disnake.Embed:
         field = embed.fields[index]
         if len(field.value) > excess:
             embed.set_field_at(
-                index, name=field.name, value=field.value[:-excess], inline=field.inline
+                index,
+                name=field.name,
+                value=truncate(field.value, len(field.value) - excess),
+                inline=field.inline,
             )
         else:
             embed.remove_field(index)
     if len(embed) > max_length and embed.description:
         embed.description = (
-            embed.description[
-                : max(0, len(embed.description) - (len(embed) - max_length))
-            ]
+            truncate(
+                embed.description,
+                max(0, len(embed.description) - (len(embed) - max_length)),
+            )
             or None
         )
     if len(embed) > max_length and embed.footer.text:
