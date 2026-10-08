@@ -1,7 +1,2 @@
 BOT_TOKEN: str = "your-discord-bot-token"
 MONGODB_URI: str = "mongodb://username:password@localhost:27017/"
-
-PROXIES: dict[str, str] = {
-    "http": "http://username:password@localhost:8080",
-    "sock5": "socks5://username:password@localhost:1080",
-}

@@ -20,23 +20,10 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.settings.bot_token, "test-token")
         self.assertEqual(settings.settings.mongodb_uri, "mongodb://localhost:27017")
 
-    def test_empty_proxy_environment_value_clears_the_legacy_proxy(self):
-        with (
-            patch.dict(os.environ, {"SKYPIXEL_HTTP_PROXY": ""}, clear=True),
-            patch.object(
-                settings,
-                "import_module",
-                return_value=SimpleNamespace(PROXIES={"http": "old-proxy"}),
-            ),
-        ):
-            loaded = settings.Settings.load()
-        self.assertEqual(loaded.proxies["http"], "")
-
     def test_environment_overrides_legacy_credentials(self):
         legacy = SimpleNamespace(
             BOT_TOKEN="old-token",
             MONGODB_URI="old-uri",
-            PROXIES={"http": "old-proxy", "sock5": "socks"},
         )
         with (
             patch.dict(
@@ -44,7 +31,6 @@ class SettingsTests(unittest.TestCase):
                 {
                     "SKYPIXEL_BOT_TOKEN": "new-token",
                     "SKYPIXEL_MONGODB_URI": "new-uri",
-                    "SKYPIXEL_HTTP_PROXY": "new-proxy",
                     "SKYPIXEL_STORAGE_DIR": "custom",
                 },
                 clear=True,
@@ -54,9 +40,7 @@ class SettingsTests(unittest.TestCase):
             loaded = settings.Settings.load()
         self.assertEqual(loaded.bot_token, "new-token")
         self.assertEqual(loaded.mongodb_uri, "new-uri")
-        self.assertEqual(loaded.proxies, {"http": "new-proxy", "sock5": "socks"})
         self.assertEqual(loaded.storage_dir, Path("custom"))
-        self.assertEqual(legacy.PROXIES["http"], "old-proxy")
         self.assertNotIn("new-token", repr(loaded))
 
     def test_missing_credentials_get_a_configuration_error(self):
@@ -105,7 +89,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(app.http, "close", new_callable=AsyncMock):
             bot = app.create_bot(command_sync_flags=commands.CommandSyncFlags.none())
             try:
-                self.assertEqual(len(bot.cogs), 13)
+                self.assertEqual(len(bot.cogs), 12)
                 self.assertEqual(
                     {
                         command.body.name
@@ -166,7 +150,6 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                 Mock(
                     bot_token="token",
                     mongodb_uri="uri",
-                    proxies={},
                     storage_dir=Path(support.TEST_STORAGE.name),
                 ),
             ),
@@ -187,7 +170,6 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                 Mock(
                     bot_token="token",
                     mongodb_uri="uri",
-                    proxies={},
                     storage_dir=Path(support.TEST_STORAGE.name),
                 ),
             ),
