@@ -56,7 +56,7 @@ class StatusUpdaterCog(PollingCog):
     async def _item_count_status(self, item_id: str):
         try:
             name = hypixel.get_name(item_id)
-        except KeyError, ValueError:
+        except (KeyError, ValueError):  # fmt: skip
             name = item_id
         itemdb_cog = self.bot.get_cog("ItemDBCog")
         if itemdb_cog:
