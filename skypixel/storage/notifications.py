@@ -10,6 +10,10 @@ from skypixel.storage.json import JsonWrapper
 logger = logging.getLogger(__name__)
 
 
+class NotificationStorageError(OSError):
+    pass
+
+
 class NotificationOutbox:
     """Save tracker alerts until Discord accepts each message."""
 
@@ -33,15 +37,22 @@ class NotificationOutbox:
             embeds if embeds is not None else [embed] if embed is not None else []
         )
         key = uuid4().hex
-        await self.pending.set_and_save(
-            key,
-            {
-                "channel_id": channel_id,
-                "thread_id": thread_id,
-                "content": content,
-                "embeds": [message.to_dict() for message in utils.fit_embeds(messages)],
-            },
-        )
+        try:
+            await self.pending.set_and_save(
+                key,
+                {
+                    "channel_id": channel_id,
+                    "thread_id": thread_id,
+                    "content": content,
+                    "embeds": [
+                        message.to_dict() for message in utils.fit_embeds(messages)
+                    ],
+                },
+            )
+        except OSError as error:
+            raise NotificationStorageError(
+                "Cannot save the tracker alert for delivery."
+            ) from error
         async with self._delivery_lock:
             return await self._deliver(key)
 
