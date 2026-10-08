@@ -335,7 +335,9 @@ class AuctionTrackerCog(PollingCog):
         edition = extra_attributes.get(
             "edition", extra_attributes.get("basket_edition")
         )
-        accessory = "accessories" in auction.get("categories", [])
+        accessory = auction.get(
+            "category"
+        ) == "accessories" or "accessories" in auction.get("categories", [])
         tasks: list[Coroutine] = []
 
         if extra_attributes.get("originTag") in constants.ADMIN_ORIGIN_TAGS:
