@@ -12,6 +12,7 @@ from skypixel.clients import http, mojang
 from skypixel.domain import colors
 from skypixel.domain.nbt import ItemDecodeError, decode_single
 from skypixel.storage.mongo import UploadQueue
+from skypixel.storage.notifications import NotificationStorageError
 from skypixel.trackers import ranktracker
 from skypixel.trackers.base import PollingCog
 
@@ -392,6 +393,8 @@ class AuctionTrackerCog(PollingCog):
                     await self.on_auction_end(auction, item)
                 else:
                     await self.on_auction(auction, item, new=new)
+            except NotificationStorageError:
+                raise
             except Exception:
                 logger.exception("Cannot process auction record.")
 

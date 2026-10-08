@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import disnake
 
 from skypixel import utils
-from skypixel.storage.notifications import NotificationOutbox
-from skypixel.trackers import versiontracker
+from skypixel.storage.notifications import NotificationOutbox, NotificationStorageError
+from skypixel.trackers import auctionhouse, versiontracker
 
 
 class NotificationTests(unittest.IsolatedAsyncioTestCase):
@@ -21,7 +21,9 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         self.channel.send = AsyncMock(return_value=Mock(spec=disnake.Message))
         self.bot = SimpleNamespace(
             get_channel=Mock(return_value=self.channel),
-            settings=SimpleNamespace(storage_dir=Path(self.directory.name)),
+            settings=SimpleNamespace(
+                storage_dir=Path(self.directory.name), mongodb_uri="mongodb://localhost"
+            ),
         )
         self.bot.notifications = NotificationOutbox(self.bot, self.path)
 
@@ -116,3 +118,35 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.gather(submit, retry)
         self.channel.send.assert_awaited_once()
         self.assertFalse(self.bot.notifications.pending)
+
+    async def test_failed_auction_alert_save_keeps_the_scan_checkpoint_for_retry(self):
+        cog = auctionhouse.AuctionTrackerCog(self.bot)
+        cog.last_scanned_active = 100_000
+        auction = {
+            "uuid": "auction",
+            "auctioneer": "a" * 32,
+            "start": 150_000,
+            "bin": True,
+            "starting_bid": 1,
+        }
+        item = {"tag": {"ExtraAttributes": {"uuid": "item", "id": "CAKE_SOUL"}}}
+        page = {"lastUpdated": 200_000, "auctions": [auction]}
+        with (
+            patch.object(auctionhouse, "get_active_auctions", return_value=page),
+            patch.object(auctionhouse, "decode_items", return_value=[item]),
+            patch.object(
+                auctionhouse,
+                "make_auction_embed",
+                return_value=disnake.Embed(title="Soul"),
+            ),
+        ):
+            with patch.object(
+                self.bot.notifications.pending, "set_and_save", side_effect=OSError
+            ):
+                with self.assertRaises(NotificationStorageError):
+                    await cog.active_scanner()
+            self.assertEqual(cog.last_scanned_active, 100_000)
+            self.channel.send.assert_not_awaited()
+            await cog.active_scanner()
+        self.assertEqual(cog.last_scanned_active, 200_000)
+        self.channel.send.assert_awaited_once()
