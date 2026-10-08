@@ -16,7 +16,7 @@ from skypixel.trackers import ranktracker
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
-ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page=0"
+ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page={}"
 ENDED_URL: str = "https://api.hypixel.net/v2/skyblock/auctions_ended"
 
 
@@ -51,8 +51,8 @@ def decode_items(auctions: list[dict[str, Any]]) -> list[dict[str, Any] | None]:
     return items
 
 
-async def get_active_auctions() -> dict[str, Any]:
-    return validate_auctions(await http.get_json(ACTIVE_URL))
+async def get_active_auctions(page: int = 0) -> dict[str, Any]:
+    return validate_auctions(await http.get_json(ACTIVE_URL.format(page)))
 
 
 async def get_ended_auctions() -> dict[str, Any]:
@@ -399,16 +399,32 @@ class AuctionTrackerCog(PollingCog):
             self.last_scanned_active = page_0["lastUpdated"]
         changed = page_0["lastUpdated"] != self.last_scanned_active
         if changed:
-            auctions = [
-                a
-                for a in page_0["auctions"]
-                if a.get("last_updated", a.get("start", 0)) >= self.last_scanned_active
-            ]
-            logger.debug("got %s auctions", len(auctions))
-            try:
+            pages = [page_0]
+            page = page_0
+            while (
+                page["auctions"]
+                and len(pages) < page_0.get("totalPages", 1)
+                and min(a.get("start", 0) for a in page["auctions"])
+                > self.last_scanned_active + 60_000
+            ):
+                page = await get_active_auctions(len(pages))
+                if page["lastUpdated"] != page_0["lastUpdated"]:
+                    raise ValueError("The auction API changed snapshots between pages.")
+                pages.append(page)
+            decoded_pages = []
+            for page in pages:
+                auctions = [
+                    a
+                    for a in page["auctions"]
+                    if a.get("last_updated", a.get("start", 0))
+                    >= self.last_scanned_active
+                ]
+                logger.debug("got %s auctions", len(auctions))
                 # One thread call per page. The NBT parser holds the GIL, so
                 # more threads would not decode faster.
                 items = await asyncio.to_thread(decode_items, auctions)
+                decoded_pages.append((auctions, items))
+            for auctions, items in decoded_pages:
                 await finish_tasks(
                     *[
                         self.process_auction(
@@ -419,8 +435,7 @@ class AuctionTrackerCog(PollingCog):
                         for a, item in zip(auctions, items, strict=True)
                     ]
                 )
-            finally:
-                self.last_scanned_active = page_0["lastUpdated"]
+            self.last_scanned_active = page_0["lastUpdated"]
             logger.debug("processed auctions")
         return self.next_delay("active", self.last_scanned_active, changed)
 
@@ -436,16 +451,14 @@ class AuctionTrackerCog(PollingCog):
                 if a.get("timestamp", 0) >= self.last_scanned_ended
             ]
             logger.debug("got %s ended auctions", len(auctions))
-            try:
-                items = await asyncio.to_thread(decode_items, auctions)
-                await finish_tasks(
-                    *(
-                        self.process_auction(a, item, ended=True)
-                        for a, item in zip(auctions, items, strict=True)
-                    )
+            items = await asyncio.to_thread(decode_items, auctions)
+            await finish_tasks(
+                *(
+                    self.process_auction(a, item, ended=True)
+                    for a, item in zip(auctions, items, strict=True)
                 )
-            finally:
-                self.last_scanned_ended = data["lastUpdated"]
+            )
+            self.last_scanned_ended = data["lastUpdated"]
             logger.debug("processed ended auctions")
         return self.next_delay("ended", self.last_scanned_ended, changed)
 
