@@ -42,6 +42,3 @@ class Settings:
             raise ConfigurationError(
                 "Set the required credentials: " + ", ".join(missing)
             )
-
-
-settings = Settings.load()

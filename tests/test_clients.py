@@ -124,7 +124,7 @@ class HypixelTests(unittest.IsolatedAsyncioTestCase):
             patch.object(hypixel, "write_json", side_effect=OSError),
             self.assertLogs(hypixel.logger, level="ERROR"),
         ):
-            await hypixel.load_items()
+            await hypixel.load_items(support.SETTINGS.storage_dir)
         self.assertEqual(hypixel.ITEMS, support.ITEMS)
 
 

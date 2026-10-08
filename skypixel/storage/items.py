@@ -73,8 +73,8 @@ class ItemRepository(Collection):
     cache_ttl = 300
     cache_limit = 512
 
-    def __init__(self):
-        super().__init__("SkyBlock", "itemdb")
+    def __init__(self, uri: str):
+        super().__init__(uri, "SkyBlock", "itemdb")
         self.cache: dict[str, dict[str, Any]] = {}
         self._cached_at: dict[str, float] = {}
 

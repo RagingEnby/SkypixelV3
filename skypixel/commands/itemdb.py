@@ -17,7 +17,7 @@ Memento = Literal[tuple(hypixel.MEMENTOS)] if hypixel.MEMENTOS else str
 
 class ItemDBCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
-        self.item_db = ItemRepository()
+        self.item_db = ItemRepository(bot.settings.mongodb_uri)
         self.bot = bot
 
     async def do_search_command(

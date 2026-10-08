@@ -3,7 +3,7 @@ import os
 import sys
 import tempfile
 import types
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 TEST_STORAGE = tempfile.TemporaryDirectory(prefix="skypixel-tests-")
 atexit.register(TEST_STORAGE.cleanup)
@@ -29,6 +29,16 @@ ITEMS = [
         "color": "1,2,3",
     },
 ]
+
+
+from skypixel.settings import Settings  # noqa: E402
+
+SETTINGS = Settings.load()
+
+
+def make_bot(**kwargs) -> Mock:
+    """Return a mock bot that carries the test settings."""
+    return Mock(settings=SETTINGS, **kwargs)
 
 
 with patch(

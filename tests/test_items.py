@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import disnake
 
+import tests.support as support
 from skypixel.commands.item_views import SoulSearchView, make_item_embed
 from skypixel.commands.itemdb import ItemDBCog
 from skypixel.commands.rank_views import RankListView
@@ -15,7 +16,7 @@ from skypixel.storage.items import ItemRepository, soul_rank_pipeline
 
 class ItemTests(unittest.IsolatedAsyncioTestCase):
     async def test_single_soul_removed_during_search_keeps_the_summary(self):
-        cog = ItemDBCog(Mock())
+        cog = ItemDBCog(support.make_bot())
         inter = Mock(send=AsyncMock())
         with (
             patch.object(cog.item_db, "search_souls", return_value={"NON": 1}),
@@ -25,7 +26,7 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(inter.send.call_args.kwargs["embeds"]), 1)
 
     async def test_lore_reply_is_deferred_and_fits_discord_limits(self):
-        cog = ItemDBCog(Mock())
+        cog = ItemDBCog(support.make_bot())
         inter = SimpleNamespace(
             component=SimpleNamespace(custom_id="view_lore|item"),
             response=SimpleNamespace(defer=AsyncMock()),
@@ -69,7 +70,7 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_non_object_query_gets_an_error_without_a_database_call(self):
-        cog = ItemDBCog(Mock())
+        cog = ItemDBCog(support.make_bot())
         inter = Mock(send=AsyncMock())
         with patch.object(cog.item_db, "search", new_callable=AsyncMock) as search:
             await cog.do_search_command(inter, [])
@@ -77,7 +78,7 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Invalid Query")
 
     async def test_raw_search_rejects_users_other_than_the_owner(self):
-        cog = ItemDBCog(Mock(is_owner=AsyncMock(return_value=False)))
+        cog = ItemDBCog(support.make_bot(is_owner=AsyncMock(return_value=False)))
         inter = Mock(send=AsyncMock())
         with patch.object(cog.item_db, "search", new_callable=AsyncMock) as search:
             await cog.search.callback(cog, inter, '{"$where": "sleep(1000)"}')
@@ -85,7 +86,7 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Not Owner")
 
     async def test_item_cache_has_a_size_limit_and_expires(self):
-        repository = ItemRepository()
+        repository = ItemRepository(support.SETTINGS.mongodb_uri)
         repository.cache_limit = 2
         repository.cache_items([{"_id": "a"}, {"_id": "b"}, {"_id": "c"}])
         self.assertEqual(set(repository.cache), {"b", "c"})

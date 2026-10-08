@@ -8,7 +8,6 @@ from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http
-from skypixel.settings import settings
 from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import UploadQueue
 from skypixel.trackers.base import PollingCog
@@ -36,8 +35,8 @@ class FireSaleTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = JsonWrapper(settings.storage_dir / "firesales.json")
-        self.uploads = UploadQueue("SkyBlock", "firesales")
+        self.data = JsonWrapper(bot.settings.storage_dir / "firesales.json")
+        self.uploads = UploadQueue(bot.settings.mongodb_uri, "SkyBlock", "firesales")
         # Ended sales are pruned, so an empty file does not mean the first run.
         self.initialized = Path(self.data.file_path).exists()
 

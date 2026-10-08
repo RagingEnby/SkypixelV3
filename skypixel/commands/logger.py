@@ -6,7 +6,6 @@ from disnake.ext import commands
 
 from skypixel import checks, constants, utils
 from skypixel.logging import redact
-from skypixel.settings import settings
 
 logger = logging.getLogger(__name__)
 # Discord's default upload limit for bots is 10 MiB per message.
@@ -89,7 +88,7 @@ class LoggerCog(commands.Cog):
             return
         trace = "".join(traceback.format_exception(original))
         logger.error("Command %s failed.", inter.data.name, exc_info=original)
-        secrets = (settings.bot_token, settings.mongodb_uri)
+        secrets = (self.bot.settings.bot_token, self.bot.settings.mongodb_uri)
         await utils.send_to_channel(
             constants.ERROR_LOG_CHANNEL,
             f"<@{constants.OWNER_ID}>",

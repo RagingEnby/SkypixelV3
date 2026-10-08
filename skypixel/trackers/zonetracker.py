@@ -5,7 +5,6 @@ from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http
-from skypixel.settings import settings
 from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
@@ -29,7 +28,7 @@ class ZoneTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = JsonWrapper(settings.storage_dir / "zones.json")
+        self.data = JsonWrapper(bot.settings.storage_dir / "zones.json")
         if not self.data.get("zones"):
             logger.warning("zones.json is empty")
             self.data["zones"] = []

@@ -43,7 +43,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         bot.change_presence.assert_awaited_once()
 
     async def test_reconnect_keeps_one_task(self):
-        cog = ProbeCog(Mock())
+        cog = ProbeCog(support.make_bot())
         await cog.on_ready()
         task = cog.task
         await cog.on_ready()
@@ -54,7 +54,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_close_waits_for_poll_cleanup(self):
         started, stopped = asyncio.Event(), asyncio.Event()
-        cog = ProbeCog(Mock())
+        cog = ProbeCog(support.make_bot())
 
         async def poll():
             started.set()
@@ -76,7 +76,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(cog.task)
 
     async def test_poll_error_does_not_stop_the_tracker(self):
-        cog = ProbeCog(Mock())
+        cog = ProbeCog(support.make_bot())
         cog._logger = Mock()
         complete = asyncio.Event()
         attempts = 0
@@ -126,14 +126,15 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
     async def test_unchanged_watchlist_keeps_the_player_lists(self):
         state = JsonWrapper(support.TEST_STORAGE.name + "/watch-same.json")
         state.data = {"a": "same"}
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        cog.watch_list = state
         with (
-            patch.object(ranktracker, "WATCH_LIST", state),
             patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": []}),
             patch.object(
                 ranktracker, "get_rankname", new_callable=AsyncMock, return_value="same"
             ),
         ):
-            await ranktracker.RankTrackerCog.do_watchlist()
+            await cog.do_watchlist()
             self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
 
     async def test_invalidation_during_a_fetch_expires_the_fetched_lists(self):
@@ -225,20 +226,21 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
         state = JsonWrapper(support.TEST_STORAGE.name + "/watch-test.json")
         state.data = {"a": "old", "b": "old"}
         state.remove_and_save = AsyncMock(wraps=state.remove_and_save)
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        cog.watch_list = state
         with (
-            patch.object(ranktracker, "WATCH_LIST", state),
             patch.object(
                 ranktracker, "get_rankname", new_callable=AsyncMock, return_value="new"
             ),
         ):
-            await ranktracker.RankTrackerCog.do_watchlist()
+            await cog.do_watchlist()
         self.assertEqual(state.to_dict(), {})
         self.assertEqual(state.remove_and_save.await_count, 2)
 
 
 class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
     async def test_failed_fire_sale_save_keeps_the_sale_for_retry(self):
-        cog = firesaletracker.FireSaleTrackerCog(Mock())
+        cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.data.data = {"OLD": {"amount": 1}}
         with (
             patch.object(firesaletracker, "get_fire_sales", return_value={"NEW": {}}),
@@ -254,7 +256,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("NEW", cog.data)
 
     async def test_rank_change_retries_only_the_failed_notifications(self):
-        cog = ranktracker.RankTrackerCog(Mock())
+        cog = ranktracker.RankTrackerCog(support.make_bot())
         before = {"player": {"name": "Before", "rank": "youtube"}}
         after = {"player": {"name": "After", "rank": "staff"}}
         cog.data.data = before
@@ -279,7 +281,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.known_changes, set())
 
     async def test_fire_sale_notification_failure_keeps_the_sale_for_retry(self):
-        cog = firesaletracker.FireSaleTrackerCog(Mock())
+        cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.data.data = {"OLD": {"amount": 1}}
         cog.data.replace = AsyncMock(wraps=cog.data.replace)
         sales = {"NEW": {"amount": 2}}
@@ -297,7 +299,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.data["NEW"], sales["NEW"])
 
     async def test_failed_active_upload_does_not_skip_ended_uploads(self):
-        cog = auctionhouse.AuctionTrackerCog(Mock())
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with (
             patch.object(cog.active_uploads, "flush", side_effect=OSError),
             patch.object(cog.ended_uploads, "flush", new_callable=AsyncMock) as flush,
@@ -307,7 +309,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         flush.assert_awaited_once()
 
     async def test_failed_active_close_does_not_skip_the_ended_collection(self):
-        cog = auctionhouse.AuctionTrackerCog(Mock())
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with (
             patch.object(cog.active_uploads, "close", side_effect=OSError),
             patch.object(cog.ended_uploads, "close", new_callable=AsyncMock) as close,
@@ -333,7 +335,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(completed)
 
     async def test_auction_poll_uploads_the_successful_scanner_after_a_failure(self):
-        cog = auctionhouse.AuctionTrackerCog(Mock())
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
 
         async def scan_ended():
             await asyncio.sleep(0)
@@ -355,7 +357,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         flush.assert_awaited_once()
 
     async def test_first_fire_sale_poll_saves_without_notifications(self):
-        cog = firesaletracker.FireSaleTrackerCog(Mock())
+        cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.initialized = False
         cog.data.data = {}
         cog.data.replace = AsyncMock(wraps=cog.data.replace)
@@ -405,7 +407,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
                 await auctionhouse.get_active_auctions()
 
     async def test_bad_auction_does_not_stop_the_batch(self):
-        cog = auctionhouse.AuctionTrackerCog(Mock())
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with (
             patch.object(
                 cog,
@@ -422,7 +424,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(process.await_count, 2)
 
     async def test_failed_alert_does_not_repeat_the_scanned_auctions(self):
-        cog = auctionhouse.AuctionTrackerCog(Mock())
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         cog.last_scanned_active = 1000
         auctions = [{"uuid": "a", "start": 1500}, {"uuid": "b", "start": 1500}]
         pages = [
@@ -445,7 +447,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.last_scanned_active, 3000)
 
     async def test_upload_failure_keeps_the_scanner_schedule(self):
-        cog = auctionhouse.AuctionTrackerCog(Mock())
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with (
             patch.object(cog, "active_scanner", return_value=40.0),
             patch.object(cog, "ended_scanner", return_value=30.0),
@@ -455,7 +457,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await cog.poll(), 30.0)
 
     async def test_late_auction_api_backs_off_until_it_updates(self):
-        cog = auctionhouse.AuctionTrackerCog(Mock())
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with patch.object(auctionhouse.time, "time", return_value=1000.0):
             self.assertEqual(cog.next_delay("active", 950_000, False), 10.0)
             delays = [cog.next_delay("active", 900_000, False) for _ in range(6)]
@@ -464,7 +466,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(cog.next_delay("active", 900_000, True), 1.0)
 
     async def test_rank_list_that_shrinks_by_half_needs_confirmation(self):
-        cog = ranktracker.RankTrackerCog(Mock())
+        cog = ranktracker.RankTrackerCog(support.make_bot())
         before = {str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)}
         after = {"0": {"name": "P0", "rank": "youtube"}}
         cog.data.data = before
@@ -499,7 +501,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         return jobtracker.Job(title, 1, ["q"], None, ["o"])
 
     async def test_empty_job_list_needs_confirmation(self):
-        cog = jobtracker.JobTrackerCog(Mock())
+        cog = jobtracker.JobTrackerCog(support.make_bot())
         cog.data.data = {"Dev": self.job("Dev").to_dict()}
         with (
             patch.object(jobtracker, "get_jobs", return_value=[]),
@@ -515,7 +517,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.data.to_dict(), {})
 
     async def test_first_run_saves_jobs_without_notifications(self):
-        cog = jobtracker.JobTrackerCog(Mock())
+        cog = jobtracker.JobTrackerCog(support.make_bot())
         cog.data.data = {}
         cog.initialized = False
         with (
@@ -529,7 +531,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(cog.initialized)
 
     async def test_new_job_after_an_empty_saved_list_is_announced(self):
-        cog = jobtracker.JobTrackerCog(Mock())
+        cog = jobtracker.JobTrackerCog(support.make_bot())
         cog.data.data = {}
         cog.initialized = True
         with (
@@ -549,10 +551,10 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
     async def test_full_watchlist_rejects_new_players(self):
         state = JsonWrapper(support.TEST_STORAGE.name + "/watch-full.json")
         state.data = {"a": None}
-        cog = ranktracker.RankTrackerCog(Mock())
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        cog.watch_list = state
         inter = Mock(send=AsyncMock())
         with (
-            patch.object(ranktracker, "WATCH_LIST", state),
             patch.object(ranktracker, "WATCH_LIST_LIMIT", 1),
             patch.object(
                 ranktracker.mojang,
@@ -566,7 +568,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Watchlist Full!")
 
     async def test_auction_items_decode_off_the_event_loop(self):
-        cog = auctionhouse.AuctionTrackerCog(Mock())
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         loop_thread = threading.get_ident()
         threads = []
 
@@ -600,7 +602,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(embed.thumbnail.url.endswith("/123456.png"))
 
     async def test_ended_fire_sales_are_forgotten_and_can_repeat(self):
-        cog = firesaletracker.FireSaleTrackerCog(Mock())
+        cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.initialized = False
         cog.data.data = {"OLD": {"end": 1_000}, "LIVE": {"end": 10**15}}
         with (

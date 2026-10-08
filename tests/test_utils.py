@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import disnake
 from disnake.ext import commands
 
+import tests.support as support
 from skypixel import checks, utils
 from skypixel.commands import owner
 from skypixel.commands.logger import ATTACHMENT_BUDGET, LoggerCog
@@ -105,7 +106,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         self.assertLessEqual(sum(map(len, utils.fit_embeds(embeds))), 6000)
 
     async def test_check_errors_use_a_private_followup(self):
-        cog = LoggerCog(Mock())
+        cog = LoggerCog(support.make_bot())
         inter = SimpleNamespace(
             response=SimpleNamespace(is_done=lambda: True),
             followup=SimpleNamespace(send=AsyncMock()),
@@ -210,7 +211,7 @@ class DirectMessageLogTests(unittest.IsolatedAsyncioTestCase):
             ),
         )
         with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
-            await LoggerCog(Mock()).on_message(message)
+            await LoggerCog(support.make_bot()).on_message(message)
         large.to_file.assert_not_awaited()
         self.assertEqual(send.await_args.kwargs["files"], ["small"])
         self.assertEqual(send.await_args.kwargs["embed"].fields[0].value, "large")

@@ -5,7 +5,6 @@ from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http
-from skypixel.settings import settings
 from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
@@ -31,7 +30,7 @@ class VersionTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = JsonWrapper(settings.storage_dir / "version.json")
+        self.data = JsonWrapper(bot.settings.storage_dir / "version.json")
         if not self.data.get("version"):
             logger.warning("version.json is empty")
 
