@@ -3,7 +3,8 @@ import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
-from skypixel.clients import http, mojang
+import tests.support as support
+from skypixel.clients import http, hypixel, mojang
 
 
 def response(status=200, data=None):
@@ -109,6 +110,22 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
             http.safe_url("https://user:password@example.com/path?api_key=secret"),
             "https://example.com/path",
         )
+
+
+class HypixelTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_cache_write_keeps_the_loaded_items(self):
+        with (
+            patch.object(
+                hypixel.http,
+                "get_json",
+                new_callable=AsyncMock,
+                return_value={"items": support.ITEMS},
+            ),
+            patch.object(hypixel, "write_json", side_effect=OSError),
+            self.assertLogs(hypixel.logger, level="ERROR"),
+        ):
+            await hypixel.load_items()
+        self.assertEqual(hypixel.ITEMS, support.ITEMS)
 
 
 class MojangTests(unittest.IsolatedAsyncioTestCase):

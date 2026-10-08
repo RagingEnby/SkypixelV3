@@ -51,7 +51,10 @@ async def load_items() -> None:
             logger.warning("Cannot load item data from %s.", url)
             continue
         initialize(items)
-        await write_json(cache_path, {"items": items})
+        try:
+            await write_json(cache_path, {"items": items})
+        except OSError:
+            logger.exception("Cannot cache item data in %s.", cache_path)
         return
     try:
         items = validate_items(read_json(cache_path))
