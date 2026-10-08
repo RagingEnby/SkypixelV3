@@ -12,7 +12,6 @@ os.environ["SKYPIXEL_STORAGE_DIR"] = TEST_STORAGE.name
 secrets = types.ModuleType("scrts")
 secrets.BOT_TOKEN = "test-token"
 secrets.MONGODB_URI = "mongodb://localhost:27017"
-secrets.PROXIES = {"http": "http://localhost:8080"}
 sys.modules["scrts"] = secrets
 
 ITEMS = [

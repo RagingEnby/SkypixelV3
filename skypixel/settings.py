@@ -12,7 +12,6 @@ class ConfigurationError(ValueError):
 class Settings:
     bot_token: str = field(default="", repr=False)
     mongodb_uri: str = field(default="", repr=False)
-    proxies: dict[str, str] = field(default_factory=dict, repr=False)
     storage_dir: Path = Path("storage")
 
     @classmethod
@@ -23,9 +22,6 @@ class Settings:
             if error.name != "scrts":
                 raise
             legacy = None
-        proxies = dict(getattr(legacy, "PROXIES", {}))
-        if (proxy := os.environ.get("SKYPIXEL_HTTP_PROXY")) is not None:
-            proxies["http"] = proxy
         return cls(
             bot_token=os.environ.get(
                 "SKYPIXEL_BOT_TOKEN", getattr(legacy, "BOT_TOKEN", "")
@@ -33,7 +29,6 @@ class Settings:
             mongodb_uri=os.environ.get(
                 "SKYPIXEL_MONGODB_URI", getattr(legacy, "MONGODB_URI", "")
             ),
-            proxies=proxies,
             storage_dir=Path(os.environ.get("SKYPIXEL_STORAGE_DIR", "storage")),
         )
 

@@ -13,7 +13,6 @@ from skypixel.trackers import (
     firesaletracker,
     jobtracker,
     ranktracker,
-    wikitracker,
 )
 from skypixel.trackers.base import PollingCog
 from skypixel.trackers.status import StatusUpdaterCog
@@ -107,7 +106,6 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
             "RankTrackerCog": 240,
             "StatusUpdaterCog": 20,
             "VersionTrackerCog": 120,
-            "WikiTrackerCog": 30,
             "ZoneTrackerCog": 12000,
         }
         cogs = {cog.__name__: cog for cog in app.load_cogs()}
@@ -255,58 +253,6 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             await cog.poll()
         self.assertIn("NEW", cog.data)
 
-    async def test_wiki_upload_failure_does_not_repeat_saved_notifications(self):
-        cog = wikitracker.WikiTrackerCog(Mock())
-        cog.data.data = {"edits": [1]}
-        edit = {"type": "edit", "revid": 2}
-        with (
-            patch.object(wikitracker, "get_edits", return_value=[edit]),
-            patch.object(cog, "on_wiki_edit", new_callable=AsyncMock) as notify,
-            patch.object(cog.uploads, "flush", side_effect=[OSError, None]),
-            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
-        ):
-            with self.assertRaises(OSError):
-                await cog.poll()
-            await cog.poll()
-        notify.assert_awaited_once_with(edit)
-        self.assertEqual(cog.data["edits"], [1, 2])
-
-    async def test_wiki_editor_cache_expires_and_evicts_old_entries(self):
-        now = 0.0
-        with (
-            patch.object(wikitracker, "EDITOR_CACHE", {}),
-            patch.object(wikitracker, "EDITOR_CACHE_LIMIT", 2),
-            patch.object(wikitracker.time, "monotonic", side_effect=lambda: now),
-            patch.object(
-                wikitracker.http, "get_json", return_value={"displayName": "Editor"}
-            ) as fetch,
-        ):
-            await wikitracker.get_editor("First")
-            await wikitracker.get_editor("First")
-            self.assertEqual(fetch.await_count, 1)
-            now = wikitracker.EDITOR_CACHE_TTL
-            await wikitracker.get_editor("First")
-            self.assertEqual(fetch.await_count, 2)
-            await wikitracker.get_editor("Second")
-            await wikitracker.get_editor("Third")
-            self.assertEqual(set(wikitracker.EDITOR_CACHE), {"Second", "Third"})
-
-    async def test_wiki_history_is_bounded_without_repeating_recent_edits(self):
-        cog = wikitracker.WikiTrackerCog(Mock())
-        cog.history_limit = 3
-        cog.data.data = {"edits": [1, 2, 3]}
-        cog.data.replace = AsyncMock(wraps=cog.data.replace)
-        edits = [{"type": "edit", "revid": 4}, {"type": "edit", "revid": 3}]
-        with (
-            patch.object(wikitracker, "get_edits", return_value=edits),
-            patch.object(cog, "on_wiki_edit", new_callable=AsyncMock) as notify,
-            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-        ):
-            await cog.poll()
-            await cog.poll()
-        notify.assert_awaited_once_with(edits[0])
-        self.assertEqual(cog.data["edits"], [2, 3, 4])
-
     async def test_rank_change_retries_only_the_failed_notifications(self):
         cog = ranktracker.RankTrackerCog(Mock())
         before = {"player": {"name": "Before", "rank": "youtube"}}
@@ -429,26 +375,6 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         cog.data.replace.assert_awaited_once()
         self.assertEqual(cog.data.to_dict(), sales)
 
-    async def test_first_wiki_poll_seeds_all_edits_without_notifications(self):
-        cog = wikitracker.WikiTrackerCog(Mock())
-        cog.data.data = {"edits": []}
-        cog.data.replace = AsyncMock(wraps=cog.data.replace)
-        edits = [
-            {"type": "edit", "revid": 1},
-            {"type": "new", "revid": 2},
-            {"type": "edit", "revid": 2},
-        ]
-        with (
-            patch.object(
-                wikitracker, "get_edits", new_callable=AsyncMock, return_value=edits
-            ),
-            patch.object(cog, "on_wiki_edit", new_callable=AsyncMock) as notify,
-            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-        ):
-            await cog.poll()
-        notify.assert_not_awaited()
-        self.assertEqual(cog.data["edits"], [1, 2])
-
     async def test_queue_keeps_records_added_during_upload(self):
         queue = [{"_id": "first"}]
         uploaded = []
@@ -517,25 +443,6 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             await cog.active_scanner()
         self.assertEqual(process.await_count, 2)
         self.assertEqual(cog.last_scanned_active, 3000)
-
-    async def test_failed_editor_lookup_still_posts_the_edit(self):
-        cog = wikitracker.WikiTrackerCog(Mock())
-        edit = {
-            "type": "edit",
-            "revid": 5,
-            "user": "Editor",
-            "title": "Page",
-            "comment": "fixed `code`",
-        }
-        with (
-            patch.object(wikitracker, "get_editor", side_effect=RuntimeError),
-            patch.object(wikitracker, "send", new_callable=AsyncMock) as send,
-            self.assertLogs(wikitracker.logger, level="ERROR"),
-        ):
-            await cog.on_wiki_edit(edit)
-        embed = send.await_args.args[0]
-        self.assertEqual(embed.author.name, "Editor")
-        self.assertEqual(embed.description.count("```"), 2)
 
     async def test_upload_failure_keeps_the_scanner_schedule(self):
         cog = auctionhouse.AuctionTrackerCog(Mock())

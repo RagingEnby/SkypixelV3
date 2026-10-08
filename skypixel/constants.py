@@ -74,9 +74,6 @@ ZONE_TRACKER_CHANNELS: dict[int, str] = {
     1210333444563935295: "",
     1391179788164530276: "",
 }
-WIKI_TRACKER_CHANNELS: dict[int, str] = {
-    1287466083267121162: "",
-}
 RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
     "youtube": {
         1121130539097784401: "<@&1122272183733977249>",

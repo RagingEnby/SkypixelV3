@@ -6,8 +6,6 @@ from urllib.parse import urlsplit
 import curl_cffi
 from curl_cffi.requests.exceptions import RequestException
 
-from skypixel.settings import settings
-
 logger = logging.getLogger(__name__)
 SESSION: curl_cffi.AsyncSession | None = None
 CLOSED = False
@@ -75,22 +73,11 @@ async def get(*args, **kwargs) -> curl_cffi.Response:
     return await request("GET", *args, **kwargs)
 
 
-async def proxy_get(*args, **kwargs) -> curl_cffi.Response:
-    proxy = settings.proxies.get("http")
-    if not proxy:
-        raise ValueError(
-            "Set SKYPIXEL_HTTP_PROXY or scrts.PROXIES['http'] to use the wiki tracker."
-        )
-    kwargs.setdefault("proxy", proxy)
-    kwargs.setdefault("impersonate", "chrome110")
-    return await get(*args, **kwargs)
-
-
 async def post(*args, **kwargs) -> curl_cffi.Response:
     return await request("POST", *args, **kwargs)
 
 
-async def get_json(url: str, *, proxy: bool = False, **kwargs) -> Any:
-    response = await (proxy_get(url, **kwargs) if proxy else get(url, **kwargs))
+async def get_json(url: str, **kwargs) -> Any:
+    response = await get(url, **kwargs)
     response.raise_for_status()
     return response.json()

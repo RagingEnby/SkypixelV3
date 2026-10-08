@@ -73,7 +73,6 @@ def load_cogs() -> list[type[commands.Cog]]:
     from skypixel.trackers.ranktracker import RankTrackerCog
     from skypixel.trackers.status import StatusUpdaterCog
     from skypixel.trackers.versiontracker import VersionTrackerCog
-    from skypixel.trackers.wikitracker import WikiTrackerCog
     from skypixel.trackers.zonetracker import ZoneTrackerCog
 
     return [
@@ -87,7 +86,6 @@ def load_cogs() -> list[type[commands.Cog]]:
         RankTrackerCog,
         StatusUpdaterCog,
         VersionTrackerCog,
-        WikiTrackerCog,
         ZoneTrackerCog,
         JobTrackerCog,
     ]
@@ -111,7 +109,7 @@ async def run() -> None:
     settings.validate()
     configure_logging(
         settings.storage_dir,
-        secrets=(settings.bot_token, settings.mongodb_uri, *settings.proxies.values()),
+        secrets=(settings.bot_token, settings.mongodb_uri),
     )
     bot = None
     shutdown_task = None

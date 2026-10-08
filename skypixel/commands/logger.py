@@ -89,11 +89,7 @@ class LoggerCog(commands.Cog):
             return
         trace = "".join(traceback.format_exception(original))
         logger.error("Command %s failed.", inter.data.name, exc_info=original)
-        secrets = (
-            settings.bot_token,
-            settings.mongodb_uri,
-            *settings.proxies.values(),
-        )
+        secrets = (settings.bot_token, settings.mongodb_uri)
         await utils.send_to_channel(
             constants.ERROR_LOG_CHANNEL,
             f"<@{constants.OWNER_ID}>",
