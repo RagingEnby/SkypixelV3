@@ -1,7 +1,6 @@
 import time
 from typing import Any
 
-from skypixel.domain.items import search_souls_query
 from skypixel.storage.mongo import Collection
 
 
@@ -104,8 +103,7 @@ class ItemRepository(Collection):
         return item
 
     async def search_souls(self, query: dict) -> dict[str, int]:
-        cursor = await self.collection.aggregate(
-            soul_rank_pipeline(search_souls_query(query))
-        )
+        """Count souls by captured rank. Build the query with search_souls_query."""
+        cursor = await self.collection.aggregate(soul_rank_pipeline(query))
         results = await cursor.to_list(length=1)
         return results[0] if results else {}
