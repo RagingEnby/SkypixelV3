@@ -244,8 +244,12 @@ class AuctionTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.active_uploads = UploadQueue("SkyBlock", "auctions")
-        self.ended_uploads = UploadQueue("SkyBlock", "ended_auctions")
+        self.active_uploads = UploadQueue(
+            bot.settings.mongodb_uri, "SkyBlock", "auctions"
+        )
+        self.ended_uploads = UploadQueue(
+            bot.settings.mongodb_uri, "SkyBlock", "ended_auctions"
+        )
         self.last_scanned_active = 0
         self.last_scanned_ended = 0
         self._scan_semaphore = asyncio.Semaphore(20)

@@ -6,7 +6,6 @@ from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http
-from skypixel.settings import settings
 from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
@@ -94,7 +93,7 @@ class JobTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = JsonWrapper(settings.storage_dir / "jobs.json")
+        self.data = JsonWrapper(bot.settings.storage_dir / "jobs.json")
         self.empty_polls = 0
         # An empty file means no open jobs. A missing file means the first run.
         self.initialized = Path(self.data.file_path).exists()

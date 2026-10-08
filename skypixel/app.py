@@ -9,13 +9,14 @@ from skypixel import checks, constants
 from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
 from skypixel.logging import configure_logging
-from skypixel.settings import ConfigurationError, settings
+from skypixel.settings import ConfigurationError, Settings
 
 logger = logging.getLogger(__name__)
 
 
 class SkypixelBot(commands.InteractionBot):
-    def __init__(self, **kwargs):
+    def __init__(self, settings: Settings, **kwargs):
+        self.settings = settings
         intents = disnake.Intents.default()
         intents.members = True
         super().__init__(intents=intents, owner_id=constants.OWNER_ID, **kwargs)
@@ -62,6 +63,8 @@ def load_cogs() -> list[type[commands.Cog]]:
 
     itemdb reads the memento list when it is imported.
     """
+    if not hypixel.MEMENTOS:
+        raise RuntimeError("Load the item catalog before importing the cogs.")
     from skypixel.commands.guild import GuildCog
     from skypixel.commands.itemdb import ItemDBCog
     from skypixel.commands.logger import LoggerCog
@@ -91,8 +94,8 @@ def load_cogs() -> list[type[commands.Cog]]:
     ]
 
 
-def create_bot(**kwargs) -> SkypixelBot:
-    bot = SkypixelBot(**kwargs)
+def create_bot(settings: Settings, **kwargs) -> SkypixelBot:
+    bot = SkypixelBot(settings, **kwargs)
     constants.BOT = bot
     for cog in load_cogs():
         bot.add_cog(cog(bot))
@@ -106,6 +109,7 @@ def create_bot(**kwargs) -> SkypixelBot:
 
 
 async def run() -> None:
+    settings = Settings.load()
     settings.validate()
     configure_logging(
         settings.storage_dir,
@@ -116,8 +120,8 @@ async def run() -> None:
     installed_signals = []
     loop = asyncio.get_running_loop()
     try:
-        await hypixel.load_items()
-        bot = create_bot()
+        await hypixel.load_items(settings.storage_dir)
+        bot = create_bot(settings)
 
         def stop() -> None:
             nonlocal shutdown_task

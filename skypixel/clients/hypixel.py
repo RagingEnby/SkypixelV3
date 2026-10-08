@@ -1,10 +1,10 @@
 import logging
+from pathlib import Path
 from typing import Any
 
 from curl_cffi.requests.exceptions import RequestException
 
 from skypixel.clients import http
-from skypixel.settings import settings
 from skypixel.storage.json import read_json, write_json
 
 logger = logging.getLogger(__name__)
@@ -42,8 +42,8 @@ def initialize(items: list[dict[str, Any]]) -> None:
     colors.configure(items)
 
 
-async def load_items() -> None:
-    cache_path = settings.storage_dir / "items.json"
+async def load_items(storage_dir: Path) -> None:
+    cache_path = storage_dir / "items.json"
     for url in (ITEMS_URL, FALLBACK_URL):
         try:
             items = validate_items(await http.get_json(url))

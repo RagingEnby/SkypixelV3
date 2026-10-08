@@ -13,7 +13,6 @@ from skypixel import constants, utils
 from skypixel.clients import http, mojang
 from skypixel.commands.rank_views import RankListView
 from skypixel.domain.types import SpecialRank
-from skypixel.settings import settings
 from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
@@ -30,7 +29,6 @@ RANK_LIST_CACHE_LOCK = asyncio.Lock()
 RANK_LIST_GENERATION = 0
 POI_UUIDS: set[str] = set()
 WATCH_LIST_LIMIT = 25
-WATCH_LIST: JsonWrapper = JsonWrapper(settings.storage_dir / "rankwatchlist.json")
 
 
 def invalidate_rank_lists() -> None:
@@ -191,7 +189,8 @@ class RankTrackerCog(PollingCog):
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
-        self.data = JsonWrapper(settings.storage_dir / "ranks.json")
+        self.data = JsonWrapper(bot.settings.storage_dir / "ranks.json")
+        self.watch_list = JsonWrapper(bot.settings.storage_dir / "rankwatchlist.json")
         if not self.data.to_dict():
             logger.warning("ranks.json is empty")
         self.known_changes: set[tuple[str, ...]] = set()
@@ -234,18 +233,17 @@ class RankTrackerCog(PollingCog):
         )
         await send(rank, embed, ping=False)
 
-    @staticmethod
-    async def do_watchlist():
-        for uuid, last_rankname in list(WATCH_LIST.items()):
+    async def do_watchlist(self):
+        for uuid, last_rankname in list(self.watch_list.items()):
             try:
                 rankname = await get_rankname(uuid)
                 logger.info("rank watchlist: %s -> %s", last_rankname, rankname)
                 if last_rankname is None:
-                    await WATCH_LIST.set_and_save(uuid, rankname)
+                    await self.watch_list.set_and_save(uuid, rankname)
                     continue
                 if rankname != last_rankname:
                     invalidate_rank_lists()
-                    await WATCH_LIST.remove_and_save(uuid)
+                    await self.watch_list.remove_and_save(uuid)
             except RequestException, KeyError, ValueError:
                 logger.exception("Cannot update player %s in the rank watchlist.", uuid)
 
@@ -302,7 +300,7 @@ class RankTrackerCog(PollingCog):
                     f"I couldn't find the player `{player.replace('`', '')}`!",
                 )
             )
-        if len(WATCH_LIST) >= WATCH_LIST_LIMIT:
+        if len(self.watch_list) >= WATCH_LIST_LIMIT:
             return await inter.send(
                 embed=utils.make_error(
                     "Watchlist Full!",
@@ -310,14 +308,14 @@ class RankTrackerCog(PollingCog):
                     "Wait for a watched player's rank to change.",
                 )
             )
-        if player_obj.id in WATCH_LIST:
+        if player_obj.id in self.watch_list:
             return await inter.send(
                 embed=utils.make_error(
                     "Already Watching!",
                     f"`{player_obj.name}` is already in the watchlist.",
                 )
             )
-        await WATCH_LIST.set_and_save(player_obj.id, None)
+        await self.watch_list.set_and_save(player_obj.id, None)
         await inter.send(
             embed=utils.add_footer(
                 disnake.Embed(

@@ -6,8 +6,6 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
-from skypixel.settings import settings
-
 logger = logging.getLogger(__name__)
 
 
@@ -34,7 +32,8 @@ async def flush_queue(collection: Collection, queue: list[dict[str, Any]]) -> No
 class Collection:
     """Open a MongoDB connection when the collection is first used."""
 
-    def __init__(self, db: str, collection: str):
+    def __init__(self, uri: str, db: str, collection: str):
+        self.uri = uri
         self.db_name = db
         self.collection_name = collection
         self._client = None
@@ -45,11 +44,9 @@ class Collection:
         if self._closed:
             raise RuntimeError("The database collection has shut down.")
         if self._client is None:
-            if not settings.mongodb_uri:
+            if not self.uri:
                 raise ValueError("Set SKYPIXEL_MONGODB_URI or scrts.MONGODB_URI.")
-            self._client = AsyncIOMotorClient(
-                settings.mongodb_uri, serverSelectionTimeoutMS=10000
-            )
+            self._client = AsyncIOMotorClient(self.uri, serverSelectionTimeoutMS=10000)
         return self._client
 
     @property
@@ -107,9 +104,9 @@ class UploadQueue:
 
     max_docs = 50_000
 
-    def __init__(self, db: str, collection: str):
+    def __init__(self, uri: str, db: str, collection: str):
         self.docs: list[dict[str, Any]] = []
-        self.collection = Collection(db, collection)
+        self.collection = Collection(uri, db, collection)
         self.dropped = 0
         self._flush_lock = asyncio.Lock()
         self._closed = False

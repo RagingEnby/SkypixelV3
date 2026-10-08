@@ -16,9 +16,9 @@ from skypixel.clients import hypixel
 
 class SettingsTests(unittest.TestCase):
     def test_test_settings_use_temporary_storage_and_fixture_credentials(self):
-        self.assertEqual(settings.settings.storage_dir, Path(support.TEST_STORAGE.name))
-        self.assertEqual(settings.settings.bot_token, "test-token")
-        self.assertEqual(settings.settings.mongodb_uri, "mongodb://localhost:27017")
+        self.assertEqual(support.SETTINGS.storage_dir, Path(support.TEST_STORAGE.name))
+        self.assertEqual(support.SETTINGS.bot_token, "test-token")
+        self.assertEqual(support.SETTINGS.mongodb_uri, "mongodb://localhost:27017")
 
     def test_environment_overrides_legacy_credentials(self):
         legacy = SimpleNamespace(
@@ -75,7 +75,9 @@ class SettingsTests(unittest.TestCase):
 
 class AppTests(unittest.IsolatedAsyncioTestCase):
     async def test_failed_player_client_close_does_not_skip_http_or_discord(self):
-        bot = app.SkypixelBot(command_sync_flags=commands.CommandSyncFlags.none())
+        bot = app.SkypixelBot(
+            support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
+        )
         with (
             patch.object(app.mojang, "close", side_effect=OSError),
             patch.object(app.http, "close", new_callable=AsyncMock) as close_http,
@@ -87,7 +89,9 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_the_bot_registers_all_existing_cogs_and_commands(self):
         with patch.object(app.http, "close", new_callable=AsyncMock):
-            bot = app.create_bot(command_sync_flags=commands.CommandSyncFlags.none())
+            bot = app.create_bot(
+                support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
+            )
             try:
                 self.assertEqual(len(bot.cogs), 12)
                 self.assertEqual(
@@ -109,7 +113,9 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(constants.BOT)
 
     async def test_one_failed_cog_close_does_not_skip_other_resources(self):
-        bot = app.SkypixelBot(command_sync_flags=commands.CommandSyncFlags.none())
+        bot = app.SkypixelBot(
+            support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
+        )
         good_close = AsyncMock()
 
         class FailedCog(commands.Cog):
@@ -136,18 +142,18 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         events = []
         bot = Mock(close=AsyncMock(), start=AsyncMock())
 
-        async def load_items():
+        async def load_items(storage_dir):
             events.append("items")
 
-        def create_bot():
+        def create_bot(settings):
             events.append("commands")
             return bot
 
         with (
             patch.object(
-                app,
-                "settings",
-                Mock(
+                app.Settings,
+                "load",
+                return_value=Mock(
                     bot_token="token",
                     mongodb_uri="uri",
                     storage_dir=Path(support.TEST_STORAGE.name),
@@ -165,9 +171,9 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
     async def test_startup_failure_closes_the_http_session(self):
         with (
             patch.object(
-                app,
-                "settings",
-                Mock(
+                app.Settings,
+                "load",
+                return_value=Mock(
                     bot_token="token",
                     mongodb_uri="uri",
                     storage_dir=Path(support.TEST_STORAGE.name),
