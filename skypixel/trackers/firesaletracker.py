@@ -26,8 +26,8 @@ async def get_fire_sales() -> dict[str, dict[str, Any]]:
     }
 
 
-async def send(embeds: list[disnake.Embed]):
-    await utils.broadcast(constants.FIRE_SALE_TRACKER_CHANNELS, embeds=embeds)
+async def send(bot: commands.InteractionBot, embeds: list[disnake.Embed]):
+    await utils.broadcast(bot, constants.FIRE_SALE_TRACKER_CHANNELS, embeds=embeds)
 
 
 class FireSaleTrackerCog(PollingCog):
@@ -77,7 +77,7 @@ class FireSaleTrackerCog(PollingCog):
                     embeds.append(self.make_fire_sale_embed(item_id, sale))
                 new_sales[item_id] = sale
         if embeds:
-            await send(embeds)
+            await send(self.bot, embeds)
         # Forget ended sales so a later sale of the same item is announced.
         now = time.time() * 1000
         kept = {

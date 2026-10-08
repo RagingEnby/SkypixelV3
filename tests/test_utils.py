@@ -49,20 +49,16 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
             )
         )
         channel = Mock(spec=disnake.TextChannel, get_thread=Mock(return_value=thread))
-        with (
-            patch.object(
-                utils.constants, "BOT", Mock(get_channel=Mock(return_value=channel))
-            ),
-            self.assertLogs(utils.logger, level="ERROR"),
-        ):
+        bot = Mock(get_channel=Mock(return_value=channel))
+        with self.assertLogs(utils.logger, level="ERROR"):
             self.assertIsNone(
-                await utils.send_to_channel(1, thread_id=2, content="test")
+                await utils.send_to_channel(bot, 1, thread_id=2, content="test")
             )
 
     async def test_broadcast_obeys_the_ten_embed_limit(self):
         embeds = [disnake.Embed(title=str(index)) for index in range(23)]
         with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
-            await utils.broadcast({1: "ping"}, embeds=embeds)
+            await utils.broadcast(Mock(), {1: "ping"}, embeds=embeds)
         self.assertEqual(
             [len(call.kwargs["embeds"]) for call in send.call_args_list], [10, 10, 3]
         )
@@ -81,7 +77,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
     async def test_broadcast_splits_large_embeds_without_cutting_text(self):
         embeds = [disnake.Embed(description="x" * 4000) for _ in range(3)]
         with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
-            await utils.broadcast({1: "ping"}, embeds=embeds)
+            await utils.broadcast(Mock(), {1: "ping"}, embeds=embeds)
         self.assertEqual(len(send.call_args_list), 3)
         self.assertEqual(
             [sum(map(len, call.kwargs["embeds"])) for call in send.call_args_list],

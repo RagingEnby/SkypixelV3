@@ -19,8 +19,8 @@ async def get_zones() -> set[str]:
     return set(data["zones"])
 
 
-async def send(embed: disnake.Embed):
-    await utils.broadcast(constants.ZONE_TRACKER_CHANNELS, embed=embed)
+async def send(bot: commands.InteractionBot, embed: disnake.Embed):
+    await utils.broadcast(bot, constants.ZONE_TRACKER_CHANNELS, embed=embed)
 
 
 class ZoneTrackerCog(PollingCog):
@@ -33,8 +33,7 @@ class ZoneTrackerCog(PollingCog):
             logger.warning("zones.json is empty")
             self.data["zones"] = []
 
-    @staticmethod
-    async def on_new_zone(zones: set[str]):
+    async def on_new_zone(self, zones: set[str]):
         logger.debug("new zones detected: %s", zones)
         embed = utils.add_footer(
             disnake.Embed(
@@ -45,7 +44,7 @@ class ZoneTrackerCog(PollingCog):
                 color=constants.DEFAULT_EMBED_COLOR,
             )
         )
-        await send(embed)
+        await send(self.bot, embed)
 
     async def poll(self):
         zones = await get_zones()

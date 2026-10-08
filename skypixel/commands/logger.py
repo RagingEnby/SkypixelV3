@@ -75,7 +75,7 @@ class LoggerCog(commands.Cog):
     async def on_slash_command(self, inter: disnake.AppCmdInter):
         logger.info("%s used %s", inter.author.name, prettify_command(inter))
         await utils.send_to_channel(
-            constants.COMMAND_LOG_CHANNEL, embed=make_command_log_embed(inter)
+            self.bot, constants.COMMAND_LOG_CHANNEL, embed=make_command_log_embed(inter)
         )
 
     @commands.Cog.listener()
@@ -90,6 +90,7 @@ class LoggerCog(commands.Cog):
         logger.error("Command %s failed.", inter.data.name, exc_info=original)
         secrets = (self.bot.settings.bot_token, self.bot.settings.mongodb_uri)
         await utils.send_to_channel(
+            self.bot,
             constants.ERROR_LOG_CHANNEL,
             f"<@{constants.OWNER_ID}>",
             embeds=[
@@ -141,4 +142,6 @@ class LoggerCog(commands.Cog):
                 links.append(attachment.url)
         if links:
             embed.add_field(name="Attachments", value="\n".join(links), inline=False)
-        await utils.send_to_channel(constants.DM_LOG_CHANNEL, embed=embed, files=files)
+        await utils.send_to_channel(
+            self.bot, constants.DM_LOG_CHANNEL, embed=embed, files=files
+        )

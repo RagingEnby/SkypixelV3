@@ -21,8 +21,8 @@ async def get_version() -> str:
     return version
 
 
-async def send(embed: disnake.Embed):
-    await utils.broadcast(constants.VERSION_TRACKER_CHANNELS, embed=embed)
+async def send(bot: commands.InteractionBot, embed: disnake.Embed):
+    await utils.broadcast(bot, constants.VERSION_TRACKER_CHANNELS, embed=embed)
 
 
 class VersionTrackerCog(PollingCog):
@@ -34,8 +34,7 @@ class VersionTrackerCog(PollingCog):
         if not self.data.get("version"):
             logger.warning("version.json is empty")
 
-    @staticmethod
-    async def on_version_change(before: str, after: str):
+    async def on_version_change(self, before: str, after: str):
         embed = utils.add_footer(
             disnake.Embed(
                 title="SkyBlock has updated!",
@@ -43,7 +42,7 @@ class VersionTrackerCog(PollingCog):
                 color=constants.DEFAULT_EMBED_COLOR,
             )
         )
-        await send(embed)
+        await send(self.bot, embed)
 
     async def poll(self):
         version = await get_version()

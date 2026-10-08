@@ -1,5 +1,3 @@
-from disnake.ext.commands import InteractionBot
-
 from skypixel.domain.types import ArmorType, ExoticType
 
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
@@ -287,6 +285,3 @@ SPOOK_IDS: set[str] = {
 }
 ADMIN_ORIGIN_TAGS: set[str] = {"ITEM_MENU", "ITEM_COMMAND"}
 OG_REFORGES: set[str] = {"forceful", "strong", "hurtful", "demonic", "rich", "odd"}
-
-
-BOT: InteractionBot | None = None

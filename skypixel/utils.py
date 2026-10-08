@@ -128,12 +128,12 @@ def add_footer(embed: disnake.Embed) -> disnake.Embed:
 
 
 async def send_to_channel(
-    channel_id: int, *args, thread_id: int | None = None, **kwargs
+    bot: disnake.Client,
+    channel_id: int,
+    *args,
+    thread_id: int | None = None,
+    **kwargs,
 ) -> disnake.Message | None:
-    bot = constants.BOT
-    if bot is None:
-        logger.warning("Cannot send to channel %s before the bot starts.", channel_id)
-        return None
     channel = bot.get_channel(channel_id)
     if thread_id is not None:
         if not isinstance(channel, (disnake.TextChannel, disnake.ForumChannel)):
@@ -159,6 +159,7 @@ async def send_to_channel(
 
 
 async def broadcast(
+    bot: disnake.Client,
     channels: dict[int, str],
     *,
     embed: disnake.Embed | None = None,
@@ -183,7 +184,7 @@ async def broadcast(
         kwargs = {"embeds": batch} if batch is not None else {"embed": embed}
         await asyncio.gather(
             *(
-                send_to_channel(channel_id, content if ping else "", **kwargs)
+                send_to_channel(bot, channel_id, content if ping else "", **kwargs)
                 for channel_id, content in channels.items()
             )
         )
