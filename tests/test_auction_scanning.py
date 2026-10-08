@@ -6,6 +6,39 @@ from skypixel.trackers import auctionhouse
 
 
 class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
+    async def test_accessory_reforges_accept_both_category_fields(self):
+        for fields in (
+            {"category": "accessories"},
+            {"categories": ["accessories"]},
+            {"category": "accessories", "categories": []},
+            {"category": "armor", "categories": ["accessories"]},
+        ):
+            with self.subTest(fields=fields):
+                cog = self.cog()
+                auction = {"uuid": "auction", "auctioneer": "a" * 32, **fields}
+                item = {
+                    "tag": {
+                        "ExtraAttributes": {
+                            "uuid": "item",
+                            "id": "TEST_HELMET",
+                            "modifier": "forceful",
+                        }
+                    }
+                }
+                with (
+                    patch.object(
+                        cog.listener, "on_og_reforge_auction", new_callable=AsyncMock
+                    ) as og,
+                    patch.object(
+                        cog.listener,
+                        "on_semi_og_reforge_auction",
+                        new_callable=AsyncMock,
+                    ) as semi,
+                ):
+                    await cog.on_auction(auction, item)
+                og.assert_not_awaited()
+                semi.assert_awaited_once_with(auction, item)
+
     def page(self, number, starts, updated=200_000):
         return {
             "page": number,
