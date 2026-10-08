@@ -40,6 +40,17 @@ def validate_auctions(data: Any) -> dict[str, Any]:
     return data
 
 
+def decode_items(auctions: list[dict[str, Any]]) -> list[dict[str, Any] | None]:
+    """Decode each auction's item, or return None for a malformed one."""
+    items = []
+    for auction in auctions:
+        try:
+            items.append(decode_single(auction["item_bytes"]))
+        except ItemDecodeError, KeyError:
+            items.append(None)
+    return items
+
+
 async def get_active_auctions() -> dict[str, Any]:
     return validate_auctions(await http.get_json(ACTIVE_URL))
 
@@ -299,14 +310,9 @@ class AuctionTrackerCog(PollingCog):
             doc["_id"] = doc.pop("uuid")
             self.active_uploads.append(doc)
 
-    async def on_auction(self, auction: dict[str, Any], new: bool = True):
-        try:
-            item = await asyncio.to_thread(decode_single, auction["item_bytes"])
-        except ItemDecodeError, KeyError:
-            logger.warning(
-                "Skipped malformed item data in auction %s.", auction.get("uuid")
-            )
-            return
+    async def on_auction(
+        self, auction: dict[str, Any], item: dict[str, Any], new: bool = True
+    ):
         self.log_auction(auction, item, ended=False)
         if not new:
             return
@@ -361,26 +367,29 @@ class AuctionTrackerCog(PollingCog):
         if tasks:
             await finish_tasks(*tasks)
 
-    async def on_auction_end(self, auction: dict[str, Any]):
-        try:
-            item = await asyncio.to_thread(decode_single, auction["item_bytes"])
-        except ItemDecodeError, KeyError:
-            logger.warning(
-                "Skipped malformed item data in ended auction %s.",
-                auction.get("auction_id"),
-            )
-            return
+    async def on_auction_end(self, auction: dict[str, Any], item: dict[str, Any]):
         self.log_auction(auction, item, ended=True)
 
     async def process_auction(
-        self, auction: dict[str, Any], *, ended: bool = False, new: bool = True
+        self,
+        auction: dict[str, Any],
+        item: dict[str, Any] | None,
+        *,
+        ended: bool = False,
+        new: bool = True,
     ):
+        if item is None:
+            logger.warning(
+                "Skipped malformed item data in auction %s.",
+                auction.get("auction_id" if ended else "uuid"),
+            )
+            return
         async with self._scan_semaphore:
             try:
                 if ended:
-                    await self.on_auction_end(auction)
+                    await self.on_auction_end(auction, item)
                 else:
-                    await self.on_auction(auction, new=new)
+                    await self.on_auction(auction, item, new=new)
             except Exception:
                 logger.exception("Cannot process auction record.")
 
@@ -397,13 +406,17 @@ class AuctionTrackerCog(PollingCog):
             ]
             logger.debug("got %s auctions", len(auctions))
             try:
+                # One thread call per page. The NBT parser holds the GIL, so
+                # more threads would not decode faster.
+                items = await asyncio.to_thread(decode_items, auctions)
                 await finish_tasks(
                     *[
                         self.process_auction(
-                            auction=a,
+                            a,
+                            item,
                             new=a.get("start", 0) >= self.last_scanned_active,
                         )
-                        for a in auctions
+                        for a, item in zip(auctions, items, strict=True)
                     ]
                 )
             finally:
@@ -424,8 +437,12 @@ class AuctionTrackerCog(PollingCog):
             ]
             logger.debug("got %s ended auctions", len(auctions))
             try:
+                items = await asyncio.to_thread(decode_items, auctions)
                 await finish_tasks(
-                    *(self.process_auction(auction=a, ended=True) for a in auctions)
+                    *(
+                        self.process_auction(a, item, ended=True)
+                        for a, item in zip(auctions, items, strict=True)
+                    )
                 )
             finally:
                 self.last_scanned_ended = data["lastUpdated"]

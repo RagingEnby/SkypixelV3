@@ -419,21 +419,25 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             self.assertLogs(auctionhouse.logger, level="ERROR"),
         ):
             await asyncio.gather(
-                cog.process_auction({"uuid": "bad"}),
-                cog.process_auction({"uuid": "good"}),
+                cog.process_auction({"uuid": "bad"}, {}),
+                cog.process_auction({"uuid": "good"}, {}),
             )
         self.assertEqual(process.await_count, 2)
 
     async def test_failed_alert_does_not_repeat_the_scanned_auctions(self):
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         cog.last_scanned_active = 1000
-        auctions = [{"uuid": "a", "start": 1500}, {"uuid": "b", "start": 1500}]
+        auctions = [
+            {"uuid": "a", "start": 1500, "item_bytes": ""},
+            {"uuid": "b", "start": 1500, "item_bytes": ""},
+        ]
         pages = [
             {"lastUpdated": 2000, "auctions": auctions},
             {"lastUpdated": 3000, "auctions": auctions},
         ]
         with (
             patch.object(auctionhouse, "get_active_auctions", side_effect=pages),
+            patch.object(auctionhouse, "decode_single", return_value={}),
             patch.object(
                 cog,
                 "on_auction",
@@ -577,10 +581,31 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
             threads.append(threading.get_ident())
             return {}
 
-        with patch.object(auctionhouse, "decode_single", side_effect=decode):
-            await cog.on_auction_end({"auction_id": "a", "item_bytes": ""})
-        self.assertNotEqual(threads, [loop_thread])
-        self.assertEqual(cog.ended_uploads.docs[0]["_id"], "a")
+        cog.last_scanned_ended = 1000
+        auctions = [
+            {"auction_id": "a", "item_bytes": "", "timestamp": 1500},
+            {"auction_id": "b", "item_bytes": "", "timestamp": 1500},
+        ]
+        with (
+            patch.object(
+                auctionhouse,
+                "get_ended_auctions",
+                return_value={"lastUpdated": 2000, "auctions": auctions},
+            ),
+            patch.object(auctionhouse, "decode_single", side_effect=decode),
+        ):
+            await cog.ended_scanner()
+        self.assertEqual(len(set(threads)), 1)
+        self.assertNotEqual(threads[0], loop_thread)
+        self.assertEqual([doc["_id"] for doc in cog.ended_uploads.docs], ["a", "b"])
+
+    async def test_malformed_auction_items_are_skipped(self):
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
+        with self.assertLogs(auctionhouse.logger, level="WARNING"):
+            await cog.process_auction(
+                {"uuid": "a"}, *auctionhouse.decode_items([{"uuid": "a"}])
+            )
+        self.assertEqual(cog.active_uploads.docs, [])
 
     async def test_leather_colors_use_the_low_24_bits(self):
         auction = {
