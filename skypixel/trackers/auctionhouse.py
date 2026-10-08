@@ -64,18 +64,18 @@ async def make_auction_embed(
 ) -> disnake.Embed:
     tag = item.get("tag", {})
     display = tag.get("display", {})
+    color = display.get("color")
     embed = disnake.Embed(
         url=constants.AUCTION_URL.format(auction["uuid"]),
         title=auction["item_name"],
-        color=(display.get("color") or 0) & 0xFFFFFF
-        or constants.RARITY_COLORS.get(auction.get("tier", "COMMON")),
+        color=color & 0xFFFFFF
+        if color is not None
+        else constants.RARITY_COLORS.get(auction.get("tier", "COMMON")),
     )
     embed.set_thumbnail(
         utils.get_item_image(
             item_id=tag.get("ExtraAttributes", {}).get("id", "DIRT"),
-            color=f"{display['color'] & 0xFFFFFF:06X}"
-            if display.get("color")
-            else None,
+            color=f"{color & 0xFFFFFF:06X}" if color is not None else None,
             durability=item.get("Damage"),
         )
     )
@@ -326,7 +326,7 @@ class AuctionTrackerCog(PollingCog):
             else None
         )
         color = item.get("tag", {}).get("display", {}).get("color")
-        hex_code = f"{color & 0xFFFFFF:06X}" if color else None
+        hex_code = f"{color & 0xFFFFFF:06X}" if color is not None else None
         exotic_type = (
             colors.get_exotic_type(item_id, hex_code)
             if item_id and hex_code and not extra_attributes.get("dye_item")
