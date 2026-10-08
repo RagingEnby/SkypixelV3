@@ -111,7 +111,7 @@ class AHListener:
             value=item["tag"]["ExtraAttributes"]["originTag"],
             inline=True,
         )
-        await utils.send_to_channel(
+        await utils.notify_to_channel(
             self.bot, constants.ADMIN_SPAWNED_ITEMS_CHANNEL, embed=embed
         )
 
@@ -124,7 +124,7 @@ class AHListener:
             value=item["tag"]["ExtraAttributes"]["modifier"],
             inline=True,
         )
-        await utils.send_to_channel(
+        await utils.notify_to_channel(
             self.bot, constants.OG_REFORGES_CHANNEL, embed=embed
         )
 
@@ -137,7 +137,7 @@ class AHListener:
             value=item["tag"]["ExtraAttributes"]["modifier"],
             inline=True,
         )
-        await utils.send_to_channel(
+        await utils.notify_to_channel(
             self.bot, constants.SEMI_OG_REFORGES_CHANNEL, embed=embed
         )
 
@@ -150,7 +150,7 @@ class AHListener:
             name=rankname,
             icon_url=constants.MC_HEAD_IMAGE.format(auction["auctioneer"]),
         )
-        await utils.send_to_channel(
+        await utils.notify_to_channel(
             self.bot, constants.POI_AUCTIONS_CHANNEL, embed=embed
         )
 
@@ -163,7 +163,7 @@ class AHListener:
             value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
             inline=True,
         )
-        await utils.send_to_channel(
+        await utils.notify_to_channel(
             self.bot, constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed
         )
 
@@ -179,7 +179,7 @@ class AHListener:
             + "\n".join([f"{k}: {round(v, 2)}" for k, v in top_5.items()])
             + "```"
         )
-        await utils.send_to_channel(
+        await utils.notify_to_channel(
             self.bot, constants.SEYMOUR_AUCTIONS_CHANNEL, embed=embed
         )
 
@@ -196,14 +196,14 @@ class AHListener:
             name="Exotic Type", value=exotic_type.replace("_", " ").title(), inline=True
         )
         send_tasks = [
-            utils.send_to_channel(
+            utils.notify_to_channel(
                 self.bot, constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed
             )
         ]
         thread_id = constants.EXOTIC_AUCTIONS_THREADS.get(exotic_type)
         if thread_id:
             send_tasks.append(
-                utils.send_to_channel(
+                utils.notify_to_channel(
                     self.bot,
                     constants.EXOTIC_AUCTIONS_THREADS_PARENT,
                     thread_id=thread_id,
@@ -234,7 +234,7 @@ class AHListener:
             pings.append(f"<@&{constants.CHEAP_RED_SOUL_ROLE}>")
         if auction["bin"] and auction["starting_bid"] <= 5_000_000:
             pings.append(f"<@&{constants.CHEAP_SOUL_ROLE}>")
-        await utils.send_to_channel(
+        await utils.notify_to_channel(
             self.bot, constants.CAKE_SOUL_AUCTIONS_CHANNEL, " ".join(pings), embed=embed
         )
 
@@ -264,7 +264,7 @@ class AHListener:
                 value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
                 inline=True,
             )
-        await utils.send_to_channel(
+        await utils.notify_to_channel(
             self.bot, constants.EDITIONED_AUCTIONS_CHANNEL, embed=embed
         )
 
