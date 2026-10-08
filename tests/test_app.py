@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from disnake.ext import commands
 
 import tests.support as support
-from skypixel import app, checks, constants, settings
+from skypixel import app, checks, settings
 from skypixel.clients import hypixel
 
 
@@ -102,7 +102,6 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                     {"itemdb", "ranks", "Execute"},
                 )
                 self.assertTrue(bot.intents.members)
-                self.assertIs(constants.BOT, bot)
                 for cog in bot.cogs.values():
                     if hasattr(cog, "poll"):
                         self.assertIn(
@@ -110,7 +109,6 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                         )
             finally:
                 await bot.close()
-            self.assertIsNone(constants.BOT)
 
     async def test_one_failed_cog_close_does_not_skip_other_resources(self):
         bot = app.SkypixelBot(
@@ -187,7 +185,6 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                 side_effect=ValueError("bad catalog"),
             ),
             patch.object(app.http, "close", new_callable=AsyncMock) as close,
-            patch.object(constants, "BOT", None),
         ):
             with self.assertRaises(ValueError):
                 await app.run()
@@ -239,8 +236,6 @@ with patch("curl_cffi.AsyncSession", side_effect=AssertionError("HTTP session op
     import skypixel
     for module in pkgutil.walk_packages(skypixel.__path__, "skypixel."):
         importlib.import_module(module.name)
-    from skypixel import constants
-    assert constants.BOT is None
 """
         with tempfile.TemporaryDirectory() as directory:
             environment = {

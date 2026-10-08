@@ -18,8 +18,8 @@ async def get_motd() -> list[str]:
     return [line.strip() for line in status.description.split("\n")]
 
 
-async def send(embed: disnake.Embed, ping: bool = True):
-    await utils.broadcast(constants.MOTD_TRACKER_CHANNELS, embed=embed, ping=ping)
+async def send(bot: commands.InteractionBot, embed: disnake.Embed, ping: bool = True):
+    await utils.broadcast(bot, constants.MOTD_TRACKER_CHANNELS, embed=embed, ping=ping)
 
 
 class MotdTrackerCog(PollingCog):
@@ -51,7 +51,7 @@ class MotdTrackerCog(PollingCog):
             name="After", value="```" + "\n".join(after) + "```", inline=False
         )
         should_ping = self.last_ping.total_seconds() / 60 > 10
-        await send(embed, ping=should_ping)
+        await send(self.bot, embed, ping=should_ping)
         if should_ping:
             self._last_ping = datetime.now(UTC)
 

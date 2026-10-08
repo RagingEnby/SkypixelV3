@@ -218,8 +218,9 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_channel_counts_do_not_add_a_synthetic_player_rank(self):
         data = {"innit": [{"id": "abc", "name": "Player"}]}
-        with patch.object(ranktracker.constants, "BOT", None):
-            await ranktracker.edit_stat_channels(data)
+        bot = Mock(get_channel=Mock(return_value=None))
+        with self.assertLogs(ranktracker.logger, level="ERROR"):
+            await ranktracker.edit_stat_channels(bot, data)
         self.assertEqual(set(data), {"innit"})
 
     async def test_watchlist_can_remove_more_than_one_player(self):

@@ -61,7 +61,9 @@ async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
     return await http.get_json(RANK_URL.format(rank))
 
 
-async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
+async def edit_stat_channels(
+    bot: commands.InteractionBot, rank_data: dict[str, list[dict[str, str]]]
+):
     rank_data = rank_data.copy()
     rank_data["special"] = [
         player
@@ -74,9 +76,7 @@ async def edit_stat_channels(rank_data: dict[str, list[dict[str, str]]]):
         players = rank_data.get(rank, [])
         channels = constants.RANK_TRACKER_CHANNELS[rank]
         for channel_id in channels:
-            if constants.BOT is None:
-                return
-            channel = constants.BOT.get_channel(channel_id)
+            channel = bot.get_channel(channel_id)
             name = f"{rank}-{len(players)}"
             if not isinstance(channel, disnake.TextChannel):
                 logger.error(
@@ -130,12 +130,14 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
         POI_UUIDS.update(
             player["id"] for players in data.values() for player in players
         )
-    await edit_stat_channels(data)
     return data
 
 
-async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
+async def get_player_ranks(
+    bot: commands.InteractionBot,
+) -> dict[str, dict[str, str | SpecialRank]]:
     data = await get_rank_lists()
+    await edit_stat_channels(bot, data)
     return {
         player["id"]: {"rank": rank, "name": player["name"]}
         for rank, players in data.items()
@@ -144,11 +146,16 @@ async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
 
 
 async def send(
-    rank: Literal["special"] | SpecialRank, embed: disnake.Embed, ping: bool = True
+    bot: commands.InteractionBot,
+    rank: Literal["special"] | SpecialRank,
+    embed: disnake.Embed,
+    ping: bool = True,
 ):
     if rank not in constants.RANK_TRACKER_CHANNELS:
         rank = "special"
-    await utils.broadcast(constants.RANK_TRACKER_CHANNELS[rank], embed=embed, ping=ping)
+    await utils.broadcast(
+        bot, constants.RANK_TRACKER_CHANNELS[rank], embed=embed, ping=ping
+    )
 
 
 def shrunken_ranks(
@@ -203,35 +210,34 @@ class RankTrackerCog(PollingCog):
             await notify(*args)
             self.known_changes.add(key)
 
-    @staticmethod
-    async def on_rank_add(uuid: str, name: str, rank: SpecialRank):
+    async def on_rank_add(self, uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
             uuid,
             name,
             rank,
             f"{utils.esc_mrkdwn(name)} now has {format_rank(rank)} rank!",
         )
-        await send(rank, embed)
+        await send(self.bot, rank, embed)
 
-    @staticmethod
-    async def on_rank_remove(uuid: str, name: str, rank: SpecialRank):
+    async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
             uuid,
             name,
             rank,
             f"{utils.esc_mrkdwn(name)} has lost {format_rank(rank)} rank",
         )
-        await send(rank, embed)
+        await send(self.bot, rank, embed)
 
-    @staticmethod
-    async def on_name_change(uuid: str, before: str, after: str, rank: SpecialRank):
+    async def on_name_change(
+        self, uuid: str, before: str, after: str, rank: SpecialRank
+    ):
         embed = make_embed(
             uuid,
             after,
             rank,
             f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}",
         )
-        await send(rank, embed, ping=False)
+        await send(self.bot, rank, embed, ping=False)
 
     async def do_watchlist(self):
         for uuid, last_rankname in list(self.watch_list.items()):
@@ -386,7 +392,7 @@ class RankTrackerCog(PollingCog):
 
     async def poll(self):
         await self.do_watchlist()
-        player_ranks = await get_player_ranks()
+        player_ranks = await get_player_ranks(self.bot)
         if not self.data.to_dict():
             await self.data.replace(player_ranks)
             logger.info("wrote rank data to empty ranks.json")

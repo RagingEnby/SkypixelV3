@@ -15,8 +15,7 @@ class GuildCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
 
-    @staticmethod
-    async def on_bot_joinleave(guild: disnake.Guild, action: JoinLeave):
+    async def on_bot_joinleave(self, guild: disnake.Guild, action: JoinLeave):
         if not guild.members:
             return
         verb = "joined" if action == "join" else "left"
@@ -37,10 +36,9 @@ class GuildCog(commands.Cog):
             name="Member Info",
             value=f"**Members:** {guild.member_count}\n**Owner:** {guild.owner.mention if guild.owner else '`Unknown`'}",
         )
-        await utils.send_to_channel(constants.INVITE_LOG_CHANNEL, embed=embed)
+        await utils.send_to_channel(self.bot, constants.INVITE_LOG_CHANNEL, embed=embed)
 
-    @staticmethod
-    async def on_member_joinleave(member: disnake.Member, action: JoinLeave):
+    async def on_member_joinleave(self, member: disnake.Member, action: JoinLeave):
         if member.guild.id != constants.DEV_SERVER_ID:
             return
         verb = "joined" if action == "join" else "left"
@@ -60,7 +58,7 @@ class GuildCog(commands.Cog):
             icon_url=member.guild.icon.url if member.guild.icon else None,
         )
         await utils.send_to_channel(
-            constants.JOIN_LOG_CHANNEL, member.mention, embed=embed
+            self.bot, constants.JOIN_LOG_CHANNEL, member.mention, embed=embed
         )
 
     @commands.Cog.listener()

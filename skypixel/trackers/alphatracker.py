@@ -26,8 +26,8 @@ async def get_alpha_data() -> dict[str, Any]:
     return flatten_status(status.raw)
 
 
-async def send(embed: disnake.Embed):
-    await utils.broadcast(constants.ALPHA_TRACKER_CHANNELS, embed=embed)
+async def send(bot: commands.InteractionBot, embed: disnake.Embed):
+    await utils.broadcast(bot, constants.ALPHA_TRACKER_CHANNELS, embed=embed)
 
 
 class AlphaTrackerCog(PollingCog):
@@ -37,8 +37,7 @@ class AlphaTrackerCog(PollingCog):
         super().__init__(bot)
         self.data = JsonWrapper(bot.settings.storage_dir / "alpha.json")
 
-    @staticmethod
-    async def on_status_update(before: dict[str, Any], after: dict[str, Any]):
+    async def on_status_update(self, before: dict[str, Any], after: dict[str, Any]):
         diff = [k for k, v in after.items() if v != before.get(k)]
         if not diff:
             return
@@ -53,7 +52,7 @@ class AlphaTrackerCog(PollingCog):
                 value=f"Before: `{before.get(key)}`\nAfter: `{after[key]}`",
                 inline=False,
             )
-        await send(embed)
+        await send(self.bot, embed)
 
     async def poll(self):
         status = await get_alpha_data()

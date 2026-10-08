@@ -83,8 +83,8 @@ async def get_jobs() -> list[Job]:
     return [Job.from_dict(job) for job in data["jobs"]]
 
 
-async def send(embed: disnake.Embed):
-    await utils.broadcast(constants.JOB_TRACKER_CHANNELS, embed=embed)
+async def send(bot: commands.InteractionBot, embed: disnake.Embed):
+    await utils.broadcast(bot, constants.JOB_TRACKER_CHANNELS, embed=embed)
 
 
 class JobTrackerCog(PollingCog):
@@ -98,8 +98,7 @@ class JobTrackerCog(PollingCog):
         # An empty file means no open jobs. A missing file means the first run.
         self.initialized = Path(self.data.file_path).exists()
 
-    @staticmethod
-    async def on_job_update(job: Job, added: bool):
+    async def on_job_update(self, job: Job, added: bool):
         embed = utils.add_footer(
             disnake.Embed(
                 title="New Job Opening!" if added else "Job Opening Removed!",
@@ -109,7 +108,7 @@ class JobTrackerCog(PollingCog):
                 else constants.COLOR_CODES["c"],
             )
         )
-        await send(embed)
+        await send(self.bot, embed)
 
     async def poll(self):
         jobs = await get_jobs()

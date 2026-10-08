@@ -88,38 +88,49 @@ async def make_auction_embed(
 
 
 class AHListener:
-    @staticmethod
-    async def on_admin_spawned_auction(auction: dict[str, Any], item: dict[str, Any]):
+    def __init__(self, bot: commands.InteractionBot):
+        self.bot = bot
+
+    async def on_admin_spawned_auction(
+        self, auction: dict[str, Any], item: dict[str, Any]
+    ):
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Origin Tag",
             value=item["tag"]["ExtraAttributes"]["originTag"],
             inline=True,
         )
-        await utils.send_to_channel(constants.ADMIN_SPAWNED_ITEMS_CHANNEL, embed=embed)
+        await utils.send_to_channel(
+            self.bot, constants.ADMIN_SPAWNED_ITEMS_CHANNEL, embed=embed
+        )
 
-    @staticmethod
-    async def on_og_reforge_auction(auction: dict[str, Any], item: dict[str, Any]):
+    async def on_og_reforge_auction(
+        self, auction: dict[str, Any], item: dict[str, Any]
+    ):
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Reforge",
             value=item["tag"]["ExtraAttributes"]["modifier"],
             inline=True,
         )
-        await utils.send_to_channel(constants.OG_REFORGES_CHANNEL, embed=embed)
+        await utils.send_to_channel(
+            self.bot, constants.OG_REFORGES_CHANNEL, embed=embed
+        )
 
-    @staticmethod
-    async def on_semi_og_reforge_auction(auction: dict[str, Any], item: dict[str, Any]):
+    async def on_semi_og_reforge_auction(
+        self, auction: dict[str, Any], item: dict[str, Any]
+    ):
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Reforge",
             value=item["tag"]["ExtraAttributes"]["modifier"],
             inline=True,
         )
-        await utils.send_to_channel(constants.SEMI_OG_REFORGES_CHANNEL, embed=embed)
+        await utils.send_to_channel(
+            self.bot, constants.SEMI_OG_REFORGES_CHANNEL, embed=embed
+        )
 
-    @staticmethod
-    async def on_poi_auction(auction: dict[str, Any], item: dict[str, Any]):
+    async def on_poi_auction(self, auction: dict[str, Any], item: dict[str, Any]):
         rankname = utils.remove_color_codes(
             await ranktracker.get_rankname(auction["auctioneer"])
         )
@@ -128,11 +139,12 @@ class AHListener:
             name=rankname,
             icon_url=constants.MC_HEAD_IMAGE.format(auction["auctioneer"]),
         )
-        await utils.send_to_channel(constants.POI_AUCTIONS_CHANNEL, embed=embed)
+        await utils.send_to_channel(
+            self.bot, constants.POI_AUCTIONS_CHANNEL, embed=embed
+        )
 
-    @staticmethod
     async def on_old_item_auction(
-        auction: dict[str, Any], item: dict[str, Any], timestamp: int
+        self, auction: dict[str, Any], item: dict[str, Any], timestamp: int
     ):
         embed = await make_auction_embed(auction, item)
         embed.add_field(
@@ -140,11 +152,12 @@ class AHListener:
             value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
             inline=True,
         )
-        await utils.send_to_channel(constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed)
+        await utils.send_to_channel(
+            self.bot, constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed
+        )
 
-    @staticmethod
     async def on_seymour_auction(
-        auction: dict[str, Any], item: dict[str, Any], hex_code: str
+        self, auction: dict[str, Any], item: dict[str, Any], hex_code: str
     ):
         embed = await make_auction_embed(auction, item)
         embed.add_field(name="Hex Code", value=f"#{hex_code}", inline=True)
@@ -155,10 +168,12 @@ class AHListener:
             + "\n".join([f"{k}: {round(v, 2)}" for k, v in top_5.items()])
             + "```"
         )
-        await utils.send_to_channel(constants.SEYMOUR_AUCTIONS_CHANNEL, embed=embed)
+        await utils.send_to_channel(
+            self.bot, constants.SEYMOUR_AUCTIONS_CHANNEL, embed=embed
+        )
 
-    @staticmethod
     async def on_exotic_auction(
+        self,
         auction: dict[str, Any],
         item: dict[str, Any],
         exotic_type: colors.ExoticType,
@@ -170,12 +185,15 @@ class AHListener:
             name="Exotic Type", value=exotic_type.replace("_", " ").title(), inline=True
         )
         send_tasks = [
-            utils.send_to_channel(constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed)
+            utils.send_to_channel(
+                self.bot, constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed
+            )
         ]
         thread_id = constants.EXOTIC_AUCTIONS_THREADS.get(exotic_type)
         if thread_id:
             send_tasks.append(
                 utils.send_to_channel(
+                    self.bot,
                     constants.EXOTIC_AUCTIONS_THREADS_PARENT,
                     thread_id=thread_id,
                     embed=embed,
@@ -183,8 +201,7 @@ class AHListener:
             )
         await finish_tasks(*send_tasks)
 
-    @staticmethod
-    async def on_cake_soul_auction(auction: dict[str, Any], item: dict[str, Any]):
+    async def on_cake_soul_auction(self, auction: dict[str, Any], item: dict[str, Any]):
         embed = await make_auction_embed(auction, item)
         dye_data = constants.MINECRAFT_DYES.get(item.get("Damage"))
         if dye_data:
@@ -207,11 +224,11 @@ class AHListener:
         if auction["bin"] and auction["starting_bid"] <= 5_000_000:
             pings.append(f"<@&{constants.CHEAP_SOUL_ROLE}>")
         await utils.send_to_channel(
-            constants.CAKE_SOUL_AUCTIONS_CHANNEL, " ".join(pings), embed=embed
+            self.bot, constants.CAKE_SOUL_AUCTIONS_CHANNEL, " ".join(pings), embed=embed
         )
 
-    @staticmethod
     async def on_editioned_auction(
+        self,
         auction: dict[str, Any],
         item: dict[str, Any],
         edition: int,
@@ -236,7 +253,9 @@ class AHListener:
                 value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
                 inline=True,
             )
-        await utils.send_to_channel(constants.EDITIONED_AUCTIONS_CHANNEL, embed=embed)
+        await utils.send_to_channel(
+            self.bot, constants.EDITIONED_AUCTIONS_CHANNEL, embed=embed
+        )
 
 
 class AuctionTrackerCog(PollingCog):
@@ -254,6 +273,7 @@ class AuctionTrackerCog(PollingCog):
         self.last_scanned_ended = 0
         self._scan_semaphore = asyncio.Semaphore(20)
         self._late_polls = {"active": 0, "ended": 0}
+        self.listener = AHListener(bot)
 
     def next_delay(self, scanner: str, last_updated: int, changed: bool) -> float:
         """Wait for the next API update, backing off while the API is late."""
@@ -313,30 +333,30 @@ class AuctionTrackerCog(PollingCog):
         tasks: list[Coroutine] = []
 
         if extra_attributes.get("originTag") in constants.ADMIN_ORIGIN_TAGS:
-            tasks.append(AHListener.on_admin_spawned_auction(auction, item))
+            tasks.append(self.listener.on_admin_spawned_auction(auction, item))
         if not accessory and extra_attributes.get("modifier") in constants.OG_REFORGES:
-            tasks.append(AHListener.on_og_reforge_auction(auction, item))
+            tasks.append(self.listener.on_og_reforge_auction(auction, item))
         if accessory and extra_attributes.get("modifier", "none") != "none":
-            tasks.append(AHListener.on_semi_og_reforge_auction(auction, item))
+            tasks.append(self.listener.on_semi_og_reforge_auction(auction, item))
         if auction["auctioneer"] in ranktracker.POI_UUIDS:
-            tasks.append(AHListener.on_poi_auction(auction, item))
+            tasks.append(self.listener.on_poi_auction(auction, item))
         if (
             timestamp
             and timestamp <= 1575910800
             and auction["starting_bid"] <= 100_000_000
         ):
-            tasks.append(AHListener.on_old_item_auction(auction, item, timestamp))
+            tasks.append(self.listener.on_old_item_auction(auction, item, timestamp))
         if item_id in constants.SEYMOUR_IDS and hex_code:
-            tasks.append(AHListener.on_seymour_auction(auction, item, hex_code))
+            tasks.append(self.listener.on_seymour_auction(auction, item, hex_code))
         if exotic_type and hex_code:
             tasks.append(
-                AHListener.on_exotic_auction(auction, item, exotic_type, hex_code)
+                self.listener.on_exotic_auction(auction, item, exotic_type, hex_code)
             )
         if item_id == "CAKE_SOUL":
-            tasks.append(AHListener.on_cake_soul_auction(auction, item))
+            tasks.append(self.listener.on_cake_soul_auction(auction, item))
         if edition and edition > 0:
             tasks.append(
-                AHListener.on_editioned_auction(auction, item, edition, timestamp)
+                self.listener.on_editioned_auction(auction, item, edition, timestamp)
             )
         if tasks:
             await finish_tasks(*tasks)

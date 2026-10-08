@@ -47,11 +47,7 @@ class SkypixelBot(commands.InteractionBot):
                     if isinstance(result, BaseException):
                         logger.error("A client failed to close.", exc_info=result)
             finally:
-                try:
-                    await super().close()
-                finally:
-                    if constants.BOT is self:
-                        constants.BOT = None
+                await super().close()
             logger.info("The bot has shut down.")
 
     async def on_ready(self) -> None:
@@ -96,7 +92,6 @@ def load_cogs() -> list[type[commands.Cog]]:
 
 def create_bot(settings: Settings, **kwargs) -> SkypixelBot:
     bot = SkypixelBot(settings, **kwargs)
-    constants.BOT = bot
     for cog in load_cogs():
         bot.add_cog(cog(bot))
     owner.register(bot)
@@ -142,7 +137,6 @@ async def run() -> None:
             loop.remove_signal_handler(signum)
         if shutdown_task is not None:
             await shutdown_task
-        bot = bot or constants.BOT
         if bot is not None:
             await bot.close()
         else:
