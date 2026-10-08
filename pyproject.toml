@@ -8,9 +8,8 @@ dependencies = [
     "curl-cffi>=0.13.0,<1",
     "disnake>=2.11,<3",
     "mcstatus>=11.1.1,<15",
-    "motor>=3.7.0,<4",
     "mutf8>=1.0.6,<2",
-    "pymongo>=4.9,<5",
+    "pymongo>=4.13,<5",
 ]
 
 [project.scripts]

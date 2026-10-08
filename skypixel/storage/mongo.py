@@ -2,8 +2,7 @@ import asyncio
 import logging
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo import UpdateOne
+from pymongo import AsyncMongoClient, UpdateOne
 from pymongo.errors import BulkWriteError
 
 logger = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ class Collection:
         if self._client is None:
             if not self.uri:
                 raise ValueError("Set SKYPIXEL_MONGODB_URI or scrts.MONGODB_URI.")
-            self._client = AsyncIOMotorClient(self.uri, serverSelectionTimeoutMS=10000)
+            self._client = AsyncMongoClient(self.uri, serverSelectionTimeoutMS=10000)
         return self._client
 
     @property
@@ -86,9 +85,9 @@ class Collection:
         if self._closed:
             return
         self._closed = True
-        if self._client is not None:
-            self._client.close()
-            self._client = None
+        client, self._client = self._client, None
+        if client is not None:
+            await client.close()
         logger.debug("Closed %s.%s", self.db_name, self.collection_name)
 
     async def search(
