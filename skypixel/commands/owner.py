@@ -41,7 +41,7 @@ def register(bot: commands.InteractionBot) -> None:
                 **globals(),
                 **locals(),
                 "constants": constants,
-                "asyncreqs": http,
+                "http": http,
                 **{name: type(cog) for name, cog in bot.cogs.items()},
             }
             exec(compile(code, "<owner command>", "exec"), namespace)
