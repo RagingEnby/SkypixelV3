@@ -243,7 +243,7 @@ def configure(items: list[dict]) -> None:
                 ARMOR_COLORS[armor_type][item.get("name", item["id"])] = (
                     colorcompare.rgb_to_lab(rgb)
                 )
-            except ValueError, TypeError, AttributeError:
+            except (ValueError, TypeError, AttributeError):  # fmt: skip
                 logger.warning("Skipped an invalid default color for %s.", item["id"])
         description = item.get("description")
         dye = (

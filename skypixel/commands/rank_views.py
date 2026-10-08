@@ -27,7 +27,7 @@ class GotoPageModal(disnake.ui.Modal):
         page_str = inter.text_values.get("goto_page")
         try:
             page = int(page_str or "")
-        except TypeError, ValueError:
+        except (TypeError, ValueError):  # fmt: skip
             return await inter.response.send_message(
                 embed=utils.make_error("Invalid Page", "Please enter a valid number"),
                 ephemeral=True,

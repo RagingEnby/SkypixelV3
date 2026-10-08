@@ -46,7 +46,7 @@ def decode_items(auctions: list[dict[str, Any]]) -> list[dict[str, Any] | None]:
     for auction in auctions:
         try:
             items.append(decode_single(auction["item_bytes"]))
-        except ItemDecodeError, KeyError:
+        except (ItemDecodeError, KeyError):  # fmt: skip
             items.append(None)
     return items
 
