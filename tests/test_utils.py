@@ -57,7 +57,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_broadcast_obeys_the_ten_embed_limit(self):
         embeds = [disnake.Embed(title=str(index)) for index in range(23)]
-        with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
+        with patch.object(utils, "notify_to_channel", new_callable=AsyncMock) as send:
             await utils.broadcast(Mock(), {1: "ping"}, embeds=embeds)
         self.assertEqual(
             [len(call.kwargs["embeds"]) for call in send.call_args_list], [10, 10, 3]
@@ -93,7 +93,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_broadcast_splits_large_embeds_without_cutting_text(self):
         embeds = [disnake.Embed(description="x" * 4000) for _ in range(3)]
-        with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
+        with patch.object(utils, "notify_to_channel", new_callable=AsyncMock) as send:
             await utils.broadcast(Mock(), {1: "ping"}, embeds=embeds)
         self.assertEqual(len(send.call_args_list), 3)
         self.assertEqual(

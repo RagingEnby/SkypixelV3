@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import signal
+from contextlib import suppress
 
 import disnake
 from disnake.ext import commands
@@ -10,6 +11,7 @@ from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
 from skypixel.logging import configure_logging
 from skypixel.settings import ConfigurationError, Settings
+from skypixel.storage.notifications import NotificationOutbox
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,10 @@ class SkypixelBot(commands.InteractionBot):
         super().__init__(intents=intents, owner_id=constants.OWNER_ID, **kwargs)
         self._close_lock = asyncio.Lock()
         self._resources_closed = False
+        self.notifications = NotificationOutbox(
+            self, settings.storage_dir / "notifications.json"
+        )
+        self._notification_task: asyncio.Task | None = None
 
     async def close(self) -> None:
         async with self._close_lock:
@@ -40,6 +46,10 @@ class SkypixelBot(commands.InteractionBot):
                 for result in results:
                     if isinstance(result, BaseException):
                         logger.error("A cog failed to close.", exc_info=result)
+                if self._notification_task is not None:
+                    self._notification_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await self._notification_task
                 results = await asyncio.gather(
                     mojang.close(), http.close(), return_exceptions=True
                 )
@@ -52,6 +62,12 @@ class SkypixelBot(commands.InteractionBot):
 
     async def on_ready(self) -> None:
         logger.info("Logged in as %s.", self.user)
+        if not self._resources_closed and (
+            self._notification_task is None or self._notification_task.done()
+        ):
+            self._notification_task = asyncio.create_task(
+                self.notifications.run(), name="skypixel-notifications"
+            )
 
 
 def load_cogs() -> list[type[commands.Cog]]:

@@ -1,3 +1,4 @@
+import asyncio
 import os
 import subprocess
 import sys
@@ -109,6 +110,30 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                         )
             finally:
                 await bot.close()
+
+    async def test_notification_retries_keep_one_task_and_stop_on_close(self):
+        bot = app.SkypixelBot(
+            support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
+        )
+        started = asyncio.Event()
+
+        async def run():
+            started.set()
+            await asyncio.Future()
+
+        with (
+            patch.object(bot.notifications, "run", side_effect=run),
+            patch.object(app.http, "close", new_callable=AsyncMock),
+        ):
+            await bot.on_ready()
+            await started.wait()
+            task = bot._notification_task
+            await bot.on_ready()
+            self.assertIs(bot._notification_task, task)
+            await bot.close()
+            self.assertTrue(task.cancelled())
+            await bot.on_ready()
+            self.assertIs(bot._notification_task, task)
 
     async def test_one_failed_cog_close_does_not_skip_other_resources(self):
         bot = app.SkypixelBot(

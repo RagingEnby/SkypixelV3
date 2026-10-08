@@ -204,10 +204,19 @@ async def broadcast(
         kwargs = {"embeds": batch} if batch is not None else {"embed": embed}
         await asyncio.gather(
             *(
-                send_to_channel(bot, channel_id, content if ping else "", **kwargs)
+                notify_to_channel(bot, channel_id, content if ping else "", **kwargs)
                 for channel_id, content in channels.items()
             )
         )
+
+
+async def notify_to_channel(
+    bot: disnake.Client,
+    channel_id: int,
+    content: str | None = None,
+    **kwargs,
+) -> disnake.Message | None:
+    return await bot.notifications.submit(channel_id, content, **kwargs)
 
 
 def to_mc_text(text: str) -> str:
