@@ -1,11 +1,42 @@
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import tests.support as support
 from skypixel.trackers import auctionhouse
 
 
 class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
+    async def test_black_armor_keeps_its_color_thumbnail_and_exotic_alert(self):
+        cog = self.cog()
+        auction = {
+            "uuid": "auction",
+            "auctioneer": "a" * 32,
+            "item_name": "Black Helmet",
+            "starting_bid": 1,
+            "bin": True,
+        }
+        item = {
+            "tag": {
+                "display": {"color": 0},
+                "ExtraAttributes": {"uuid": "item", "id": "TEST_HELMET"},
+            }
+        }
+        with (
+            patch.object(
+                cog.listener, "on_exotic_auction", new_callable=AsyncMock
+            ) as alert,
+            patch.object(
+                auctionhouse.mojang,
+                "get",
+                return_value=Mock(name="Player", avatar="", id="a" * 32),
+            ),
+        ):
+            await cog.on_auction(auction, item)
+            embed = await auctionhouse.make_auction_embed(auction, item)
+        alert.assert_awaited_once_with(auction, item, "spook", "000000")
+        self.assertEqual(embed.color.value, 0)
+        self.assertTrue(embed.thumbnail.url.endswith("/000000.png"))
+
     async def test_accessory_reforges_accept_both_category_fields(self):
         for fields in (
             {"category": "accessories"},
