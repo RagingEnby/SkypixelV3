@@ -133,11 +133,8 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
     return data
 
 
-async def get_player_ranks(
-    bot: commands.InteractionBot,
-) -> dict[str, dict[str, str | SpecialRank]]:
+async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
     data = await get_rank_lists()
-    await edit_stat_channels(bot, data)
     return {
         player["id"]: {"rank": rank, "name": player["name"]}
         for rank, players in data.items()
@@ -202,6 +199,15 @@ class RankTrackerCog(PollingCog):
             logger.warning("ranks.json is empty")
         self.known_changes: set[tuple[str, ...]] = set()
         self.shrunken_polls = 0
+        self.shrunken_changes: frozenset[tuple[str, str, str | None]] | None = None
+
+    async def update_stat_channels(self, player_ranks: dict[str, dict]) -> None:
+        ranks: dict[str, list[dict[str, str]]] = {}
+        for uuid, player in player_ranks.items():
+            ranks.setdefault(player["rank"], []).append(
+                {"id": uuid, "name": player["name"]}
+            )
+        await edit_stat_channels(self.bot, ranks)
 
     async def notify_change(
         self, key: tuple[str, ...], notify: Callable[..., Awaitable[None]], *args: str
@@ -392,13 +398,22 @@ class RankTrackerCog(PollingCog):
 
     async def poll(self):
         await self.do_watchlist()
-        player_ranks = await get_player_ranks(self.bot)
+        player_ranks = await get_player_ranks()
         if not self.data.to_dict():
             await self.data.replace(player_ranks)
+            await self.update_stat_channels(player_ranks)
             logger.info("wrote rank data to empty ranks.json")
             return
         if shrunken := shrunken_ranks(self.data.to_dict(), player_ranks):
-            self.shrunken_polls += 1
+            changes = frozenset(
+                (uuid, old["rank"], player_ranks.get(uuid, {}).get("rank"))
+                for uuid, old in self.data.items()
+                if old["rank"] != player_ranks.get(uuid, {}).get("rank")
+            )
+            self.shrunken_polls = (
+                self.shrunken_polls + 1 if changes == self.shrunken_changes else 1
+            )
+            self.shrunken_changes = changes
             if self.shrunken_polls < self.confirm_polls:
                 # A partial API response would announce mass rank removals.
                 # Refetch and require the same result before trusting it.
@@ -411,6 +426,7 @@ class RankTrackerCog(PollingCog):
                 invalidate_rank_lists()
                 return
         self.shrunken_polls = 0
+        self.shrunken_changes = None
         for uuid, data in player_ranks.items():
             old_data: dict[str, Any] | None = self.data.get(uuid)
             if not old_data:
@@ -457,3 +473,4 @@ class RankTrackerCog(PollingCog):
                 )
         await self.data.replace(player_ranks)
         self.known_changes.clear()
+        await self.update_stat_channels(player_ranks)
