@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 import tests.support as support
-from skypixel.trackers import ranktracker
+from skypixel.trackers import firesaletracker, ranktracker
 
 
 class RankValidationTests(unittest.IsolatedAsyncioTestCase):
@@ -69,3 +69,41 @@ class RankValidationTests(unittest.IsolatedAsyncioTestCase):
         remove.assert_not_awaited()
         self.assertEqual(cog.shrunken_polls, 1)
         self.assertEqual(cog.data.to_dict(), before)
+
+
+class FireSaleInitializationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_empty_first_poll_is_saved_and_a_later_sale_is_announced(self):
+        cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
+        cog.initialized = False
+        cog.data.data = {}
+        sale = {"amount": 1, "price": 1, "start": 1000, "end": 2000}
+        with (
+            patch.object(
+                firesaletracker, "get_fire_sales", side_effect=[{}, {"NEW": sale}]
+            ),
+            patch.object(firesaletracker, "send", new_callable=AsyncMock) as notify,
+            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
+            patch("skypixel.storage.json.write_json", new_callable=AsyncMock) as save,
+        ):
+            await cog.poll()
+            self.assertTrue(cog.initialized)
+            save.assert_awaited_once_with(cog.data.file_path, {}, 2)
+            notify.assert_not_awaited()
+            await cog.poll()
+        notify.assert_awaited_once()
+        self.assertIn("NEW", cog.data)
+
+    async def test_failed_empty_first_save_keeps_initialization_pending(self):
+        cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
+        cog.initialized = False
+        cog.data.data = {}
+        with (
+            patch.object(firesaletracker, "get_fire_sales", return_value={}),
+            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
+            patch("skypixel.storage.json.write_json", side_effect=[OSError, None]),
+        ):
+            with self.assertRaises(OSError):
+                await cog.poll()
+            self.assertFalse(cog.initialized)
+            await cog.poll()
+        self.assertTrue(cog.initialized)

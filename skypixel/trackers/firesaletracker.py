@@ -87,7 +87,7 @@ class FireSaleTrackerCog(PollingCog):
             or not isinstance(sale.get("end"), int | float)
             or sale["end"] > now
         }
-        if new_sales or len(kept) != len(self.data):
+        if new_sales or len(kept) != len(self.data) or not self.initialized:
             await self.data.replace({**kept, **new_sales})
             self.initialized = True
         await self.uploads.flush()
