@@ -231,7 +231,7 @@ import types
 from unittest.mock import patch
 secrets = types.ModuleType("scrts")
 sys.modules["scrts"] = secrets
-with patch("curl_cffi.AsyncSession", side_effect=AssertionError("HTTP session opened")), patch("motor.motor_asyncio.AsyncIOMotorClient", side_effect=AssertionError("MongoDB client opened")):
+with patch("curl_cffi.AsyncSession", side_effect=AssertionError("HTTP session opened")), patch("pymongo.AsyncMongoClient", side_effect=AssertionError("MongoDB client opened")):
     import main
     import skypixel
     for module in pkgutil.walk_packages(skypixel.__path__, "skypixel."):

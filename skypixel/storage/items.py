@@ -104,7 +104,7 @@ class ItemRepository(Collection):
         return item
 
     async def search_souls(self, query: dict) -> dict[str, int]:
-        cursor = self.collection.aggregate(
+        cursor = await self.collection.aggregate(
             soul_rank_pipeline(search_souls_query(query))
         )
         results = await cursor.to_list(length=1)

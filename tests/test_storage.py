@@ -138,7 +138,7 @@ class JsonStorageTests(unittest.IsolatedAsyncioTestCase):
 class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
     async def test_empty_batch_does_not_open_a_client(self):
         collection = Collection("mongodb://localhost", "test", "items")
-        with patch("skypixel.storage.mongo.AsyncIOMotorClient") as factory:
+        with patch("skypixel.storage.mongo.AsyncMongoClient") as factory:
             self.assertIsNone(await collection.update_many([]))
             factory.assert_not_called()
 
@@ -153,11 +153,11 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_close_is_idempotent(self):
         collection = Collection("mongodb://localhost", "test", "items")
-        client = Mock()
+        client = Mock(close=AsyncMock())
         collection._client = client
         await collection.close()
         await collection.close()
-        client.close.assert_called_once()
+        client.close.assert_awaited_once()
         with self.assertRaises(RuntimeError):
             _ = collection.client
 
@@ -234,7 +234,7 @@ class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_empty_flush_does_not_open_a_client(self):
         queue = UploadQueue("mongodb://localhost", "test", "items")
-        with patch("skypixel.storage.mongo.AsyncIOMotorClient") as factory:
+        with patch("skypixel.storage.mongo.AsyncMongoClient") as factory:
             await queue.flush()
             await queue.close()
         factory.assert_not_called()
