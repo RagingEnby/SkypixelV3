@@ -3,7 +3,7 @@ name = "skypixelv3"
 version = "3.0.0-alpha.1"
 description = "A Discord bot for Hypixel SkyBlock item collectors"
 authors = [{name="RagingEnby", email="contact@ragingenby.dev"}]
-requires-python = ">=3.14.8"
+requires-python = ">=3.14"
 dependencies = [
     "curl-cffi>=0.13.0,<1",
     "disnake>=2.11,<3",
