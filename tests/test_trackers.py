@@ -4,6 +4,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+from curl_cffi.requests.exceptions import HTTPError
+
 import tests.support as support
 from skypixel import app
 from skypixel.storage.json import JsonWrapper
@@ -136,6 +138,19 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
         ):
             await cog.do_watchlist()
             self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
+
+    async def test_rate_limit_stops_the_watchlist_without_changing_players(self):
+        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-limited.json")
+        state.data = {"first": "same", "second": "same"}
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        cog.watch_list = state
+        error = HTTPError("Rate limited", response=Mock(status_code=429))
+        with patch.object(
+            ranktracker, "get_rankname", new_callable=AsyncMock, side_effect=error
+        ) as get:
+            await cog.do_watchlist()
+        get.assert_awaited_once_with("first")
+        self.assertEqual(state.data, {"first": "same", "second": "same"})
 
     async def test_invalidation_during_a_fetch_expires_the_fetched_lists(self):
         data = {"staff": [{"id": "abc", "name": "Player"}]}
