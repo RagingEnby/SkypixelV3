@@ -1,8 +1,12 @@
 import asyncio
 import logging
 from contextlib import suppress
+from functools import wraps
 
 from disnake.ext import commands
+
+from skypixel.storage.json import JsonWrapper
+from skypixel.storage.notifications import NotificationOutbox, notification_fingerprint
 
 
 class PollingCog(commands.Cog):
@@ -16,6 +20,26 @@ class PollingCog(commands.Cog):
         self._close_lock = asyncio.Lock()
         self._closed = False
         self._logger = logging.getLogger(type(self).__module__)
+        if isinstance(getattr(bot, "notifications", None), NotificationOutbox):
+            poll = self.poll
+
+            @wraps(poll)
+            async def poll_with_notifications():
+                state = getattr(self, "data", None)
+                version = notification_fingerprint(
+                    {
+                        "state": state.to_dict()
+                        if isinstance(state, JsonWrapper)
+                        else {
+                            "active": getattr(self, "last_scanned_active", None),
+                            "ended": getattr(self, "last_scanned_ended", None),
+                        }
+                    },
+                )
+                async with bot.notifications.event(type(self).__name__, version):
+                    return await poll()
+
+            self.poll = poll_with_notifications
 
     async def poll(self) -> float | None:
         raise NotImplementedError

@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import types
+from contextlib import nullcontext
 from unittest.mock import Mock, patch
 
 TEST_STORAGE = tempfile.TemporaryDirectory(prefix="skypixel-tests-")
@@ -38,6 +39,7 @@ SETTINGS = Settings.load()
 
 def make_bot(**kwargs) -> Mock:
     """Return a mock bot that carries the test settings."""
+    kwargs.setdefault("notifications", Mock(event=Mock(return_value=nullcontext())))
     return Mock(settings=SETTINGS, **kwargs)
 
 

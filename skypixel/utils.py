@@ -10,6 +10,7 @@ import disnake
 
 from skypixel import constants
 from skypixel.clients import hypixel
+from skypixel.storage.notifications import notification_fingerprint
 
 logger = logging.getLogger(__name__)
 COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
@@ -200,14 +201,37 @@ async def broadcast(
             length += len(candidate)
         if batch:
             batches.append(batch)
-    for batch in batches:
-        kwargs = {"embeds": batch} if batch is not None else {"embed": embed}
-        await asyncio.gather(
-            *(
-                notify_to_channel(bot, channel_id, content if ping else "", **kwargs)
-                for channel_id, content in channels.items()
+    version = notification_fingerprint(
+        {
+            "channels": channels,
+            "ping": ping,
+            "embeds": [
+                message.to_dict()
+                for message in (
+                    embeds
+                    if embeds is not None
+                    else [embed]
+                    if embed is not None
+                    else []
+                )
+            ],
+        }
+    )
+    async with bot.notifications.event("broadcast", version):
+        for batch in batches:
+            kwargs = {"embeds": batch} if batch is not None else {"embed": embed}
+            results = await asyncio.gather(
+                *(
+                    notify_to_channel(
+                        bot, channel_id, content if ping else "", **kwargs
+                    )
+                    for channel_id, content in channels.items()
+                ),
+                return_exceptions=True,
             )
-        )
+            for result in results:
+                if isinstance(result, BaseException):
+                    raise result
 
 
 async def notify_to_channel(
