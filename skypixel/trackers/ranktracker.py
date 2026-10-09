@@ -223,7 +223,8 @@ class RankTrackerCog(PollingCog):
             rank,
             f"{utils.esc_mrkdwn(name)} now has {format_rank(rank)} rank!",
         )
-        await send(self.bot, rank, embed)
+        print(embed.title)
+        # await send(self.bot, rank, embed)
 
     async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
@@ -232,7 +233,8 @@ class RankTrackerCog(PollingCog):
             rank,
             f"{utils.esc_mrkdwn(name)} has lost {format_rank(rank)} rank",
         )
-        await send(self.bot, rank, embed)
+        print(embed.title)
+        # await send(self.bot, rank, embed)
 
     async def on_name_change(
         self, uuid: str, before: str, after: str, rank: SpecialRank
@@ -243,7 +245,8 @@ class RankTrackerCog(PollingCog):
             rank,
             f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}",
         )
-        await send(self.bot, rank, embed, ping=False)
+        print(embed.title)
+        # await send(self.bot, rank, embed, ping=False)
 
     async def do_watchlist(self):
         for uuid, last_rankname in list(self.watch_list.items()):
