@@ -26,6 +26,31 @@ class ProbeCog(PollingCog):
 
 
 class PollingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rank_status_uses_cached_special_rank_lists(self):
+        bot = Mock(change_presence=AsyncMock(), guilds=[])
+        cog = StatusUpdaterCog(bot)
+        players = [{"id": "one", "name": "One"}, {"id": "two", "name": "Two"}]
+        with (
+            patch.object(
+                ranktracker, "get_rank_lists", return_value={"staff": players}
+            ),
+            patch.object(
+                ranktracker, "get_rank_counts", new_callable=AsyncMock
+            ) as counts,
+        ):
+            await cog._rank_status("staff")
+        counts.assert_not_awaited()
+        activity = bot.change_presence.await_args.kwargs["activity"]
+        self.assertEqual(activity.name, "2 [ዞ] ranks")
+
+    async def test_rank_status_handles_an_empty_special_rank(self):
+        bot = Mock(change_presence=AsyncMock(), guilds=[])
+        cog = StatusUpdaterCog(bot)
+        with patch.object(ranktracker, "get_rank_lists", return_value={"staff": []}):
+            await cog._rank_status("youtube")
+        activity = bot.change_presence.await_args.kwargs["activity"]
+        self.assertEqual(activity.name, "0 [YOUTUBE] ranks")
+
     async def test_status_failure_does_not_stop_the_rotation(self):
         bot = Mock(change_presence=AsyncMock(), guilds=[])
         cog = StatusUpdaterCog(bot)

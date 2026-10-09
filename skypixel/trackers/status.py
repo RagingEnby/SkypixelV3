@@ -44,11 +44,11 @@ class StatusUpdaterCog(PollingCog):
         )
 
     async def _rank_status(self, rank: str):
-        rank_counts = await ranktracker.get_rank_counts()
+        rank_lists = await ranktracker.get_rank_lists()
         return await self.change_presence(
             activity_type=disnake.ActivityType.listening,
             name=(
-                f"{utils.commaize(rank_counts[rank])} "
+                f"{utils.commaize(len(rank_lists.get(rank, [])))} "
                 f"{ranktracker.format_rank(rank)} ranks"
             ),
         )
