@@ -88,7 +88,7 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_next_page_is_read_while_all_starts_exceed_the_cutoff(self):
         cog = self.cog()
-        pages = [self.page(0, [190_000, 170_000]), self.page(1, [165_000, 160_000])]
+        pages = [self.page(0, [150_000, 140_000]), self.page(1, [130_000, 100_000])]
         with (
             patch.object(
                 auctionhouse, "get_active_auctions", side_effect=pages
@@ -126,7 +126,7 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(fetch.await_count, len(pages))
 
     async def test_first_page_is_enough_at_or_below_the_cutoff(self):
-        for earliest in (159_999, 160_000):
+        for earliest in (99_999, 100_000):
             cog = self.cog()
             with (
                 patch.object(
@@ -134,7 +134,11 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
                     "get_active_auctions",
                     return_value=self.page(0, [190_000, earliest]),
                 ) as fetch,
-                patch.object(auctionhouse, "decode_items", return_value=[{}, {}]),
+                patch.object(
+                    auctionhouse,
+                    "decode_items",
+                    side_effect=lambda records: [{} for _ in records],
+                ),
                 patch.object(cog, "process_auction", new_callable=AsyncMock),
             ):
                 await cog.active_scanner()
@@ -177,6 +181,7 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
             cog = self.cog()
             cog.last_scanned_ended = 100_000
             page = self.page(0, [150_000])
+            page["totalPages"] = 1
             page["auctions"][0]["timestamp"] = 150_000
             fetch = "get_ended_auctions" if ended else "get_active_auctions"
             scan = cog.ended_scanner if ended else cog.active_scanner
@@ -202,7 +207,7 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
             patch.object(
                 auctionhouse,
                 "get_active_auctions",
-                side_effect=[self.page(0, [190_000]), self.page(1, [150_000])],
+                side_effect=[self.page(0, [190_000]), self.page(1, [100_000])],
             ),
             patch.object(
                 auctionhouse,
@@ -215,3 +220,23 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
                 await cog.active_scanner()
         process.assert_not_awaited()
         self.assertEqual(cog.last_scanned_active, 100_000)
+
+    async def test_overflow_within_the_next_minute_reads_the_second_page(self):
+        cog = self.cog()
+        first = self.page(0, [150_000] * 1000, updated=160_000)
+        second = self.page(1, [140_000, 99_999], updated=160_000)
+        with (
+            patch.object(
+                auctionhouse, "get_active_auctions", side_effect=[first, second]
+            ) as fetch,
+            patch.object(
+                auctionhouse,
+                "decode_items",
+                side_effect=lambda records: [{} for _ in records],
+            ),
+            patch.object(cog, "process_auction", new_callable=AsyncMock) as process,
+        ):
+            await cog.active_scanner()
+        self.assertEqual([call.args for call in fetch.await_args_list], [(), (1,)])
+        self.assertEqual(process.await_count, 1001)
+        self.assertEqual(cog.last_scanned_active, 160_000)
