@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, Literal
 
 import disnake
-from curl_cffi.requests.exceptions import RequestException
+from curl_cffi.requests.exceptions import HTTPError, RequestException
 from disnake.ext import commands
 
 from skypixel import constants, utils
@@ -256,6 +256,13 @@ class RankTrackerCog(PollingCog):
                 if rankname != last_rankname:
                     invalidate_rank_lists()
                     await self.watch_list.remove_and_save(uuid)
+            except HTTPError as error:
+                if error.response is not None and error.response.status_code == 429:
+                    logger.warning(
+                        "The rank API rate limit stopped the watchlist scan."
+                    )
+                    return
+                logger.exception("Cannot update player %s in the rank watchlist.", uuid)
             except (RequestException, KeyError, ValueError):  # fmt: skip
                 logger.exception("Cannot update player %s in the rank watchlist.", uuid)
 

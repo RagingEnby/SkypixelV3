@@ -64,7 +64,7 @@ async def request(
                 return response
             retry_after = response.headers.get("Retry-After")
             if isinstance(retry_after, str) and retry_after.isdigit():
-                delay = min(int(retry_after), MAX_RETRY_AFTER)
+                delay = max(delay, min(int(retry_after), MAX_RETRY_AFTER))
         await asyncio.sleep(delay)
     raise RuntimeError("The HTTP request did not complete.")
 
