@@ -410,7 +410,7 @@ class AuctionTrackerCog(PollingCog):
                 page["auctions"]
                 and len(pages) < page_0.get("totalPages", 1)
                 and min(a.get("start", 0) for a in page["auctions"])
-                > self.last_scanned_active + 60_000
+                > self.last_scanned_active
             ):
                 page = await get_active_auctions(len(pages))
                 if page["lastUpdated"] != page_0["lastUpdated"]:
