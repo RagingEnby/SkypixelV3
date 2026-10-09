@@ -7,12 +7,84 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import disnake
 
-from skypixel import utils
+from skypixel import constants, utils
 from skypixel.storage.notifications import NotificationOutbox, NotificationStorageError
 from skypixel.trackers import auctionhouse, versiontracker
 
 
 class NotificationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_broadcast_storage_failure_keeps_successful_delivery_across_restart(
+        self,
+    ):
+        first = self.channel
+        second = Mock(spec=disnake.TextChannel)
+        second.send = AsyncMock(return_value=Mock(spec=disnake.Message))
+        self.bot.get_channel.side_effect = lambda channel_id: (
+            first if channel_id == 1 else second
+        )
+        original = self.bot.notifications.pending.set_and_save
+
+        async def save(key, message):
+            if message["channel_id"] == 2:
+                raise OSError("disk full")
+            await original(key, message)
+
+        footers = sorted(constants.CREDIT_FOOTERS)
+        embed = disnake.Embed(title="Alert").set_footer(text=footers[0])
+        with patch.object(
+            self.bot.notifications.pending, "set_and_save", side_effect=save
+        ):
+            with self.assertRaises(NotificationStorageError):
+                await utils.broadcast(self.bot, {1: "first", 2: "second"}, embed=embed)
+        first.send.assert_awaited_once()
+        second.send.assert_not_awaited()
+        self.bot.notifications = NotificationOutbox(self.bot, self.path)
+        embed.set_footer(text=footers[-1])
+        await utils.broadcast(self.bot, {1: "first", 2: "second"}, embed=embed)
+        first.send.assert_awaited_once()
+        second.send.assert_awaited_once()
+        self.assertFalse(self.bot.notifications.pending)
+        self.assertFalse(self.bot.notifications.events)
+
+    async def test_failed_receipt_save_retries_the_save_without_sending_again(self):
+        with patch.object(self.bot.notifications.events, "save", side_effect=OSError):
+            with self.assertRaises(NotificationStorageError):
+                await utils.broadcast(
+                    self.bot, {1: "ping"}, embed=disnake.Embed(title="Alert")
+                )
+        self.channel.send.assert_awaited_once()
+        await utils.broadcast(self.bot, {1: "ping"}, embed=disnake.Embed(title="Alert"))
+        self.channel.send.assert_awaited_once()
+        self.assertFalse(self.bot.notifications.pending)
+        self.assertFalse(self.bot.notifications.events)
+
+    async def test_tracker_state_save_failure_reuses_receipts_but_a_later_event_sends_again(
+        self,
+    ):
+        cog = versiontracker.VersionTrackerCog(self.bot)
+        cog.data.data = {"version": "old"}
+        with (
+            patch.object(
+                versiontracker, "get_version", side_effect=["new", "new", "old", "new"]
+            ),
+            patch.object(
+                versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
+            ),
+        ):
+            with patch.object(cog.data, "replace", side_effect=OSError):
+                with self.assertRaises(OSError):
+                    await cog.poll()
+            self.channel.send.assert_awaited_once()
+            self.assertEqual(cog.data["version"], "old")
+            self.bot.notifications = NotificationOutbox(self.bot, self.path)
+            await cog.poll()
+            self.channel.send.assert_awaited_once()
+            await cog.poll()
+            await cog.poll()
+        self.assertEqual(self.channel.send.await_count, 3)
+        self.assertEqual(cog.data["version"], "new")
+        self.assertFalse(self.bot.notifications.events)
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
