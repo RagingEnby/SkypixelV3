@@ -22,7 +22,7 @@ URL: str = "https://api.ragingenby.dev/ranks"
 RANK_URL: str = URL + "/{}"
 COUNTS_URL: str = RANK_URL.format("counts")
 RANKNAME_URL: str = "https://api.ragingenby.dev/rankname/{}"
-RANK_LIST_CACHE_TTL_SECONDS = 24 * 60 * 60
+RANK_LIST_CACHE_TTL_SECONDS = 180
 RANK_LIST_CACHE: dict[str, list[dict[str, str]]] | None = None
 RANK_LIST_CACHE_TIME = 0.0
 RANK_LIST_CACHE_LOCK = asyncio.Lock()
@@ -224,7 +224,7 @@ class RankTrackerCog(PollingCog):
             f"{utils.esc_mrkdwn(name)} now has {format_rank(rank)} rank!",
         )
         print(embed.title)
-        # await send(self.bot, rank, embed)
+        await send(self.bot, rank, embed)
 
     async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
@@ -234,7 +234,7 @@ class RankTrackerCog(PollingCog):
             f"{utils.esc_mrkdwn(name)} has lost {format_rank(rank)} rank",
         )
         print(embed.title)
-        # await send(self.bot, rank, embed)
+        await send(self.bot, rank, embed)
 
     async def on_name_change(
         self, uuid: str, before: str, after: str, rank: SpecialRank
@@ -246,7 +246,7 @@ class RankTrackerCog(PollingCog):
             f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}",
         )
         print(embed.title)
-        # await send(self.bot, rank, embed, ping=False)
+        await send(self.bot, rank, embed, ping=False)
 
     async def do_watchlist(self):
         for uuid, last_rankname in list(self.watch_list.items()):

@@ -236,22 +236,23 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("special", ranktracker.RANK_LIST_CACHE)
         fetch.assert_awaited_once()
 
-    async def test_rank_cache_keeps_the_existing_24_hour_ttl(self):
+    async def test_rank_cache_expires_after_its_ttl(self):
         cached = {"staff": [{"id": "abc", "name": "Player"}]}
+        ttl = ranktracker.RANK_LIST_CACHE_TTL_SECONDS
         with (
             patch.object(ranktracker, "RANK_LIST_CACHE", cached),
             patch.object(ranktracker, "RANK_LIST_CACHE_TIME", 100.0),
             patch.object(
                 ranktracker,
                 "time",
-                SimpleNamespace(monotonic=lambda: 100.0 + 86400 - 1),
+                SimpleNamespace(monotonic=lambda: 100.0 + ttl - 1),
             ),
             patch.object(ranktracker.http, "get_json", new_callable=AsyncMock) as fetch,
             patch.object(ranktracker, "edit_stat_channels", new_callable=AsyncMock),
         ):
             self.assertEqual(await ranktracker.get_rank_lists(), cached)
             fetch.assert_not_awaited()
-            ranktracker.time.monotonic = lambda: 100.0 + 86400
+            ranktracker.time.monotonic = lambda: 100.0 + ttl
             fetch.return_value = {"staff": []}
             self.assertEqual(await ranktracker.get_rank_lists(), {"staff": []})
             fetch.assert_awaited_once()
