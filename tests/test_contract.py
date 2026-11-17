@@ -46,7 +46,7 @@ class ContractTests(unittest.TestCase):
             utils.remove_color_codes("§c[ADMIN] &aPlayer"), "[ADMIN] Player"
         )
         self.assertEqual(ranktracker.format_rank("pig_plus_plus_plus"), "[PIG+++]")
-        self.assertEqual(ranktracker.format_rank("staff"), "[ዞ]")
+        self.assertEqual(ranktracker.format_rank("staff"), "[STAFF]")
         self.assertEqual(utils.normalize_timestamp(1700000000000), 1700000000)
         self.assertEqual(utils.timestamp_to_unix("1700000000000L"), 1700000000000)
 

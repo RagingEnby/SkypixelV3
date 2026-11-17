@@ -169,8 +169,6 @@ def shrunken_ranks(
 
 
 def format_rank(rank: str) -> str:
-    if rank.lower() == "staff":
-        return "[ዞ]"
     return "[" + rank.replace("_plus", "+").replace("_", " ").upper() + "]"
 
 
@@ -223,8 +221,26 @@ class RankTrackerCog(PollingCog):
             rank,
             f"{utils.esc_mrkdwn(name)} now has {format_rank(rank)} rank!",
         )
-        print(embed.title)
+        logger.info("rank tracker alert: %s", embed.title)
         await send(self.bot, rank, embed)
+
+    async def on_rank_change(
+        self, uuid: str, name: str, before: SpecialRank, after: SpecialRank
+    ):
+        """Send one alert to every channel that follows the old or the new rank."""
+        embed = make_embed(
+            uuid,
+            name,
+            after,
+            f"{utils.esc_mrkdwn(name)} went from {format_rank(before)} "
+            f"to {format_rank(after)} rank!",
+        )
+        logger.info("rank tracker alert: %s", embed.title)
+        channels: dict[int, str] = {}
+        for rank in (before, after):
+            key = rank if rank in constants.RANK_TRACKER_CHANNELS else "special"
+            channels.update(constants.RANK_TRACKER_CHANNELS[key])
+        await utils.broadcast(self.bot, channels, embed=embed)
 
     async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
@@ -233,7 +249,7 @@ class RankTrackerCog(PollingCog):
             rank,
             f"{utils.esc_mrkdwn(name)} has lost {format_rank(rank)} rank",
         )
-        print(embed.title)
+        logger.info("rank tracker alert: %s", embed.title)
         await send(self.bot, rank, embed)
 
     async def on_name_change(
@@ -245,7 +261,7 @@ class RankTrackerCog(PollingCog):
             rank,
             f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}",
         )
-        print(embed.title)
+        logger.info("rank tracker alert: %s", embed.title)
         await send(self.bot, rank, embed, ping=False)
 
     async def do_watchlist(self):
@@ -450,18 +466,12 @@ class RankTrackerCog(PollingCog):
                 continue
             if old_data["rank"] != data["rank"]:
                 await self.notify_change(
-                    ("add", uuid, data["rank"]),
-                    self.on_rank_add,
-                    uuid,
-                    data["name"],
-                    data["rank"],
-                )
-                await self.notify_change(
-                    ("remove", uuid, old_data["rank"]),
-                    self.on_rank_remove,
+                    ("change", uuid, old_data["rank"], data["rank"]),
+                    self.on_rank_change,
                     uuid,
                     data["name"],
                     old_data["rank"],
+                    data["rank"],
                 )
             if old_data["name"] != data["name"]:
                 await self.notify_change(

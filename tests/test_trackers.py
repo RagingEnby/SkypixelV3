@@ -41,7 +41,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
             await cog._rank_status("staff")
         counts.assert_not_awaited()
         activity = bot.change_presence.await_args.kwargs["activity"]
-        self.assertEqual(activity.name, "2 [ዞ] ranks")
+        self.assertEqual(activity.name, "2 [STAFF] ranks")
 
     async def test_rank_status_handles_an_empty_special_rank(self):
         bot = Mock(change_presence=AsyncMock(), guilds=[])
@@ -306,19 +306,17 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(ranktracker.RankTrackerCog, "do_watchlist", AsyncMock()),
             patch.object(ranktracker, "get_player_ranks", return_value=after),
-            patch.object(cog, "on_rank_add", new_callable=AsyncMock) as add,
+            patch.object(cog, "on_rank_change", new_callable=AsyncMock) as change,
             patch.object(
-                cog, "on_rank_remove", side_effect=[OSError("send failed"), None]
-            ) as remove,
-            patch.object(cog, "on_name_change", new_callable=AsyncMock) as rename,
+                cog, "on_name_change", side_effect=[OSError("send failed"), None]
+            ) as rename,
         ):
             with self.assertRaises(OSError):
                 await cog.poll()
             self.assertEqual(cog.data.to_dict(), before)
             await cog.poll()
-        add.assert_awaited_once_with("player", "After", "staff")
-        self.assertEqual(remove.await_count, 2)
-        rename.assert_awaited_once_with("player", "Before", "After", "staff")
+        change.assert_awaited_once_with("player", "After", "youtube", "staff")
+        self.assertEqual(rename.await_count, 2)
         self.assertEqual(cog.data.to_dict(), after)
         self.assertEqual(cog.known_changes, set())
 
@@ -708,3 +706,22 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
                 with patch.object(cog, "make_fire_sale_embed") as make:
                     await cog.poll()
         make.assert_called_once()
+
+
+class RankChangeAlertTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rank_change_sends_one_alert_to_both_ranks_channels(self):
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        channels = {"youtube": {1: "a", 2: "b"}, "staff": {2: "c", 3: "d"}}
+        with (
+            patch.object(ranktracker.constants, "RANK_TRACKER_CHANNELS", channels),
+            patch.object(
+                ranktracker.utils, "broadcast", new_callable=AsyncMock
+            ) as broadcast,
+        ):
+            await cog.on_rank_change("uuid", "Name", "youtube", "staff")
+        broadcast.assert_awaited_once()
+        self.assertEqual(broadcast.await_args.args[1], {1: "a", 2: "c", 3: "d"})
+        self.assertEqual(
+            broadcast.await_args.kwargs["embed"].title,
+            "Name went from [YOUTUBE] to [STAFF] rank!",
+        )
