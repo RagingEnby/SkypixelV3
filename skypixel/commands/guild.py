@@ -47,7 +47,7 @@ class GuildCog(commands.Cog):
             color=constants.COLOR_CODES["a"]
             if action == "join"
             else constants.COLOR_CODES["c"],
-            timestamp=member.joined_at if action == "left" else datetime.now(UTC),
+            timestamp=member.joined_at if action == "leave" else datetime.now(UTC),
         )
         embed.set_author(
             name=f"{member.display_name} {verb} the server!",
