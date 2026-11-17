@@ -44,7 +44,8 @@ def configure_logging(storage_dir: Path, *, secrets: tuple[str, ...] = ()) -> No
     root.setLevel(logging.INFO)
     logging.getLogger("skypixel").setLevel(logging.DEBUG)
     disnake_logger = logging.getLogger("disnake")
-    disnake_logger.setLevel(logging.DEBUG)
+    # DEBUG records every gateway payload and fills 10 MB in about 2.5 hours.
+    disnake_logger.setLevel(logging.INFO)
     disnake_logger.propagate = False
     _remove_own_handlers(root)
     _remove_own_handlers(disnake_logger)
