@@ -41,7 +41,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
             await cog._rank_status("staff")
         counts.assert_not_awaited()
         activity = bot.change_presence.await_args.kwargs["activity"]
-        self.assertEqual(activity.name, "2 [STAFF] ranks")
+        self.assertEqual(activity.state, "Tracking 2 [STAFF] players")
 
     async def test_rank_status_handles_an_empty_special_rank(self):
         bot = Mock(change_presence=AsyncMock(), guilds=[])
@@ -49,7 +49,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(ranktracker, "get_rank_lists", return_value={"staff": []}):
             await cog._rank_status("youtube")
         activity = bot.change_presence.await_args.kwargs["activity"]
-        self.assertEqual(activity.name, "0 [YOUTUBE] ranks")
+        self.assertEqual(activity.state, "Tracking 0 [YOUTUBE] players")
 
     async def test_status_failure_does_not_stop_the_rotation(self):
         bot = Mock(change_presence=AsyncMock(), guilds=[])
@@ -763,4 +763,21 @@ class WatchlistCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             cog.watch_list["b"],
             {"rankname": "§7Player", "name": "Player", "added_by": 1},
+        )
+
+
+class StatusCountTests(unittest.IsolatedAsyncioTestCase):
+    async def test_item_counts_are_reused_between_status_changes(self):
+        item_db = Mock(count_documents=AsyncMock(return_value=1234))
+        bot = Mock(
+            change_presence=AsyncMock(),
+            get_cog=Mock(return_value=Mock(item_db=item_db)),
+        )
+        cog = StatusUpdaterCog(bot)
+        await cog._item_count_status("TEST_MEMENTO")
+        await cog._item_count_status("TEST_MEMENTO")
+        item_db.count_documents.assert_awaited_once()
+        self.assertEqual(
+            bot.change_presence.await_args.kwargs["activity"].state,
+            "Tracking 1,234 Test Memento items",
         )
