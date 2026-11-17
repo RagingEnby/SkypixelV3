@@ -69,6 +69,10 @@ class PlayerNotFound(KeyError):
     pass
 
 
+class PlayerLookupError(RuntimeError):
+    pass
+
+
 class RawMojangPlayerDict(TypedDict):
     id: str
     name: str
@@ -147,7 +151,11 @@ async def _fetch(identifier: str) -> MojangPlayer:
     try:
         return MojangPlayer.from_dict(response.json())
     except (ValueError, TypeError, OverflowError, OSError) as error:
-        raise PlayerNotFound(identifier) from error
+        # The API answered, but not with a player. That is an API fault, so do
+        # not tell the user that the player does not exist.
+        raise PlayerLookupError(
+            f"The player API returned an unreadable answer for {identifier}."
+        ) from error
 
 
 async def get(identifier: str) -> MojangPlayer:

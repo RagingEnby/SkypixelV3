@@ -291,3 +291,16 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(
             mojang.is_valid_identifier("AAAAAAAA-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
         )
+
+
+class PlayerApiFaultTests(unittest.IsolatedAsyncioTestCase):
+    async def test_unreadable_answer_is_not_reported_as_a_missing_player(self):
+        mojang.Cache.CACHE.clear()
+        with patch.object(
+            mojang.http,
+            "get",
+            new_callable=AsyncMock,
+            return_value=response(data={"error": "down"}),
+        ):
+            with self.assertRaises(mojang.PlayerLookupError):
+                await mojang.get("Player")
