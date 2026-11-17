@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import time
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from copy import deepcopy
@@ -50,13 +51,24 @@ class NotificationOutbox:
     was marked, so _begin_event() completes the old event.
 
     A message sent outside a poll gets an event of its own.
+
+    A message that cannot be sent is retried after 15 seconds, then after
+    twice as long each time, up to 15 minutes. After max_age seconds it is
+    dropped, so a deleted channel cannot hold a message forever.
     """
+
+    max_age = 6 * 60 * 60
+    retry_delay = 15
+    max_retry_delay = 15 * 60
 
     def __init__(self, bot: disnake.Client, path: Path):
         self.bot = bot
         self.pending = JsonWrapper(path)
         self.events = JsonWrapper(path.with_suffix(".events.json"))
         self._delivery_lock = asyncio.Lock()
+        # Failed sends for each pending key, and when run() may try it again.
+        self._failures: dict[str, int] = {}
+        self._retry_at: dict[str, float] = {}
         self._event: ContextVar[dict | None] = ContextVar(
             "notification_event", default=None
         )
@@ -142,7 +154,8 @@ class NotificationOutbox:
                     and key not in self.events[event_id]["delivered"]
                 ):
                     await self.pending.set_and_save(
-                        key, {**message, "event_id": event_id}
+                        key,
+                        {**message, "event_id": event_id, "created_at": time.time()},
                     )
                 return await self._deliver(key, event_id)
             except OSError as error:
@@ -184,9 +197,26 @@ class NotificationOutbox:
                     event_id: {**event, "delivered": [*event["delivered"], key]},
                 }
                 await self.events.save()
-            await self.pending.remove_and_save(key)
-            if event_id is not None:
-                await self._clean_event(event_id)
+        elif time.time() - message.get("created_at", 0) > self.max_age:
+            # Messages saved before created_at existed count as expired.
+            logger.error(
+                "Dropped an alert for channel %s or thread %s after %s failed sends.",
+                message["channel_id"],
+                message["thread_id"],
+                self._failures.get(key, 0) + 1,
+            )
+        else:
+            failures = self._failures.get(key, 0)
+            self._failures[key] = failures + 1
+            self._retry_at[key] = time.monotonic() + min(
+                self.retry_delay * 2 ** min(failures, 10), self.max_retry_delay
+            )
+            return None
+        self._failures.pop(key, None)
+        self._retry_at.pop(key, None)
+        await self.pending.remove_and_save(key)
+        if event_id is not None:
+            await self._clean_event(event_id)
         return result
 
     async def _clean_event(self, key: str) -> None:
@@ -195,9 +225,13 @@ class NotificationOutbox:
         ):
             await self.events.remove_and_save(key)
 
-    async def flush(self) -> None:
+    async def flush(self, *, due_only: bool = False) -> None:
+        """Send the pending messages. With due_only, skip those still waiting."""
         async with self._delivery_lock:
+            now = time.monotonic()
             for key in list(self.pending):
+                if due_only and self._retry_at.get(key, 0) > now:
+                    continue
                 await self._deliver(key)
             for key in list(self.events):
                 await self._clean_event(key)
@@ -205,7 +239,7 @@ class NotificationOutbox:
     async def run(self) -> None:
         while True:
             try:
-                await self.flush()
+                await self.flush(due_only=True)
             except Exception:
                 logger.exception("Cannot deliver pending tracker alerts.")
             await asyncio.sleep(15)

@@ -222,3 +222,29 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             await cog.active_scanner()
         self.assertEqual(cog.last_scanned_active, 200_000)
         self.channel.send.assert_awaited_once()
+
+    async def test_run_waits_before_it_retries_a_failed_alert(self):
+        self.bot.get_channel.return_value = None
+        with self.assertLogs(utils.logger, level="WARNING"):
+            await utils.notify_to_channel(self.bot, 1, embed=disnake.Embed(title="A"))
+        self.bot.get_channel.return_value = self.channel
+        await self.bot.notifications.flush(due_only=True)
+        self.channel.send.assert_not_awaited()
+        self.bot.notifications._retry_at.clear()
+        await self.bot.notifications.flush(due_only=True)
+        self.channel.send.assert_awaited_once()
+        self.assertFalse(self.bot.notifications.pending)
+
+    async def test_alert_that_keeps_failing_is_dropped_after_the_age_limit(self):
+        self.bot.get_channel.return_value = None
+        outbox = self.bot.notifications
+        with self.assertLogs(utils.logger, level="WARNING"):
+            await utils.notify_to_channel(self.bot, 1, embed=disnake.Embed(title="A"))
+        self.assertEqual(len(outbox.pending), 1)
+        with (
+            patch.object(outbox, "max_age", -1),
+            self.assertLogs("skypixel.storage.notifications", level="ERROR"),
+        ):
+            await outbox.flush()
+        self.assertFalse(outbox.pending)
+        self.assertFalse(outbox.events)
