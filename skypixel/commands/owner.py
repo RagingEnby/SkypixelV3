@@ -13,11 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def register(bot: commands.InteractionBot) -> None:
-    @bot.message_command(
-        name="Execute",
-        install_types=disnake.ApplicationInstallTypes.all(),
-        contexts=disnake.InteractionContextTypes.all(),
-    )
+    # The command runs any code the owner sends. Register it in the dev server
+    # only, so no other server or user install lists it.
+    @bot.message_command(name="Execute", guild_ids=[constants.DEV_SERVER_ID])
     async def execute(
         inter: disnake.MessageCommandInteraction, message: disnake.Message
     ):
