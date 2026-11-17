@@ -29,7 +29,28 @@ class NotificationStorageError(OSError):
 
 
 class NotificationOutbox:
-    """Save tracker alerts and delivery records until the tracker commits its state."""
+    """Save tracker alerts and delivery records until the tracker commits its state.
+
+    A tracker poll can send several alerts and then fail before it saves its
+    own state. The next poll sees the same change and sends the same alerts.
+    The outbox stops those repeats with two files.
+
+    notifications.json holds pending messages. submit() saves a message there
+    before it sends it and removes it after Discord accepts it. run() retries
+    whatever is left every 15 seconds.
+
+    notifications.events.json holds one event for each poll that sent an alert.
+    The event's version is a fingerprint of the tracker's state before the
+    poll, so a retried poll gets the same version and joins the same event.
+    The event lists the messages already delivered, and submit() skips those.
+
+    An event is complete when its poll returns without an error. It is deleted
+    once no pending message refers to it. If the same tracker starts an event
+    with a different version, the tracker saved its state before the old event
+    was marked, so _begin_event() completes the old event.
+
+    A message sent outside a poll gets an event of its own.
+    """
 
     def __init__(self, bot: disnake.Client, path: Path):
         self.bot = bot
