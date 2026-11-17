@@ -73,7 +73,9 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
                 f"{player_name} ({discord_time(po.get('start'))} - {discord_time(po.get('end'))})"
             )
         embed.add_field(
-            name=f"Previous {len(previous_owners)} Owners",
+            name="Previous Owner"
+            if len(previous_owners) == 1
+            else f"Previous {len(previous_owners)} Owners",
             value="\n".join(lines),
             inline=False,
         )
