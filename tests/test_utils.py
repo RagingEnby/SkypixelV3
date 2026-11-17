@@ -1,6 +1,7 @@
 import logging
 import tempfile
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -9,8 +10,9 @@ import disnake
 from disnake.ext import commands
 
 import tests.support as support
-from skypixel import checks, utils
+from skypixel import checks, constants, utils
 from skypixel.commands import owner
+from skypixel.commands.guild import GuildCog
 from skypixel.commands.logger import ATTACHMENT_BUDGET, LoggerCog
 from skypixel.logging import RedactingFormatter, configure_logging
 
@@ -228,3 +230,36 @@ class DirectMessageLogTests(unittest.IsolatedAsyncioTestCase):
         large.to_file.assert_not_awaited()
         self.assertEqual(send.await_args.kwargs["files"], ["small"])
         self.assertEqual(send.await_args.kwargs["embed"].fields[0].value, "large")
+
+
+class NumerizeTests(unittest.TestCase):
+    def test_values_that_round_up_to_a_thousand_use_the_next_suffix(self):
+        for value, expected in (
+            (999, "999"),
+            (1000, "1K"),
+            (999_994, "999.99K"),
+            (999_999, "1M"),
+            (999_999_999, "1B"),
+            (1_234_567, "1.23M"),
+            (7_500_000, "7.5M"),
+            (-5000, "-5K"),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(utils.numerize(value), expected)
+
+
+class MemberLogTests(unittest.IsolatedAsyncioTestCase):
+    async def test_leave_embed_shows_when_the_member_joined(self):
+        joined_at = datetime(2024, 1, 2, tzinfo=UTC)
+        member = Mock(
+            guild=Mock(id=constants.DEV_SERVER_ID, icon=None),
+            joined_at=joined_at,
+            display_avatar=None,
+            display_name="User",
+            mention="<@1>",
+        )
+        member.name = "user"
+        member.guild.name = "Dev"
+        with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
+            await GuildCog(support.make_bot()).on_member_remove(member)
+        self.assertEqual(send.await_args.kwargs["embed"].timestamp, joined_at)

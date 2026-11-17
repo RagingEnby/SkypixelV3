@@ -268,12 +268,16 @@ def get_item_image(
 
 
 def numerize(num: int | float) -> str:
-    if num < 1000:
+    if abs(num) < 1000:
         return str(num)
     num = round(num)
     suffixes = ("", "K", "M", "B", "T")
     magnitude = 0
     while abs(num) >= 1000 and magnitude < len(suffixes) - 1:
+        num /= 1000
+        magnitude += 1
+    # 999,999 becomes 999.999, which prints as 1000.00. Move it to the next suffix.
+    if abs(round(num, 2)) >= 1000 and magnitude < len(suffixes) - 1:
         num /= 1000
         magnitude += 1
     return f"{num:.2f}".rstrip("0").rstrip(".") + suffixes[magnitude]
