@@ -48,10 +48,18 @@ async def request(
         delay = min(2**attempt, 5)
         try:
             response = await session.request(method, *args, **kwargs)
-        except RequestException:
+        except RequestException as error:
             if attempt == attempts - 1:
                 raise
-            logger.warning("HTTP %s failed. Retrying attempt %s.", method, attempt + 2)
+            url = kwargs.get("url", args[0] if args else "")
+            logger.warning(
+                "HTTP %s %s failed with %s: %s. Retrying attempt %s.",
+                method,
+                safe_url(url) if isinstance(url, str) else "an unknown URL",
+                type(error).__name__,
+                error,
+                attempt + 2,
+            )
         else:
             logger.info(
                 "%s %s %s", method, safe_url(response.url), response.status_code

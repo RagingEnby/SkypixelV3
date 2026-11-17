@@ -64,6 +64,20 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
             await http.get("https://example.com/resource")
         self.assertEqual([call.args[0] for call in sleep.await_args_list], [1, 2])
 
+    async def test_retry_warning_names_the_url_and_the_error(self):
+        error = http.RequestException("timed out")
+        session = Mock(request=AsyncMock(side_effect=[error, response()]))
+        with (
+            patch.object(http, "SESSION", session),
+            patch.object(http, "CLOSED", False),
+            patch.object(http.asyncio, "sleep", new_callable=AsyncMock),
+            self.assertLogs(http.logger, level="WARNING") as logs,
+        ):
+            await http.get("https://example.com/resource?key=secret")
+        self.assertIn("https://example.com/resource", logs.output[0])
+        self.assertIn("timed out", logs.output[0])
+        self.assertNotIn("secret", logs.output[0])
+
     async def test_get_retry_count_is_bounded(self):
         session = Mock(request=AsyncMock(return_value=response(503)))
         with (
