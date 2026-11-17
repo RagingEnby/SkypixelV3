@@ -481,6 +481,8 @@ class RankTrackerCog(PollingCog):
                     data["name"],
                     data["rank"],
                 )
-        await self.data.replace(player_ranks)
+        # Most polls find no change. Skip rewriting the file for those.
+        if player_ranks != self.data.to_dict():
+            await self.data.replace(player_ranks)
         self.known_changes.clear()
         await self.update_stat_channels(player_ranks)

@@ -322,6 +322,25 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.data.to_dict(), after)
         self.assertEqual(cog.known_changes, set())
 
+    async def test_unchanged_rank_lists_do_not_rewrite_the_state_file(self):
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        ranks = {"player": {"name": "Name", "rank": "youtube"}}
+        cog.data.data = ranks
+        cog.data.replace = AsyncMock(wraps=cog.data.replace)
+        with (
+            patch.object(ranktracker.RankTrackerCog, "do_watchlist", AsyncMock()),
+            patch.object(
+                ranktracker,
+                "get_player_ranks",
+                return_value={"player": {"name": "Name", "rank": "youtube"}},
+            ),
+            patch.object(cog, "update_stat_channels", new_callable=AsyncMock) as stats,
+        ):
+            await cog.poll()
+        cog.data.replace.assert_not_awaited()
+        stats.assert_awaited_once()
+        self.assertEqual(cog.data.to_dict(), ranks)
+
     async def test_fire_sale_notification_failure_keeps_the_sale_for_retry(self):
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.data.data = {"OLD": {"amount": 1}}
