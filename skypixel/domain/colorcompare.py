@@ -129,9 +129,12 @@ def compare_delta_e_2000(lab1: Lab, lab2: Lab) -> float:
     return delta
 
 
-@lru_cache(maxsize=1024)
 def compare_delta_cie(lab1: Lab, lab2: Lab) -> float:
-    """Return the CIE76 distance, which is the Euclidean distance in Lab space."""
+    """Return the CIE76 distance, which is the Euclidean distance in Lab space.
+
+    This is not cached. A cache lookup costs more than the arithmetic, and
+    colors.find_closest_pieces already caches the result of each search.
+    """
     l1, a1, b1 = lab1
     l2, a2, b2 = lab2
     return math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2)
