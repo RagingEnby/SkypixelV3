@@ -1,4 +1,5 @@
 import asyncio
+import re
 import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -64,9 +65,22 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(raw["previousOwners"], dict)
         self.assertEqual(raw["createdAt"], 1700000000)
 
-    async def test_player_name_filters_keep_the_existing_precedence(self):
+    async def test_rank_and_name_filters_apply_together(self):
+        for rank, text, expected in (
+            ("[ADMIN]", "§c[ADMIN] Player§f", True),
+            ("[ADMIN]", "§b[MVP§c+§b] Player", False),
+            ("[ADMIN]", "§c[ADMIN] Other", False),
+            ("[MVP+]", "§b[MVP§c+§b] player", True),
+            ("NON", "§7Player", True),
+            ("NON", "§a[VIP] Player", False),
+        ):
+            with self.subTest(rank=rank, text=text):
+                pattern = make_player_regex(rank, "Player")["$regex"]
+                self.assertEqual(
+                    bool(re.search(pattern, text, re.IGNORECASE)), expected
+                )
         self.assertEqual(
-            make_player_regex("[ADMIN]", "Player"), make_playername_regex("Player")
+            make_player_regex(None, "Player"), make_playername_regex("Player")
         )
 
     async def test_non_object_query_gets_an_error_without_a_database_call(self):

@@ -63,6 +63,18 @@ def make_rank_regex(rank: PrefixRank) -> dict:
 def make_player_regex(
     rank: PrefixRank | None = None, playername: str | None = None
 ) -> dict[str, Any]:
+    if playername and rank:
+        # The stored text is the rank, a space, and the name, with color codes
+        # anywhere between. A player without a rank is stored as §7 and the name.
+        color_code_pattern = "(§[0-9a-fk-or])*"
+        name = f"{re.escape(playername)}{color_code_pattern}$"
+        if rank == "NON":
+            return {"$regex": f"^[^ ]*§7{name}", "$options": "i"}
+        prefix = color_code_pattern.join(re.escape(char) for char in rank)
+        return {
+            "$regex": f"^{color_code_pattern}{prefix}.*(§7| ){name}",
+            "$options": "i",
+        }
     if playername:
         return make_playername_regex(playername)
     if rank:
