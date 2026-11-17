@@ -7,7 +7,7 @@ import disnake
 from disnake.ext import commands
 
 from skypixel import constants, utils
-from skypixel.clients import http
+from skypixel.clients import http, hypixel
 from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import UploadQueue
 from skypixel.trackers.base import PollingCog
@@ -47,14 +47,18 @@ class FireSaleTrackerCog(PollingCog):
 
     @staticmethod
     def make_fire_sale_embed(item_id: str, sale: dict[str, Any]) -> disnake.Embed:
+        try:
+            item = f"{hypixel.get_name(item_id)} (`{item_id}`)"
+        except (KeyError, ValueError):  # fmt: skip
+            item = f"`{item_id}`"
         embed = utils.add_footer(
             disnake.Embed(
                 title="New Fire Sale Added!",
                 description="\n".join(
                     [
-                        f"**Item ID:** `{item_id}`",
-                        f"**Amount:** `{sale['amount']}`",
-                        f"**Price:** `{sale['price']}`",
+                        f"**Item:** {item}",
+                        f"**Amount:** `{utils.commaize(sale['amount'])}`",
+                        f"**Price:** `{utils.commaize(sale['price'])}` gems",
                         f"**Starts:** <t:{sale['start'] // 1000}> (<t:{sale['start'] // 1000}:R>)",
                         f"**Ends:** <t:{sale['end'] // 1000}> (<t:{sale['end'] // 1000}:R>)",
                     ]
