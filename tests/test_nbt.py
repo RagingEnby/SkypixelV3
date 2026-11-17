@@ -78,3 +78,8 @@ class NbtTests(unittest.TestCase):
         corrupt = data[:10] + bytes(len(data) - 10)
         with self.assertRaises(ItemDecodeError):
             decode_single(b64encode(corrupt).decode())
+
+    def test_byte_arrays_are_stored_as_base64_text(self):
+        self.assertEqual(
+            ensure_all_decoded({"data": bytearray(b"\x1f\x8b\x00")}), {"data": "H4sA"}
+        )

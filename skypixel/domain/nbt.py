@@ -1,7 +1,7 @@
 import io
 import json
 import zlib
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from binascii import Error as Base64Error
 from contextlib import suppress
 from typing import Any
@@ -55,7 +55,9 @@ def ensure_all_decoded(data: Any) -> Any:
     if isinstance(data, list):
         return [ensure_all_decoded(item) for item in data]
     if isinstance(data, bytearray):
-        return str(data)
+        # Backpack contents and similar arrive as byte arrays. Store them as
+        # base64 text, the same form Hypixel uses for item data.
+        return b64encode(data).decode()
     return data
 
 
