@@ -5,6 +5,7 @@ import random
 import re
 from copy import deepcopy
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import disnake
 
@@ -14,6 +15,9 @@ from skypixel.storage.notifications import notification_fingerprint
 
 logger = logging.getLogger(__name__)
 COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
+# Old items carry their creation time as text in Hypixel's server time, which
+# is US Eastern.
+HYPIXEL_TIMEZONE = ZoneInfo("America/New_York")
 
 
 def make_error(title: str, *args) -> disnake.Embed:
@@ -296,7 +300,8 @@ def timestamp_to_unix(date_str: str) -> int:
         pass
     for date_format in ("%m/%d/%y %I:%M %p", "%d/%m/%y %H:%M"):
         try:
-            return int(datetime.datetime.strptime(date_str, date_format).timestamp())
+            parsed = datetime.datetime.strptime(date_str, date_format)
+            return int(parsed.replace(tzinfo=HYPIXEL_TIMEZONE).timestamp())
         except ValueError:
             continue
     raise ValueError(f"Invalid timestamp: {date_str}")

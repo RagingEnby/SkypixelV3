@@ -232,6 +232,20 @@ class DirectMessageLogTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(send.await_args.kwargs["embed"].fields[0].value, "large")
 
 
+class OldDateTests(unittest.TestCase):
+    def test_text_dates_are_read_as_us_eastern_time(self):
+        # 4:14 PM Eastern standard time is 21:14 UTC.
+        self.assertEqual(
+            utils.timestamp_to_unix("11/26/19 4:14 PM"),
+            int(datetime(2019, 11, 26, 21, 14, tzinfo=UTC).timestamp()),
+        )
+        # Daylight time is four hours behind UTC.
+        self.assertEqual(
+            utils.timestamp_to_unix("7/1/19 4:14 PM"),
+            int(datetime(2019, 7, 1, 20, 14, tzinfo=UTC).timestamp()),
+        )
+
+
 class NumerizeTests(unittest.TestCase):
     def test_values_that_round_up_to_a_thousand_use_the_next_suffix(self):
         for value, expected in (
