@@ -85,19 +85,19 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_object_query_gets_an_error_without_a_database_call(self):
         cog = ItemDBCog(support.make_bot())
-        inter = Mock(send=AsyncMock())
+        inter = support.make_inter()
         with patch.object(cog.item_db, "search", new_callable=AsyncMock) as search:
             await cog.do_search_command(inter, [])
         search.assert_not_awaited()
-        self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Invalid Query")
+        self.assertEqual(support.error_title(inter), "Invalid Query")
 
     async def test_raw_search_rejects_users_other_than_the_owner(self):
         cog = ItemDBCog(support.make_bot(is_owner=AsyncMock(return_value=False)))
-        inter = Mock(send=AsyncMock())
+        inter = support.make_inter()
         with patch.object(cog.item_db, "search", new_callable=AsyncMock) as search:
             await cog.search.callback(cog, inter, '{"$where": "sleep(1000)"}')
         search.assert_not_awaited()
-        self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Not Owner")
+        self.assertEqual(support.error_title(inter), "Not Owner")
 
     async def test_item_cache_has_a_size_limit_and_expires(self):
         repository = ItemRepository(support.SETTINGS.mongodb_uri)

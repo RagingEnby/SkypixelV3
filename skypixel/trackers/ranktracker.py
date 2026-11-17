@@ -31,6 +31,15 @@ POI_UUIDS: set[str] = set()
 WATCH_LIST_LIMIT = 25
 
 
+def watched_rankname(entry: Any) -> str | None:
+    """Return the rank name stored for a watched player.
+
+    Entries saved before the watchlist recorded who added a player are the
+    rank name itself.
+    """
+    return entry.get("rankname") if isinstance(entry, dict) else entry
+
+
 def invalidate_rank_lists() -> None:
     """Refetch the player lists on the next read, even during a fetch."""
     global RANK_LIST_CACHE, RANK_LIST_GENERATION
@@ -265,12 +274,18 @@ class RankTrackerCog(PollingCog):
         await send(self.bot, rank, embed, ping=False)
 
     async def do_watchlist(self):
-        for uuid, last_rankname in list(self.watch_list.items()):
+        for uuid, entry in list(self.watch_list.items()):
+            last_rankname = watched_rankname(entry)
             try:
                 rankname = await get_rankname(uuid)
                 logger.info("rank watchlist: %s -> %s", last_rankname, rankname)
                 if last_rankname is None:
-                    await self.watch_list.set_and_save(uuid, rankname)
+                    await self.watch_list.set_and_save(
+                        uuid,
+                        {**entry, "rankname": rankname}
+                        if isinstance(entry, dict)
+                        else rankname,
+                    )
                     continue
                 if rankname != last_rankname:
                     invalidate_rank_lists()
@@ -295,25 +310,26 @@ class RankTrackerCog(PollingCog):
         await inter.response.defer()
 
     @ranks.sub_command(
-        name="update", description="Update's a player's rank in my database"
+        name="update", description="Update a player's rank in my database"
     )
     async def update(self, inter: disnake.AppCmdInter, player: str):
+        """
+        Parameters
+        ----------
+        player: A Minecraft username or UUID
+        """
         try:
             rankname = await get_rankname(player)
             invalidate_rank_lists()
         except mojang.PlayerNotFound:
             if not mojang.is_valid_identifier(player):
-                return await inter.send(
-                    embed=utils.make_error(
-                        "Invalid player!",
-                        "Enter a Minecraft username or UUID.",
-                    )
+                return await utils.send_error(
+                    inter, "Invalid player!", "Enter a Minecraft username or UUID."
                 )
-            return await inter.send(
-                embed=utils.make_error(
-                    "Player not found!",
-                    f"No player named [{player}](https://namemc.com/search?q={player.lower()}) was found. Please check your spelling and try again.",
-                )
+            return await utils.send_error(
+                inter,
+                "Player not found!",
+                f"No player named [{player}](https://namemc.com/search?q={player.lower()}) was found. Please check your spelling and try again.",
             )
         unformatted = utils.remove_color_codes(rankname)
         embed = utils.add_footer(
@@ -326,34 +342,40 @@ class RankTrackerCog(PollingCog):
         return await inter.send(embed=embed)
 
     @ranks.sub_command(
-        name="watch", description="Watch a player for rank changes closer than others"
+        name="watch", description="Check a player for rank changes more often"
     )
     async def watch(self, inter: disnake.AppCmdInter, player: str):
+        """
+        Parameters
+        ----------
+        player: A Minecraft username or UUID
+        """
         try:
             player_obj = await mojang.get(player)
         except mojang.PlayerNotFound:
-            return await inter.send(
-                embed=utils.make_error(
-                    "Player not found!",
-                    f"I couldn't find the player `{player.replace('`', '')}`!",
-                )
+            return await utils.send_error(
+                inter,
+                "Player not found!",
+                f"I couldn't find the player `{player.replace('`', '')}`!",
             )
         if len(self.watch_list) >= WATCH_LIST_LIMIT:
-            return await inter.send(
-                embed=utils.make_error(
-                    "Watchlist Full!",
-                    f"The watchlist can hold {WATCH_LIST_LIMIT} players. "
-                    "Wait for a watched player's rank to change.",
-                )
+            return await utils.send_error(
+                inter,
+                "Watchlist Full!",
+                f"The watchlist can hold {WATCH_LIST_LIMIT} players. "
+                "Wait for a watched player's rank to change, "
+                "or remove one with /ranks unwatch.",
             )
         if player_obj.id in self.watch_list:
-            return await inter.send(
-                embed=utils.make_error(
-                    "Already Watching!",
-                    f"`{player_obj.name}` is already in the watchlist.",
-                )
+            return await utils.send_error(
+                inter,
+                "Already Watching!",
+                f"`{player_obj.name}` is already in the watchlist.",
             )
-        await self.watch_list.set_and_save(player_obj.id, None)
+        await self.watch_list.set_and_save(
+            player_obj.id,
+            {"rankname": None, "name": player_obj.name, "added_by": inter.author.id},
+        )
         await inter.send(
             embed=utils.add_footer(
                 disnake.Embed(
@@ -365,7 +387,67 @@ class RankTrackerCog(PollingCog):
         )
 
     @ranks.sub_command(
-        name="counts", description="Get the amount of players with each rank"
+        name="unwatch", description="Remove a player you added from the watchlist"
+    )
+    async def unwatch(self, inter: disnake.AppCmdInter, player: str):
+        """
+        Parameters
+        ----------
+        player: A Minecraft username or UUID
+        """
+        try:
+            player_obj = await mojang.get(player)
+        except mojang.PlayerNotFound:
+            return await utils.send_error(
+                inter,
+                "Player not found!",
+                f"I couldn't find the player `{player.replace('`', '')}`!",
+            )
+        if player_obj.id not in self.watch_list:
+            return await utils.send_error(
+                inter, "Not Watching!", f"`{player_obj.name}` is not in the watchlist."
+            )
+        entry = self.watch_list[player_obj.id]
+        added_by = entry.get("added_by") if isinstance(entry, dict) else None
+        if added_by != inter.author.id and not await self.bot.is_owner(inter.author):
+            return await utils.send_error(
+                inter,
+                "Not Your Player!",
+                "Only the user who added this player can remove them.",
+            )
+        await self.watch_list.remove_and_save(player_obj.id)
+        await inter.send(
+            embed=utils.add_footer(
+                disnake.Embed(
+                    title="Removed From Watchlist",
+                    description=f"No longer tracking `{player_obj.name}`.",
+                    color=constants.DEFAULT_EMBED_COLOR,
+                )
+            )
+        )
+
+    @ranks.sub_command(name="watchlist", description="Show the watched players")
+    async def show_watchlist(self, inter: disnake.AppCmdInter):
+        lines = []
+        for uuid, entry in self.watch_list.items():
+            if isinstance(entry, dict):
+                lines.append(
+                    f"`{entry.get('name', uuid)}` added by <@{entry.get('added_by')}>"
+                )
+            else:
+                lines.append(f"`{uuid}`")
+        await inter.send(
+            embed=utils.add_footer(
+                disnake.Embed(
+                    title=f"Watchlist ({len(lines)}/{WATCH_LIST_LIMIT})",
+                    description="\n".join(lines) or "Nobody is being watched.",
+                    color=constants.DEFAULT_EMBED_COLOR,
+                )
+            )
+        )
+
+    @ranks.sub_command(
+        name="counts", description="Get the number of players with each rank"
     )
     async def counts(self, inter: disnake.AppCmdInter):
         counts = await get_rank_counts()
@@ -388,6 +470,11 @@ class RankTrackerCog(PollingCog):
         name="list", description="Get a list of players with a specific rank"
     )
     async def list(self, inter: disnake.AppCmdInter, rank: SpecialRank):
+        """
+        Parameters
+        ----------
+        rank: The rank to list
+        """
         rank_list = await get_rank_list(rank)
         rank_list.sort(key=lambda player: player["name"].lower())
         color = constants.RANK_COLORS.get(rank, constants.DEFAULT_EMBED_COLOR)

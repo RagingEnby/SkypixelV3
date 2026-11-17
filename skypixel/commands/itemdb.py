@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Any, Literal
+from itertools import islice
+from typing import Any
 
 import disnake
 from disnake.ext import commands
@@ -12,7 +13,32 @@ from skypixel.domain.items import PrefixRank, make_player_regex, search_souls_qu
 from skypixel.storage.items import ItemRepository
 
 logger = logging.getLogger(__name__)
-Memento = Literal[tuple(hypixel.MEMENTOS)] if hypixel.MEMENTOS else str
+
+
+def memento_name(item_id: str) -> str:
+    try:
+        return hypixel.get_name(item_id)
+    except (KeyError, ValueError):  # fmt: skip
+        return item_id
+
+
+async def autocomplete_memento(_inter, text: str) -> dict[str, str]:
+    """Offer up to 25 mementos whose name or ID contains the typed text."""
+    text = text.lower()
+    matches = (
+        item_id
+        for item_id in hypixel.MEMENTOS
+        if text in memento_name(item_id).lower() or text in item_id.lower()
+    )
+    return {memento_name(item_id)[:100]: item_id for item_id in islice(matches, 25)}
+
+
+def find_memento(text: str) -> str | None:
+    """Match typed text to a memento ID or name, for users who skip the list."""
+    for item_id in hypixel.MEMENTOS:
+        if text.lower() in (item_id.lower(), memento_name(item_id).lower()):
+            return item_id
+    return None
 
 
 class ItemDBCog(commands.Cog):
@@ -24,17 +50,13 @@ class ItemDBCog(commands.Cog):
         self, inter: disnake.AppCmdInter, query: dict[str, Any], limit: int = 1
     ):
         if not isinstance(query, dict):
-            return await inter.send(
-                embed=utils.make_error(
-                    "Invalid Query", "Provide a JSON object or an item UUID."
-                )
+            return await utils.send_error(
+                inter, "Invalid Query", "Provide a JSON object or an item UUID."
             )
         query = {k: v for k, v in query.items() if v is not None}
         if len(query) == 1 and query.get("itemId"):
-            return await inter.send(
-                embed=utils.make_error(
-                    "Invalid Query", "You must provide search arguments!"
-                )
+            return await utils.send_error(
+                inter, "Invalid Query", "You must provide search arguments!"
             )
         logger.info("searching item db for: %s", json.dumps(query, indent=2))
         results = await self.item_db.search(query, limit=limit)
@@ -61,14 +83,17 @@ class ItemDBCog(commands.Cog):
 
     @itemdb.sub_command(
         name="search",
-        description="**ADMIN ONLY** Search the item database using json params",
+        description="Owner only. Search the item database with a JSON query",
     )
     async def search(self, inter: disnake.AppCmdInter, query: str):
+        """
+        Parameters
+        ----------
+        query: A JSON query or an item UUID
+        """
         if not await self.bot.is_owner(inter.author):
-            return await inter.send(
-                embed=utils.make_error(
-                    "Not Owner", "You must be the bot owner to use this command!"
-                )
+            return await utils.send_error(
+                inter, "Not Owner", "You must be the bot owner to use this command!"
             )
         try:
             parsed_query = json.loads(query)
@@ -78,7 +103,7 @@ class ItemDBCog(commands.Cog):
 
     @itemdb.sub_command(
         name="soul-search",
-        description="Searches the item database to see how many souls have been captured of a user",
+        description="Count the Cake Souls that match a captured player, a capturer, or a cake owner",
     )
     async def soul_search_cmd(
         self,
@@ -90,6 +115,16 @@ class ItemDBCog(commands.Cog):
         cake_owner_rank: PrefixRank | None = None,
         cake_owner_name: str | None = None,
     ):
+        """
+        Parameters
+        ----------
+        captured_rank: Rank of the captured player
+        captured_player: Name of the captured player
+        captured_by_rank: Rank of the player who captured the soul
+        captured_by_name: Name of the player who captured the soul
+        cake_owner_rank: Rank of the cake's owner
+        cake_owner_name: Name of the cake's owner
+        """
         query = search_souls_query(
             {
                 "itemId": "CAKE_SOUL",
@@ -120,10 +155,15 @@ class ItemDBCog(commands.Cog):
                 )
             )
         embed = utils.add_footer(
-            disnake.Embed(title="Soul Search Output", color=constants.COLOR_CODES["c"])
+            disnake.Embed(
+                title="Soul Search Output", color=constants.DEFAULT_EMBED_COLOR
+            )
         )
         embed.set_thumbnail(utils.get_item_image("CAKE_SOUL"))
-        for rank, count in results.items():
+        # Show the most common rank first.
+        for rank, count in sorted(
+            results.items(), key=lambda result: result[1], reverse=True
+        ):
             embed.add_field(name=rank, value=count, inline=True)
         total = sum(results.values())
         if total > 1:
@@ -160,6 +200,15 @@ class ItemDBCog(commands.Cog):
         recipient_rank: PrefixRank | None = None,
         recipient_name: str | None = None,
     ):
+        """
+        Parameters
+        ----------
+        edition: Edition number
+        sender_rank: Rank of the sender
+        sender_name: Name of the sender
+        recipient_rank: Rank of the recipient
+        recipient_name: Name of the recipient
+        """
         return await self.do_search_command(
             inter,
             {
@@ -186,6 +235,13 @@ class ItemDBCog(commands.Cog):
         basket_player_rank: PrefixRank | None = None,
         basket_player_name: str | None = None,
     ):
+        """
+        Parameters
+        ----------
+        edition: Edition number
+        basket_player_rank: Rank of the basket's player
+        basket_player_name: Name of the basket's player
+        """
         return await self.do_search_command(
             inter,
             {
@@ -211,6 +267,15 @@ class ItemDBCog(commands.Cog):
         recipient_rank: PrefixRank | None = None,
         recipient_name: str | None = None,
     ):
+        """
+        Parameters
+        ----------
+        edition: Edition number
+        sender_rank: Rank of the sender
+        sender_name: Name of the sender
+        recipient_rank: Rank of the recipient
+        recipient_name: Name of the recipient
+        """
         return await self.do_search_command(
             inter,
             {
@@ -233,16 +298,32 @@ class ItemDBCog(commands.Cog):
     async def memento_search_cmd(
         self,
         inter: disnake.AppCmdInter,
-        memento: Memento | None = None,
+        memento: str | None = commands.Param(
+            default=None, autocomplete=autocomplete_memento
+        ),
         edition: int | None = None,
         recipient_rank: PrefixRank | None = None,
         recipient_name: str | None = None,
         recipient_id: str | None = None,
     ):
+        """
+        Parameters
+        ----------
+        memento: The memento to search for
+        edition: Edition number
+        recipient_rank: Rank of the recipient
+        recipient_name: Name of the recipient
+        recipient_id: UUID of the recipient
+        """
+        item_id = find_memento(memento) if memento else None
+        if memento and item_id is None:
+            return await utils.send_error(
+                inter, "Unknown Memento", "Pick a memento from the list."
+            )
         return await self.do_search_command(
             inter,
             {
-                "itemId": memento if memento else {"$in": hypixel.MEMENTOS},
+                "itemId": item_id or {"$in": hypixel.MEMENTOS},
                 "extraAttributes.edition": edition,
                 "extraAttributes.recipient_name": make_player_regex(
                     recipient_rank, recipient_name
@@ -265,6 +346,15 @@ class ItemDBCog(commands.Cog):
         buyer_rank: PrefixRank | None = None,
         buyer_name: str | None = None,
     ):
+        """
+        Parameters
+        ----------
+        auction: Auction number
+        bid: Bid number
+        price: Winning price in coins
+        buyer_rank: Rank of the buyer
+        buyer_name: Name of the buyer
+        """
         return await self.do_search_command(
             inter,
             {
@@ -291,6 +381,15 @@ class ItemDBCog(commands.Cog):
         recipient_rank: PrefixRank | None = None,
         recipient_name: str | None = None,
     ):
+        """
+        Parameters
+        ----------
+        edition: Edition number
+        sender_rank: Rank of the sender
+        sender_name: Name of the sender
+        recipient_rank: Rank of the recipient
+        recipient_name: Name of the recipient
+        """
         return await self.do_search_command(
             inter,
             {

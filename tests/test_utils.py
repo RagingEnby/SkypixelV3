@@ -33,15 +33,19 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
     async def test_response_uses_the_right_interaction_endpoint(self):
         embed = disnake.Embed(title="Error")
         for done in (False, True):
+            placeholder = Mock(flags=Mock(loading=True), delete=AsyncMock())
             inter = SimpleNamespace(
                 response=SimpleNamespace(
                     is_done=lambda done=done: done, send_message=AsyncMock()
                 ),
                 followup=SimpleNamespace(send=AsyncMock()),
+                original_response=AsyncMock(return_value=placeholder),
             )
             await utils.respond(inter, embed=embed)
             target = inter.followup.send if done else inter.response.send_message
             target.assert_awaited_once_with(embed=embed, ephemeral=True)
+            # A private followup has to remove the public "thinking" message.
+            self.assertEqual(placeholder.delete.await_count, int(done))
 
     async def test_thread_send_failure_is_logged_and_returns_none(self):
         thread = Mock(spec=disnake.Thread)
@@ -125,6 +129,9 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         inter = SimpleNamespace(
             response=SimpleNamespace(is_done=lambda: True),
             followup=SimpleNamespace(send=AsyncMock()),
+            original_response=AsyncMock(
+                return_value=Mock(flags=Mock(loading=False), delete=AsyncMock())
+            ),
         )
         await cog.on_slash_command_error(inter, checks.UserNotAPatron("Missing role"))
         self.assertEqual(

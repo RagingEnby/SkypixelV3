@@ -3,6 +3,7 @@ import datetime
 import logging
 import random
 import re
+from contextlib import suppress
 from copy import deepcopy
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -131,10 +132,23 @@ def fit_embeds(embeds: list[disnake.Embed]) -> list[disnake.Embed]:
 async def respond(
     inter: disnake.Interaction, *, embed: disnake.Embed, ephemeral: bool = True
 ) -> None:
-    if inter.response.is_done():
-        await inter.followup.send(embed=fit_embed(embed), ephemeral=ephemeral)
-    else:
-        await inter.response.send_message(embed=fit_embed(embed), ephemeral=ephemeral)
+    embed = fit_embed(embed)
+    if not inter.response.is_done():
+        await inter.response.send_message(embed=embed, ephemeral=ephemeral)
+        return
+    if ephemeral:
+        # The first followup replaces the public "thinking" message and is
+        # public too. Delete that placeholder so this message can be private.
+        with suppress(disnake.HTTPException):
+            original = await inter.original_response()
+            if original.flags.loading:
+                await original.delete()
+    await inter.followup.send(embed=embed, ephemeral=ephemeral)
+
+
+async def send_error(inter: disnake.Interaction, title: str, *args) -> None:
+    """Show an error to the user who ran the command, and to nobody else."""
+    await respond(inter, embed=make_error(title, *args))
 
 
 def remove_color_codes(string: str) -> str:

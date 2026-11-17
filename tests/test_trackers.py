@@ -616,7 +616,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         state.data = {"a": None}
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.watch_list = state
-        inter = Mock(send=AsyncMock())
+        inter = support.make_inter()
         with (
             patch.object(ranktracker, "WATCH_LIST_LIMIT", 1),
             patch.object(
@@ -628,7 +628,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         ):
             await cog.watch.callback(cog, inter, "Player")
         self.assertEqual(state.to_dict(), {"a": None})
-        self.assertEqual(inter.send.call_args.kwargs["embed"].title, "Watchlist Full!")
+        self.assertEqual(support.error_title(inter), "Watchlist Full!")
 
     async def test_auction_items_decode_off_the_event_loop(self):
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
@@ -724,4 +724,43 @@ class RankChangeAlertTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             broadcast.await_args.kwargs["embed"].title,
             "Name went from [YOUTUBE] to [STAFF] rank!",
+        )
+
+
+class WatchlistCommandTests(unittest.IsolatedAsyncioTestCase):
+    def cog(self, name):
+        cog = ranktracker.RankTrackerCog(support.make_bot(is_owner=AsyncMock()))
+        cog.bot.is_owner.return_value = False
+        cog.watch_list = JsonWrapper(f"{support.TEST_STORAGE.name}/{name}.json")
+        cog.watch_list.data = {"b": {"rankname": None, "name": "Player", "added_by": 1}}
+        return cog
+
+    async def unwatch(self, cog, user_id):
+        inter = support.make_inter(author=Mock(id=user_id))
+        player = Mock(id="b")
+        player.name = "Player"
+        with patch.object(
+            ranktracker.mojang, "get", new_callable=AsyncMock, return_value=player
+        ):
+            await cog.unwatch.callback(cog, inter, "Player")
+        return inter
+
+    async def test_only_the_user_who_added_a_player_can_remove_them(self):
+        cog = self.cog("unwatch-other")
+        inter = await self.unwatch(cog, 2)
+        self.assertEqual(support.error_title(inter), "Not Your Player!")
+        self.assertIn("b", cog.watch_list)
+        inter = await self.unwatch(cog, 1)
+        self.assertNotIn("b", cog.watch_list)
+        self.assertEqual(
+            inter.send.call_args.kwargs["embed"].title, "Removed From Watchlist"
+        )
+
+    async def test_first_scan_keeps_who_added_the_player(self):
+        cog = self.cog("watch-scan")
+        with patch.object(ranktracker, "get_rankname", return_value="§7Player"):
+            await cog.do_watchlist()
+        self.assertEqual(
+            cog.watch_list["b"],
+            {"rankname": "§7Player", "name": "Player", "added_by": 1},
         )

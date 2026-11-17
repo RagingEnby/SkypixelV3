@@ -4,7 +4,7 @@ import sys
 import tempfile
 import types
 from contextlib import nullcontext
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 TEST_STORAGE = tempfile.TemporaryDirectory(prefix="skypixel-tests-")
 atexit.register(TEST_STORAGE.cleanup)
@@ -41,6 +41,26 @@ def make_bot(**kwargs) -> Mock:
     """Return a mock bot that carries the test settings."""
     kwargs.setdefault("notifications", Mock(event=Mock(return_value=nullcontext())))
     return Mock(settings=SETTINGS, **kwargs)
+
+
+def make_inter(**kwargs) -> Mock:
+    """Return a mock command interaction that has not been answered yet."""
+    return Mock(
+        send=AsyncMock(),
+        response=Mock(
+            is_done=Mock(return_value=False),
+            send_message=AsyncMock(),
+            defer=AsyncMock(),
+        ),
+        **kwargs,
+    )
+
+
+def error_title(inter: Mock) -> str:
+    """Return the title of the private error sent to a make_inter() mock."""
+    call = inter.response.send_message.call_args
+    assert call.kwargs["ephemeral"]
+    return call.kwargs["embed"].title
 
 
 with patch(
