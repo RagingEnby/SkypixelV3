@@ -5,7 +5,7 @@ from typing import Any
 import disnake
 import pymongo
 
-from skypixel import utils
+from skypixel import constants, utils
 from skypixel.clients import mojang
 from skypixel.commands.views import OwnedView
 from skypixel.domain.items import fix_item, get_item_color, get_item_image
@@ -47,7 +47,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     embed.set_author(
         name=owner_name,
         icon_url=owner.avatar if owner else None,
-        url="https://sky.shiiyu.moe/stats/" + item["currentOwner"]["playerUuid"],
+        url=constants.STATS_URL.format(item["currentOwner"]["playerUuid"]),
     )
 
     embed.add_field(
