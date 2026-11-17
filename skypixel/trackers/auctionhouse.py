@@ -90,11 +90,17 @@ async def make_auction_embed(
         embed.add_field(
             name="Auction End", value=f"<t:{auction['end'] // 1000}:R>", inline=True
         )
-    auctioneer = await mojang.get(auction["auctioneer"])
+    uuid = auction["auctioneer"]
+    try:
+        name = (await mojang.get(uuid)).name
+    except Exception:
+        # The alert matters more than the seller's name. Show the UUID instead.
+        logger.warning("Cannot find the name of auctioneer %s.", uuid, exc_info=True)
+        name = uuid
     embed.set_author(
-        name=auctioneer.name,
-        icon_url=auctioneer.avatar,
-        url=constants.STATS_URL.format(auctioneer.id),
+        name=name,
+        icon_url=constants.MC_HEAD_IMAGE.format(uuid),
+        url=constants.STATS_URL.format(uuid),
     )
     return embed
 

@@ -240,3 +240,18 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([call.args for call in fetch.await_args_list], [(), (1,)])
         self.assertEqual(process.await_count, 1001)
         self.assertEqual(cog.last_scanned_active, 160_000)
+
+    async def test_alert_embed_shows_the_uuid_when_the_name_lookup_fails(self):
+        auction = {
+            "uuid": "auction",
+            "auctioneer": "a" * 32,
+            "item_name": "Item",
+            "starting_bid": 1,
+            "bin": True,
+        }
+        with (
+            patch.object(auctionhouse.mojang, "get", side_effect=KeyError("a" * 32)),
+            self.assertLogs(auctionhouse.logger, level="WARNING"),
+        ):
+            embed = await auctionhouse.make_auction_embed(auction, {})
+        self.assertEqual(embed.author.name, "a" * 32)
