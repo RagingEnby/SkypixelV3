@@ -16,6 +16,13 @@ from skypixel.storage.notifications import notification_fingerprint
 
 logger = logging.getLogger(__name__)
 COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
+# Discord's ansi colors: 30 gray, 31 red, 32 green, 33 yellow, 34 blue, 35 pink,
+# 36 cyan, 37 white.
+ANSI_COLORS = {
+    "0": 30, "1": 34, "2": 32, "3": 36, "4": 31, "5": 35, "6": 33, "7": 37,
+    "8": 30, "9": 34, "a": 32, "b": 36, "c": 31, "d": 35, "e": 33, "f": 37,
+}  # fmt: skip
+ANSI_FORMATS = {"l": 1, "n": 4, "r": 0}
 # Old items carry their creation time as text in Hypixel's server time, which
 # is US Eastern.
 HYPIXEL_TIMEZONE = ZoneInfo("America/New_York")
@@ -153,6 +160,33 @@ async def send_error(inter: disnake.Interaction, title: str, *args) -> None:
 
 def remove_color_codes(string: str) -> str:
     return COLOR_CODE_PATTERN.sub("", string)
+
+
+def to_ansi(string: str) -> str:
+    """Turn Minecraft color codes into the escapes of a Discord ansi code block.
+
+    Discord has 8 text colors, so each of Minecraft's 16 maps to the nearest
+    one. It has bold and underline, and no italic, strikethrough, or obfuscated
+    text, so those codes are dropped.
+    """
+    if not COLOR_CODE_PATTERN.search(string):
+        return string
+
+    def replace(match: re.Match) -> str:
+        code = match.group()[1].lower()
+        if code in ANSI_COLORS:
+            # A Minecraft color code also clears bold and underline.
+            return f"\u001b[0;{ANSI_COLORS[code]}m"
+        if code in ANSI_FORMATS:
+            return f"\u001b[{ANSI_FORMATS[code]}m"
+        return ""
+
+    return COLOR_CODE_PATTERN.sub(replace, string) + "\u001b[0m"
+
+
+def ansi_block(lines: list[str]) -> str:
+    """Return a code block that shows the lines with their Minecraft colors."""
+    return "```ansi\n" + "\n".join(to_ansi(line) for line in lines) + "```"
 
 
 def esc_mrkdwn(string: str) -> str:

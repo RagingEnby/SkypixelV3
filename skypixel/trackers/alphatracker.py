@@ -47,11 +47,15 @@ class AlphaTrackerCog(PollingCog):
             )
         )
         for key in diff:
-            embed.add_field(
-                name=key,
-                value=f"Before: `{before.get(key)}`\nAfter: `{after[key]}`",
-                inline=False,
-            )
+            old, new = before.get(key), after[key]
+            if isinstance(old, str) and isinstance(new, str) and "§" in old + new:
+                value = (
+                    f"Before:\n{utils.ansi_block(old.split('\n'))}\n"
+                    f"After:\n{utils.ansi_block(new.split('\n'))}"
+                )
+            else:
+                value = f"Before: `{old}`\nAfter: `{new}`"
+            embed.add_field(name=key, value=value, inline=False)
         await send(self.bot, embed)
 
     async def poll(self):

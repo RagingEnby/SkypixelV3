@@ -284,3 +284,17 @@ class MemberLogTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
             await GuildCog(support.make_bot()).on_member_remove(member)
         self.assertEqual(send.await_args.kwargs["embed"].timestamp, joined_at)
+
+
+class AnsiTests(unittest.TestCase):
+    def test_minecraft_codes_become_discord_ansi_escapes(self):
+        self.assertEqual(
+            utils.to_ansi("§aHypixel §c§lSALE§r done"),
+            "\u001b[0;32mHypixel \u001b[0;31m\u001b[1mSALE\u001b[0m done\u001b[0m",
+        )
+        self.assertEqual(utils.to_ansi("§kplain§o text"), "plain text\u001b[0m")
+        self.assertEqual(utils.to_ansi("no codes"), "no codes")
+        self.assertEqual(
+            utils.ansi_block(["§6one", "two"]),
+            "```ansi\n\u001b[0;33mone\u001b[0m\ntwo```",
+        )

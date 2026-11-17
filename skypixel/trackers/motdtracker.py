@@ -44,12 +44,8 @@ class MotdTrackerCog(PollingCog):
                 title="Hypixel MOTD update!", color=constants.DEFAULT_EMBED_COLOR
             )
         )
-        embed.add_field(
-            name="Before", value="```" + "\n".join(before) + "```", inline=False
-        )
-        embed.add_field(
-            name="After", value="```" + "\n".join(after) + "```", inline=False
-        )
+        embed.add_field(name="Before", value=utils.ansi_block(before), inline=False)
+        embed.add_field(name="After", value=utils.ansi_block(after), inline=False)
         should_ping = self.last_ping.total_seconds() / 60 > 10
         await send(self.bot, embed, ping=should_ping)
         if should_ping:
