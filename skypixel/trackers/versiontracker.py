@@ -5,7 +5,7 @@ import disnake
 
 from skypixel import constants, utils
 from skypixel.clients import http
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import Alert, TrackerState
 from skypixel.trackers.base import PollingCog
 
 if TYPE_CHECKING:
@@ -25,8 +25,8 @@ async def get_version() -> str:
     return version
 
 
-async def send(bot: SkypixelBot, embed: disnake.Embed):
-    await utils.broadcast(bot, constants.VERSION_TRACKER_CHANNELS, embed=embed)
+def send(embed: disnake.Embed) -> list[Alert]:
+    return utils.broadcast(constants.VERSION_TRACKER_CHANNELS, embed=embed)
 
 
 class VersionTrackerCog(PollingCog):
@@ -34,11 +34,11 @@ class VersionTrackerCog(PollingCog):
 
     def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "version.json")
+        self.data = TrackerState(bot.database, "version")
         if not self.data.get("version"):
-            logger.warning("version.json is empty")
+            logger.warning("The saved SkyBlock version is empty.")
 
-    async def on_version_change(self, before: str, after: str):
+    def on_version_change(self, before: str, after: str) -> list[Alert]:
         embed = utils.add_footer(
             disnake.Embed(
                 title="SkyBlock has updated!",
@@ -46,12 +46,15 @@ class VersionTrackerCog(PollingCog):
                 color=constants.DEFAULT_EMBED_COLOR,
             )
         )
-        await send(self.bot, embed)
+        return send(embed)
 
     async def poll(self):
         version = await get_version()
         if version != self.data.get("version"):
             logger.debug("version update: %s => %s", self.data.get("version"), version)
-            if self.data.get("version"):
-                await self.on_version_change(self.data["version"], version)
-            await self.data.replace({**self.data, "version": version})
+            alerts = (
+                self.on_version_change(self.data["version"], version)
+                if self.data.get("version")
+                else []
+            )
+            await self.data.replace({**self.data, "version": version}, alerts)

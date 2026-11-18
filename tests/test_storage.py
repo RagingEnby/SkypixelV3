@@ -9,21 +9,22 @@ from unittest.mock import AsyncMock, Mock, patch
 from pymongo.errors import BulkWriteError
 
 from skypixel.storage import json_store as storage
-from skypixel.storage.json_store import JsonWrapper, StorageError
+from skypixel.storage.json_store import StorageError
 from skypixel.storage.mongo import Collection, UploadQueue
 
 
-class JsonStorageTests(unittest.IsolatedAsyncioTestCase):
+class JsonFileTests(unittest.IsolatedAsyncioTestCase):
+    """The item catalog cache is still a JSON file."""
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.path = Path(self.directory.name) / "state.json"
+        self.path = Path(self.directory.name) / "items.json"
 
     async def test_save_and_reload(self):
-        state = JsonWrapper(self.path)
-        state["player"] = {"rank": "staff", "name": "Player"}
-        await state.save()
-        self.assertEqual(JsonWrapper(self.path).to_dict(), state.to_dict())
+        await storage.write_json(self.path, {"value": 1})
+        self.assertEqual(storage.read_json(self.path), {"value": 1})
+        self.assertEqual(storage.read_json(self.path.with_name("missing.json")), {})
 
     async def test_save_keeps_the_existing_file_mode(self):
         self.path.write_text("{}")
@@ -31,108 +32,54 @@ class JsonStorageTests(unittest.IsolatedAsyncioTestCase):
         await storage.write_json(self.path, {"value": 1})
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o640)
 
-    async def test_replace_updates_memory_only_after_a_successful_write(self):
-        self.path.write_text('{"old": 1}')
-        state = JsonWrapper(self.path)
-        with patch.object(storage, "_write_atomic", side_effect=OSError):
-            with self.assertRaises(OSError):
-                await state.replace({"new": 2})
-        self.assertEqual(state.to_dict(), {"old": 1})
-        self.assertEqual(json.loads(self.path.read_text()), {"old": 1})
-        await state.replace({"new": 2})
-        self.assertEqual(state.to_dict(), {"new": 2})
-        self.assertEqual(json.loads(self.path.read_text()), {"new": 2})
-
-    async def test_concurrent_watchlist_edits_preserve_both_updates(self):
-        state = JsonWrapper(self.path)
-        started, release = asyncio.Event(), asyncio.Event()
-
-        async def write(path, data, indent=2):
-            if data == {"first": 1}:
-                started.set()
-                await release.wait()
-
-        with patch.object(storage, "write_json", side_effect=write):
-            first = asyncio.create_task(state.set_and_save("first", 1))
-            await asyncio.wait_for(started.wait(), timeout=1)
-            second = asyncio.create_task(state.set_and_save("second", 2))
-            await asyncio.sleep(0)
-            release.set()
-            await asyncio.gather(first, second)
-            await state.remove_and_save("first")
-        self.assertEqual(state.to_dict(), {"second": 2})
-
-    async def test_mapping_views_follow_loaded_and_replaced_data(self):
-        self.path.write_text('{"old": 1}')
-        state = JsonWrapper(self.path)
-        self.assertEqual(list(state.items()), [("old", 1)])
-        state.data = {"new": 2}
-        self.assertEqual(list(state.keys()), ["new"])
-        self.assertEqual(list(state.values()), [2])
-
     async def test_failed_replace_preserves_original_file(self):
         self.path.write_text('{"old": 1}')
-        state = JsonWrapper(self.path)
-        state.data = {"new": 2}
         with patch(
             "skypixel.storage.json_store.os.replace",
             side_effect=OSError("disk failure"),
         ):
             with self.assertRaises(OSError):
-                await state.save()
+                await storage.write_json(self.path, {"new": 2})
         self.assertEqual(json.loads(self.path.read_text()), {"old": 1})
         self.assertEqual(list(self.path.parent.iterdir()), [self.path])
 
-    async def test_cancelled_save_waits_for_the_write_before_releasing_the_lock(self):
-        state = JsonWrapper(self.path)
-        state.data = {"first": 1}
+    async def test_cancelled_write_finishes_before_the_caller_sees_the_cancel(self):
         started = asyncio.Event()
-        release, second_started = threading.Event(), threading.Event()
+        release = threading.Event()
         loop = asyncio.get_running_loop()
         original = storage._write_atomic
 
         def write(path, content):
-            if json.loads(content) == {"first": 1}:
-                loop.call_soon_threadsafe(started.set)
-                if not release.wait(timeout=2):
-                    raise TimeoutError("The test did not release the first write.")
-            else:
-                second_started.set()
+            loop.call_soon_threadsafe(started.set)
+            if not release.wait(timeout=2):
+                raise TimeoutError("The test did not release the write.")
             original(path, content)
 
         with patch.object(storage, "_write_atomic", side_effect=write):
-            first = asyncio.create_task(state.save())
-            try:
-                await asyncio.wait_for(started.wait(), timeout=1)
-                first.cancel()
-                state.data = {"second": 2}
-                second = asyncio.create_task(state.save())
-                await asyncio.sleep(0)
-                self.assertFalse(first.done())
-                self.assertFalse(second_started.is_set())
-            finally:
-                release.set()
+            task = asyncio.create_task(storage.write_json(self.path, {"value": 1}))
+            await asyncio.wait_for(started.wait(), timeout=1)
+            task.cancel()
+            await asyncio.sleep(0)
+            self.assertFalse(task.done())
+            release.set()
             with self.assertRaises(asyncio.CancelledError):
-                await first
-            await second
-        self.assertEqual(json.loads(self.path.read_text()), {"second": 2})
+                await task
+        self.assertEqual(storage.read_json(self.path), {"value": 1})
 
-    async def test_corrupt_state_is_not_silently_discarded(self):
+    async def test_corrupt_file_is_not_silently_discarded(self):
         self.path.write_text('{"unfinished":')
         with self.assertRaises(StorageError):
-            JsonWrapper(self.path)
+            storage.read_json(self.path)
         self.assertEqual(self.path.read_text(), '{"unfinished":')
 
-    async def test_non_object_state_is_rejected(self):
+    async def test_non_object_file_is_rejected(self):
         self.path.write_text("[]")
         with self.assertRaises(StorageError):
-            JsonWrapper(self.path)
+            storage.read_json(self.path)
 
     async def test_file_without_directory_component(self):
         with patch("skypixel.storage.json_store._write_atomic") as write:
-            state = JsonWrapper("missing-test-state.json")
-            state["value"] = 1
-            await state.save()
+            await storage.write_json("missing-test-state.json", {"value": 1})
         write.assert_called_once()
 
 

@@ -8,7 +8,7 @@ from curl_cffi.requests.exceptions import HTTPError
 
 import tests.support as support
 from skypixel import app
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import TrackerState
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
     auctionhouse,
@@ -151,7 +151,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
 
     async def test_unchanged_watchlist_keeps_the_player_lists(self):
-        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-same.json")
+        state = TrackerState(support.make_database(), "rankwatchlist")
         state.data = {"a": "same"}
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.watch_list = state
@@ -165,7 +165,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
 
     async def test_rate_limit_stops_the_watchlist_without_changing_players(self):
-        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-limited.json")
+        state = TrackerState(support.make_database(), "rankwatchlist")
         state.data = {"first": "same", "second": "same"}
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.watch_list = state
@@ -265,7 +265,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(set(data), {"innit"})
 
     async def test_watchlist_can_remove_more_than_one_player(self):
-        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-test.json")
+        state = TrackerState(support.make_database(), "rankwatchlist")
         state.data = {"a": "old", "b": "old"}
         state.remove_and_save = AsyncMock(wraps=state.remove_and_save)
         cog = ranktracker.RankTrackerCog(support.make_bot())
@@ -284,43 +284,57 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
     async def test_failed_fire_sale_save_keeps_the_sale_for_retry(self):
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.data.data = {"OLD": {"amount": 1}}
+        sale = {"amount": 1, "price": 1, "start": 1000, "end": 10**15}
         with (
-            patch.object(firesaletracker, "get_fire_sales", return_value={"NEW": {}}),
-            patch.object(cog, "make_fire_sale_embed", return_value=Mock()),
-            patch.object(firesaletracker, "send", new_callable=AsyncMock),
-            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-            patch(
-                "skypixel.storage.json_store.write_json", side_effect=[OSError, None]
+            patch.object(firesaletracker, "get_fire_sales", return_value={"NEW": sale}),
+            patch.object(
+                firesaletracker.constants, "FIRE_SALE_TRACKER_CHANNELS", {1: "ping"}
             ),
+            patch.object(cog.uploads, "flush", new_callable=AsyncMock),
+            support.fail_saves(cog.bot.database, OSError()),
         ):
             with self.assertRaises(OSError):
                 await cog.poll()
             self.assertNotIn("NEW", cog.data)
+            self.assertEqual(support.queued_alerts(cog.bot.database), [])
+            await cog.poll()
             await cog.poll()
         self.assertIn("NEW", cog.data)
+        self.assertEqual(len(support.queued_alerts(cog.bot.database)), 1)
 
-    async def test_rank_change_retries_only_the_failed_notifications(self):
+    async def test_failed_rank_save_queues_each_alert_once_on_retry(self):
         cog = ranktracker.RankTrackerCog(support.make_bot())
         before = {"player": {"name": "Before", "rank": "youtube"}}
         after = {"player": {"name": "After", "rank": "staff"}}
         cog.data.data = before
-        cog.data.replace = AsyncMock(wraps=cog.data.replace)
+        channels = {"youtube": {1: "yt"}, "staff": {2: "staff"}, "special": {3: "s"}}
         with (
             patch.object(ranktracker.RankTrackerCog, "do_watchlist", AsyncMock()),
             patch.object(ranktracker, "get_player_ranks", return_value=after),
-            patch.object(cog, "on_rank_change", new_callable=AsyncMock) as change,
-            patch.object(
-                cog, "on_name_change", side_effect=[OSError("send failed"), None]
-            ) as rename,
+            patch.object(ranktracker.constants, "RANK_TRACKER_CHANNELS", channels),
+            patch.object(cog, "update_stat_channels", new_callable=AsyncMock),
+            support.fail_saves(cog.bot.database, OSError("disk full")),
         ):
             with self.assertRaises(OSError):
                 await cog.poll()
             self.assertEqual(cog.data.to_dict(), before)
+            self.assertEqual(support.queued_alerts(cog.bot.database), [])
             await cog.poll()
-        change.assert_awaited_once_with("player", "After", "youtube", "staff")
-        self.assertEqual(rename.await_count, 2)
+            await cog.poll()
         self.assertEqual(cog.data.to_dict(), after)
-        self.assertEqual(cog.known_changes, set())
+        alerts = support.queued_alerts(cog.bot.database)
+        self.assertEqual(
+            [(alert.channel_id, alert.content) for alert in alerts],
+            [(1, "yt"), (2, "staff"), (2, "")],
+        )
+        self.assertEqual(
+            [alert.embeds[0]["title"] for alert in alerts],
+            [
+                "After went from [YOUTUBE] to [STAFF] rank!",
+                "After went from [YOUTUBE] to [STAFF] rank!",
+                "Before changed their IGN to After",
+            ],
+        )
 
     async def test_unchanged_rank_lists_do_not_rewrite_the_state_file(self):
         cog = ranktracker.RankTrackerCog(support.make_bot())
@@ -341,22 +355,21 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         stats.assert_awaited_once()
         self.assertEqual(cog.data.to_dict(), ranks)
 
-    async def test_fire_sale_notification_failure_keeps_the_sale_for_retry(self):
+    async def test_fire_sale_alert_build_failure_keeps_the_sale_for_retry(self):
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.data.data = {"OLD": {"amount": 1}}
-        cog.data.replace = AsyncMock(wraps=cog.data.replace)
         sales = {"NEW": {"amount": 2}}
         with (
             patch.object(firesaletracker, "get_fire_sales", return_value=sales),
             patch.object(cog, "make_fire_sale_embed", return_value=Mock()),
-            patch.object(firesaletracker, "send", side_effect=[OSError, None]) as send,
+            patch.object(firesaletracker, "send", side_effect=[OSError, []]) as send,
             patch.object(cog.uploads, "flush", new_callable=AsyncMock),
         ):
             with self.assertRaises(OSError):
                 await cog.poll()
             self.assertNotIn("NEW", cog.data)
             await cog.poll()
-        self.assertEqual(send.await_count, 2)
+        self.assertEqual(send.call_count, 2)
         self.assertEqual(cog.data["NEW"], sales["NEW"])
 
     async def test_failed_active_upload_does_not_skip_ended_uploads(self):
@@ -430,11 +443,11 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
                 new_callable=AsyncMock,
                 return_value=sales,
             ),
-            patch.object(firesaletracker, "send", new_callable=AsyncMock) as send,
+            patch.object(firesaletracker, "send", return_value=[]) as send,
             patch.object(cog.uploads, "flush", new_callable=AsyncMock),
         ):
             await cog.poll()
-        send.assert_not_awaited()
+        send.assert_not_called()
         cog.data.replace.assert_awaited_once()
         self.assertEqual(cog.data.to_dict(), sales)
 
@@ -502,7 +515,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
                 cog,
                 "on_auction",
                 new_callable=AsyncMock,
-                side_effect=[RuntimeError("player lookup failed"), None],
+                side_effect=[RuntimeError("player lookup failed"), []],
             ) as process,
             self.assertLogs(auctionhouse.logger, level="ERROR"),
         ):
@@ -539,16 +552,15 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             patch.object(ranktracker.RankTrackerCog, "do_watchlist", AsyncMock()),
             patch.object(ranktracker, "get_player_ranks", return_value=after),
             patch.object(ranktracker, "invalidate_rank_lists") as invalidate,
-            patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
-            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
+            patch.object(cog, "on_rank_remove", return_value=[]) as remove,
             self.assertLogs(ranktracker.logger, level="ERROR"),
         ):
             await cog.poll()
             await cog.poll()
-            remove.assert_not_awaited()
+            remove.assert_not_called()
             self.assertEqual(invalidate.call_count, 2)
             await cog.poll()
-        self.assertEqual(remove.await_count, 5)
+        self.assertEqual(remove.call_count, 5)
         self.assertEqual(cog.data.to_dict(), after)
         self.assertEqual(cog.shrunken_polls, 0)
 
@@ -570,15 +582,14 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         cog.data.data = {"Dev": self.job("Dev").to_dict()}
         with (
             patch.object(jobtracker, "get_jobs", return_value=[]),
-            patch.object(cog, "on_job_update", new_callable=AsyncMock) as notify,
-            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
+            patch.object(cog, "on_job_update", return_value=[]) as notify,
             self.assertLogs(jobtracker.logger, level="WARNING"),
         ):
             await cog.poll()
             await cog.poll()
-            notify.assert_not_awaited()
+            notify.assert_not_called()
             await cog.poll()
-        notify.assert_awaited_once()
+        notify.assert_called_once()
         self.assertEqual(cog.data.to_dict(), {})
 
     async def test_first_run_saves_jobs_without_notifications(self):
@@ -587,11 +598,10 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         cog.initialized = False
         with (
             patch.object(jobtracker, "get_jobs", return_value=[self.job("Dev")]),
-            patch.object(cog, "on_job_update", new_callable=AsyncMock) as notify,
-            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
+            patch.object(cog, "on_job_update", return_value=[]) as notify,
         ):
             await cog.poll()
-        notify.assert_not_awaited()
+        notify.assert_not_called()
         self.assertIn("Dev", cog.data)
         self.assertTrue(cog.initialized)
 
@@ -601,11 +611,10 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         cog.initialized = True
         with (
             patch.object(jobtracker, "get_jobs", return_value=[self.job("Dev")]),
-            patch.object(cog, "on_job_update", new_callable=AsyncMock) as notify,
-            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
+            patch.object(cog, "on_job_update", return_value=[]) as notify,
         ):
             await cog.poll()
-        notify.assert_awaited_once()
+        notify.assert_called_once()
 
     async def test_invalid_rank_lookup_never_reaches_the_api(self):
         with patch.object(ranktracker.http, "get", new_callable=AsyncMock) as fetch:
@@ -614,7 +623,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         fetch.assert_not_awaited()
 
     async def test_full_watchlist_rejects_new_players(self):
-        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-full.json")
+        state = TrackerState(support.make_database(), "rankwatchlist")
         state.data = {"a": None}
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.watch_list = state
@@ -693,9 +702,8 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         cog.data.data = {"OLD": {"end": 1_000}, "LIVE": {"end": 10**15}}
         with (
             patch.object(firesaletracker, "get_fire_sales", return_value={}),
-            patch.object(firesaletracker, "send", new_callable=AsyncMock),
+            patch.object(firesaletracker, "send", return_value=[]),
             patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
         ):
             await cog.poll()
             self.assertEqual(set(cog.data), {"LIVE"})
@@ -714,18 +722,15 @@ class RankChangeAlertTests(unittest.IsolatedAsyncioTestCase):
     async def test_rank_change_sends_one_alert_to_both_ranks_channels(self):
         cog = ranktracker.RankTrackerCog(support.make_bot())
         channels = {"youtube": {1: "a", 2: "b"}, "staff": {2: "c", 3: "d"}}
-        with (
-            patch.object(ranktracker.constants, "RANK_TRACKER_CHANNELS", channels),
-            patch.object(
-                ranktracker.utils, "broadcast", new_callable=AsyncMock
-            ) as broadcast,
-        ):
-            await cog.on_rank_change("uuid", "Name", "youtube", "staff")
-        broadcast.assert_awaited_once()
-        self.assertEqual(broadcast.await_args.args[1], {1: "a", 2: "c", 3: "d"})
+        with patch.object(ranktracker.constants, "RANK_TRACKER_CHANNELS", channels):
+            alerts = cog.on_rank_change("uuid", "Name", "youtube", "staff")
         self.assertEqual(
-            broadcast.await_args.kwargs["embed"].title,
-            "Name went from [YOUTUBE] to [STAFF] rank!",
+            [(alert.channel_id, alert.content) for alert in alerts],
+            [(1, "a"), (2, "c"), (3, "d")],
+        )
+        self.assertEqual(
+            {alert.embeds[0]["title"] for alert in alerts},
+            {"Name went from [YOUTUBE] to [STAFF] rank!"},
         )
 
 
@@ -733,7 +738,7 @@ class WatchlistCommandTests(unittest.IsolatedAsyncioTestCase):
     def cog(self, name):
         cog = ranktracker.RankTrackerCog(support.make_bot(is_owner=AsyncMock()))
         cog.bot.is_owner.return_value = False
-        cog.watch_list = JsonWrapper(f"{support.TEST_STORAGE.name}/{name}.json")
+        cog.watch_list = TrackerState(support.make_database(), name)
         cog.watch_list.data = {"b": {"rankname": None, "name": "Player", "added_by": 1}}
         return cog
 

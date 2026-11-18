@@ -24,20 +24,19 @@ class RankValidationTests(unittest.IsolatedAsyncioTestCase):
             patch.object(
                 ranktracker, "edit_stat_channels", new_callable=AsyncMock
             ) as counts,
-            patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
-            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
+            patch.object(cog, "on_rank_remove", return_value=[]) as remove,
             self.assertLogs(ranktracker.logger, level="ERROR"),
         ):
             for _ in snapshots:
                 await cog.poll()
                 self.assertEqual(cog.shrunken_polls, 1)
             self.assertEqual(cog.data.to_dict(), before)
-            remove.assert_not_awaited()
+            remove.assert_not_called()
             counts.assert_not_awaited()
             await cog.poll()
             counts.assert_not_awaited()
             await cog.poll()
-        self.assertEqual(remove.await_count, 5)
+        self.assertEqual(remove.call_count, 5)
         self.assertEqual(cog.data.to_dict(), snapshots[-1])
         counts.assert_awaited_once_with(
             cog.bot, {"youtube": [{"id": "2", "name": "P2"}]}
@@ -57,8 +56,7 @@ class RankValidationTests(unittest.IsolatedAsyncioTestCase):
             ),
             patch.object(ranktracker, "invalidate_rank_lists"),
             patch.object(ranktracker, "edit_stat_channels", new_callable=AsyncMock),
-            patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
-            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
+            patch.object(cog, "on_rank_remove", return_value=[]) as remove,
             self.assertLogs(ranktracker.logger, level="ERROR"),
         ):
             await cog.poll()
@@ -66,7 +64,7 @@ class RankValidationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(cog.shrunken_polls, 0)
             self.assertIsNone(cog.shrunken_changes)
             await cog.poll()
-        remove.assert_not_awaited()
+        remove.assert_not_called()
         self.assertEqual(cog.shrunken_polls, 1)
         self.assertEqual(cog.data.to_dict(), before)
 
@@ -81,18 +79,23 @@ class FireSaleInitializationTests(unittest.IsolatedAsyncioTestCase):
             patch.object(
                 firesaletracker, "get_fire_sales", side_effect=[{}, {"NEW": sale}]
             ),
-            patch.object(firesaletracker, "send", new_callable=AsyncMock) as notify,
             patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-            patch(
-                "skypixel.storage.json_store.write_json", new_callable=AsyncMock
+            patch.object(
+                cog.data.database, "save", wraps=cog.data.database.save
             ) as save,
         ):
             await cog.poll()
             self.assertTrue(cog.initialized)
-            save.assert_awaited_once_with(cog.data.file_path, {}, 2)
-            notify.assert_not_awaited()
+            save.assert_awaited_once_with("firesales", {}, [])
+            restarted = firesaletracker.FireSaleTrackerCog(cog.bot)
+            self.assertTrue(restarted.initialized)
+            self.assertEqual(support.queued_alerts(cog.bot.database), [])
             await cog.poll()
-        notify.assert_awaited_once()
+        alerts = support.queued_alerts(cog.bot.database)
+        self.assertEqual(
+            len(alerts), len(firesaletracker.constants.FIRE_SALE_TRACKER_CHANNELS)
+        )
+        self.assertEqual(alerts[0].embeds[0]["title"], "New Fire Sale Added!")
         self.assertIn("NEW", cog.data)
 
     async def test_failed_empty_first_save_keeps_initialization_pending(self):
@@ -102,9 +105,7 @@ class FireSaleInitializationTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(firesaletracker, "get_fire_sales", return_value={}),
             patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-            patch(
-                "skypixel.storage.json_store.write_json", side_effect=[OSError, None]
-            ),
+            support.fail_saves(cog.bot.database, OSError()),
         ):
             with self.assertRaises(OSError):
                 await cog.poll()

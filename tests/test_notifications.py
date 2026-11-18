@@ -1,94 +1,27 @@
 import asyncio
+import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
+from itertools import pairwise
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import disnake
 
-from skypixel import constants, utils
-from skypixel.storage.notifications import NotificationOutbox, NotificationStorageError
+from skypixel import utils
+from skypixel.storage import notifications
+from skypixel.storage.database import Database
+from skypixel.storage.notifications import Outbox
 from skypixel.trackers import auctionhouse, versiontracker
 
 
 class NotificationTests(unittest.IsolatedAsyncioTestCase):
-    async def test_broadcast_storage_failure_keeps_successful_delivery_across_restart(
-        self,
-    ):
-        first = self.channel
-        second = Mock(spec=disnake.TextChannel)
-        second.send = AsyncMock(return_value=Mock(spec=disnake.Message))
-        self.bot.get_channel.side_effect = lambda channel_id: (
-            first if channel_id == 1 else second
-        )
-        original = self.bot.notifications.pending.set_and_save
-
-        async def save(key, message):
-            if message["channel_id"] == 2:
-                raise OSError("disk full")
-            await original(key, message)
-
-        footers = sorted(constants.CREDIT_FOOTERS)
-        embed = disnake.Embed(title="Alert").set_footer(text=footers[0])
-        with patch.object(
-            self.bot.notifications.pending, "set_and_save", side_effect=save
-        ):
-            with self.assertRaises(NotificationStorageError):
-                await utils.broadcast(self.bot, {1: "first", 2: "second"}, embed=embed)
-        first.send.assert_awaited_once()
-        second.send.assert_not_awaited()
-        self.bot.notifications = NotificationOutbox(self.bot, self.path)
-        embed.set_footer(text=footers[-1])
-        await utils.broadcast(self.bot, {1: "first", 2: "second"}, embed=embed)
-        first.send.assert_awaited_once()
-        second.send.assert_awaited_once()
-        self.assertFalse(self.bot.notifications.pending)
-        self.assertFalse(self.bot.notifications.events)
-
-    async def test_failed_receipt_save_retries_the_save_without_sending_again(self):
-        with patch.object(self.bot.notifications.events, "save", side_effect=OSError):
-            with self.assertRaises(NotificationStorageError):
-                await utils.broadcast(
-                    self.bot, {1: "ping"}, embed=disnake.Embed(title="Alert")
-                )
-        self.channel.send.assert_awaited_once()
-        await utils.broadcast(self.bot, {1: "ping"}, embed=disnake.Embed(title="Alert"))
-        self.channel.send.assert_awaited_once()
-        self.assertFalse(self.bot.notifications.pending)
-        self.assertFalse(self.bot.notifications.events)
-
-    async def test_tracker_state_save_failure_reuses_receipts_but_a_later_event_sends_again(
-        self,
-    ):
-        cog = versiontracker.VersionTrackerCog(self.bot)
-        cog.data.data = {"version": "old"}
-        with (
-            patch.object(
-                versiontracker, "get_version", side_effect=["new", "new", "old", "new"]
-            ),
-            patch.object(
-                versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
-            ),
-        ):
-            with patch.object(cog.data, "replace", side_effect=OSError):
-                with self.assertRaises(OSError):
-                    await cog.poll()
-            self.channel.send.assert_awaited_once()
-            self.assertEqual(cog.data["version"], "old")
-            self.bot.notifications = NotificationOutbox(self.bot, self.path)
-            await cog.poll()
-            self.channel.send.assert_awaited_once()
-            await cog.poll()
-            await cog.poll()
-        self.assertEqual(self.channel.send.await_count, 3)
-        self.assertEqual(cog.data["version"], "new")
-        self.assertFalse(self.bot.notifications.events)
-
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.path = Path(self.directory.name) / "notifications.json"
+        self.path = Path(self.directory.name) / "skypixel.db"
         self.channel = Mock(spec=disnake.TextChannel)
         self.channel.send = AsyncMock(return_value=Mock(spec=disnake.Message))
         self.bot = SimpleNamespace(
@@ -97,27 +30,109 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
                 storage_dir=Path(self.directory.name), mongodb_uri="mongodb://localhost"
             ),
         )
-        self.bot.notifications = NotificationOutbox(self.bot, self.path)
+        self.restart()
+
+    def restart(self):
+        """Open the database again, as the bot does when it starts."""
+        self.bot.database = Database(self.path)
+        self.bot.notifications = Outbox(self.bot, self.bot.database)
+
+    def rows(self) -> list[tuple]:
+        with closing(sqlite3.connect(self.path)) as connection:
+            return connection.execute(
+                "SELECT channel_id, thread_id, attempts, sent_at IS NOT NULL, dead "
+                "FROM outbox ORDER BY id"
+            ).fetchall()
+
+    def unsent(self) -> int:
+        return sum(1 for row in self.rows() if not row[3] and not row[4])
 
     def failure(self):
         return disnake.HTTPException(Mock(status=503, reason="Unavailable"), "failure")
 
-    async def test_failed_alert_survives_restart_and_retries_with_its_thread(self):
-        self.bot.get_channel.return_value = None
-        with self.assertLogs(utils.logger, level="WARNING"):
-            await utils.notify_to_channel(
-                self.bot, 1, "ping", thread_id=2, embed=disnake.Embed(title="Alert")
-            )
-        self.assertEqual(len(self.bot.notifications.pending), 1)
-        self.bot.notifications = NotificationOutbox(self.bot, self.path)
-        self.channel.get_thread.return_value = self.channel
-        self.bot.get_channel.return_value = self.channel
+    def version_cog(self, version="old"):
+        cog = versiontracker.VersionTrackerCog(self.bot)
+        cog.data.data = {"version": version}
+        return cog
+
+    async def test_alert_saved_with_state_survives_a_restart_and_is_sent(self):
+        cog = self.version_cog()
+        with (
+            patch.object(versiontracker, "get_version", return_value="new"),
+            patch.object(
+                versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
+            ),
+        ):
+            await cog.poll()
+        self.channel.send.assert_not_awaited()
+        self.restart()
+        self.assertEqual(
+            versiontracker.VersionTrackerCog(self.bot).data["version"], "new"
+        )
         await self.bot.notifications.flush()
         self.channel.send.assert_awaited_once()
         self.assertEqual(self.channel.send.call_args.args, ("ping",))
+        self.assertEqual(
+            self.channel.send.call_args.kwargs["embeds"][0].description,
+            "`old` ➡ `new`",
+        )
+        self.assertEqual(self.unsent(), 0)
+
+    async def test_state_save_failure_does_not_send_alerts(self):
+        cog = self.version_cog()
+        with (
+            patch.object(versiontracker, "get_version", return_value="new"),
+            patch.object(
+                versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
+            ),
+            patch.object(self.bot.database, "_save", side_effect=OSError("disk")),
+        ):
+            with self.assertRaises(OSError):
+                await cog.poll()
+        self.assertEqual(cog.data["version"], "old")
+        await self.bot.notifications.flush()
+        self.channel.send.assert_not_awaited()
+        self.assertEqual(self.rows(), [])
+
+    async def test_each_saved_change_sends_its_own_alert(self):
+        cog = self.version_cog()
+        with (
+            patch.object(
+                versiontracker, "get_version", side_effect=["new", "new", "old", "new"]
+            ),
+            patch.object(
+                versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
+            ),
+        ):
+            for _ in range(4):
+                await cog.poll()
+                await self.bot.notifications.flush()
+        self.assertEqual(self.channel.send.await_count, 3)
+        self.assertEqual(cog.data["version"], "new")
+
+    async def test_failed_alert_retries_with_its_thread_after_a_restart(self):
+        self.bot.get_channel.return_value = None
+        await self.bot.database.save(
+            "test",
+            {},
+            [
+                utils.make_alert(
+                    1, "ping", thread_id=2, embed=disnake.Embed(title="Alert")
+                )
+            ],
+        )
+        with self.assertLogs(utils.logger, level="WARNING"):
+            await self.bot.notifications.flush()
+        self.assertEqual(self.rows(), [(1, 2, 1, 0, 0)])
+        self.restart()
+        self.channel.get_thread.return_value = self.channel
+        self.bot.get_channel.return_value = self.channel
+        await self.bot.notifications.flush(due_only=False)
+        self.channel.get_thread.assert_called_with(2)
+        self.channel.send.assert_awaited_once()
+        self.assertEqual(self.channel.send.call_args.args, ("ping",))
         self.assertEqual(self.channel.send.call_args.kwargs["embeds"][0].title, "Alert")
-        self.assertFalse(self.bot.notifications.pending)
-        self.assertFalse(NotificationOutbox(self.bot, self.path).pending)
+        self.assertEqual(self.unsent(), 0)
 
     async def test_broadcast_retries_only_the_failed_destination(self):
         good = self.channel
@@ -126,19 +141,18 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         self.bot.get_channel.side_effect = lambda channel_id: (
             good if channel_id == 1 else bad
         )
+        alerts = utils.broadcast({1: "first", 2: "second"}, embed=disnake.Embed())
+        await self.bot.database.save("test", {}, alerts)
         with self.assertLogs(utils.logger, level="ERROR"):
-            await utils.broadcast(
-                self.bot, {1: "first", 2: "second"}, embed=disnake.Embed(title="Alert")
-            )
-        self.assertEqual(len(self.bot.notifications.pending), 1)
-        await self.bot.notifications.flush()
+            await self.bot.notifications.flush()
+        self.assertEqual(self.unsent(), 1)
+        await self.bot.notifications.flush(due_only=False)
         good.send.assert_awaited_once()
         self.assertEqual(bad.send.await_count, 2)
-        self.assertFalse(self.bot.notifications.pending)
+        self.assertEqual(self.unsent(), 0)
 
     async def test_failed_send_keeps_the_alert_after_tracker_state_changes(self):
-        cog = versiontracker.VersionTrackerCog(self.bot)
-        cog.data.data = {"version": "old"}
+        cog = self.version_cog()
         self.channel.send.side_effect = self.failure()
         with (
             patch.object(versiontracker, "get_version", return_value="new"),
@@ -148,33 +162,68 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             self.assertLogs(utils.logger, level="ERROR"),
         ):
             await cog.poll()
+            await self.bot.notifications.flush()
             await cog.poll()
         self.assertEqual(cog.data["version"], "new")
         self.channel.send.assert_awaited_once()
-        self.assertEqual(len(self.bot.notifications.pending), 1)
+        self.assertEqual(self.unsent(), 1)
         self.channel.send.side_effect = None
-        await self.bot.notifications.flush()
+        await self.bot.notifications.flush(due_only=False)
         self.assertEqual(self.channel.send.await_count, 2)
-        self.assertFalse(self.bot.notifications.pending)
+        self.assertEqual(self.unsent(), 0)
 
-    async def test_failed_outbox_save_prevents_tracker_state_changes(self):
-        cog = versiontracker.VersionTrackerCog(self.bot)
-        cog.data.data = {"version": "old"}
+    async def test_failed_send_is_retried_with_backoff(self):
+        self.bot.get_channel.return_value = None
+        await self.bot.database.save("test", {}, [utils.make_alert(1, "ping")])
+        clock = [1000.0]
+        attempts_at = []
+
+        def get_channel(channel_id):
+            attempts_at.append(clock[0])
+
+        self.bot.get_channel.side_effect = get_channel
+        outbox = self.bot.notifications
         with (
-            patch.object(versiontracker, "get_version", return_value="new"),
-            patch.object(
-                versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
-            ),
-            patch.object(
-                self.bot.notifications.pending, "set_and_save", side_effect=OSError
-            ),
+            patch.object(notifications.time, "time", side_effect=lambda: clock[0]),
+            patch.object(utils.logger, "warning"),
         ):
-            with self.assertRaises(OSError):
-                await cog.poll()
-        self.assertEqual(cog.data["version"], "old")
+            # Created at a real time, so set the clock just after it.
+            clock[0] = (await self.bot.database.due_alerts(float("inf")))[0].created_at
+            start = clock[0]
+            for _ in range(10 * 60 * 4):
+                await outbox.flush()
+                clock[0] += 15
+                if clock[0] - start > 3 * 60 * 60:
+                    break
+        gaps = [later - earlier for earlier, later in pairwise(attempts_at)]
+        self.assertEqual(gaps[:7], [15, 30, 60, 120, 240, 480, 900])
+        self.assertEqual(set(gaps[7:]), {900})
+
+    async def test_alert_that_keeps_failing_is_dead_after_six_hours(self):
+        self.bot.get_channel.return_value = None
+        await self.bot.database.save("test", {}, [utils.make_alert(1, "ping")])
+        created = (await self.bot.database.due_alerts(float("inf")))[0].created_at
+        outbox = self.bot.notifications
+        self.assertEqual(outbox.max_age, 6 * 60 * 60)
+        with patch.object(utils.logger, "warning"):
+            with patch.object(
+                notifications.time, "time", return_value=created + 6 * 60 * 60 - 1
+            ):
+                await outbox.flush(due_only=False)
+            self.assertEqual(self.rows(), [(1, None, 1, 0, 0)])
+            with (
+                patch.object(
+                    notifications.time, "time", return_value=created + 6 * 60 * 60 + 1
+                ),
+                self.assertLogs(notifications.logger, level="ERROR"),
+            ):
+                await outbox.flush(due_only=False)
+        self.assertEqual(self.rows(), [(1, None, 2, 0, 1)])
+        self.bot.get_channel.return_value = self.channel
+        await outbox.flush(due_only=False)
         self.channel.send.assert_not_awaited()
 
-    async def test_concurrent_retry_and_submission_do_not_send_a_message_twice(self):
+    async def test_concurrent_flushes_do_not_send_a_message_twice(self):
         entered, release = asyncio.Event(), asyncio.Event()
 
         async def send(*args, **kwargs):
@@ -183,13 +232,45 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             return Mock(spec=disnake.Message)
 
         self.channel.send.side_effect = send
-        submit = asyncio.create_task(utils.notify_to_channel(self.bot, 1, "ping"))
+        await self.bot.database.save("test", {}, [utils.make_alert(1, "ping")])
+        first = asyncio.create_task(self.bot.notifications.flush())
         await asyncio.wait_for(entered.wait(), 1)
-        retry = asyncio.create_task(self.bot.notifications.flush())
+        second = asyncio.create_task(self.bot.notifications.flush(due_only=False))
+        await asyncio.sleep(0)
         release.set()
-        await asyncio.gather(submit, retry)
+        await asyncio.gather(first, second)
         self.channel.send.assert_awaited_once()
-        self.assertFalse(self.bot.notifications.pending)
+        self.assertEqual(self.unsent(), 0)
+
+    async def test_failed_sent_mark_is_retried_without_sending_again(self):
+        await self.bot.database.save("test", {}, [utils.make_alert(1, "ping")])
+        with patch.object(self.bot.database, "_update", side_effect=OSError("disk")):
+            with self.assertRaises(OSError):
+                await self.bot.notifications.flush()
+        self.channel.send.assert_awaited_once()
+        await self.bot.notifications.flush(due_only=False)
+        self.channel.send.assert_awaited_once()
+        self.assertEqual(self.unsent(), 0)
+
+    async def test_saved_alerts_wake_the_sender(self):
+        outbox = self.bot.notifications
+        with patch.object(outbox, "poll_interval", 3600):
+            task = asyncio.create_task(outbox.run())
+            try:
+                await asyncio.sleep(0.05)
+                sent = asyncio.Event()
+
+                async def send(*args, **kwargs):
+                    sent.set()
+                    return Mock(spec=disnake.Message)
+
+                self.channel.send.side_effect = send
+                await self.bot.database.save("test", {}, [utils.make_alert(1, "x")])
+                await asyncio.wait_for(sent.wait(), 2)
+            finally:
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
 
     async def test_failed_auction_alert_save_keeps_the_scan_checkpoint_for_retry(self):
         cog = auctionhouse.AuctionTrackerCog(self.bot)
@@ -212,39 +293,18 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
                 return_value=disnake.Embed(title="Soul"),
             ),
         ):
-            with patch.object(
-                self.bot.notifications.pending, "set_and_save", side_effect=OSError
-            ):
-                with self.assertRaises(NotificationStorageError):
+            with patch.object(self.bot.database, "_save", side_effect=OSError):
+                with self.assertRaises(OSError):
                     await cog.active_scanner()
             self.assertEqual(cog.last_scanned_active, 100_000)
+            await self.bot.notifications.flush()
             self.channel.send.assert_not_awaited()
             await cog.active_scanner()
         self.assertEqual(cog.last_scanned_active, 200_000)
+        self.restart()
+        self.assertEqual(
+            auctionhouse.AuctionTrackerCog(self.bot).cursors["active"], 200_000
+        )
+        await self.bot.notifications.flush()
         self.channel.send.assert_awaited_once()
-
-    async def test_run_waits_before_it_retries_a_failed_alert(self):
-        self.bot.get_channel.return_value = None
-        with self.assertLogs(utils.logger, level="WARNING"):
-            await utils.notify_to_channel(self.bot, 1, embed=disnake.Embed(title="A"))
-        self.bot.get_channel.return_value = self.channel
-        await self.bot.notifications.flush(due_only=True)
-        self.channel.send.assert_not_awaited()
-        self.bot.notifications._retry_at.clear()
-        await self.bot.notifications.flush(due_only=True)
-        self.channel.send.assert_awaited_once()
-        self.assertFalse(self.bot.notifications.pending)
-
-    async def test_alert_that_keeps_failing_is_dropped_after_the_age_limit(self):
-        self.bot.get_channel.return_value = None
-        outbox = self.bot.notifications
-        with self.assertLogs(utils.logger, level="WARNING"):
-            await utils.notify_to_channel(self.bot, 1, embed=disnake.Embed(title="A"))
-        self.assertEqual(len(outbox.pending), 1)
-        with (
-            patch.object(outbox, "max_age", -1),
-            self.assertLogs("skypixel.storage.notifications", level="ERROR"),
-        ):
-            await outbox.flush()
-        self.assertFalse(outbox.pending)
-        self.assertFalse(outbox.events)
+        self.assertEqual(self.channel.send.call_args.kwargs["embeds"][0].title, "Soul")

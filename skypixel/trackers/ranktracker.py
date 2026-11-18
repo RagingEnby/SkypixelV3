@@ -2,8 +2,7 @@ import asyncio
 import logging
 import time
 from collections import Counter
-from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import disnake
 from curl_cffi.requests.exceptions import HTTPError, RequestException
@@ -13,7 +12,7 @@ from skypixel import constants, utils
 from skypixel.clients import http, mojang
 from skypixel.commands.rank_views import RankListView
 from skypixel.domain.types import SpecialRank
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import Alert, TrackerState
 from skypixel.trackers.base import PollingCog
 
 if TYPE_CHECKING:
@@ -155,16 +154,13 @@ async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
     }
 
 
-async def send(
-    bot: SkypixelBot,
-    rank: Literal["special"] | SpecialRank,
-    embed: disnake.Embed,
-    ping: bool = True,
-):
+def send(
+    rank: Literal["special"] | SpecialRank, embed: disnake.Embed, ping: bool = True
+) -> list[Alert]:
     if rank not in constants.RANK_TRACKER_CHANNELS:
         rank = "special"
-    await utils.broadcast(
-        bot, constants.RANK_TRACKER_CHANNELS[rank], embed=embed, ping=ping
+    return utils.broadcast(
+        constants.RANK_TRACKER_CHANNELS[rank], embed=embed, ping=ping
     )
 
 
@@ -204,11 +200,10 @@ class RankTrackerCog(PollingCog):
 
     def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "ranks.json")
-        self.watch_list = JsonWrapper(bot.settings.storage_dir / "rankwatchlist.json")
+        self.data = TrackerState(bot.database, "ranks")
+        self.watch_list = TrackerState(bot.database, "rankwatchlist")
         if not self.data.to_dict():
-            logger.warning("ranks.json is empty")
-        self.known_changes: set[tuple[str, ...]] = set()
+            logger.warning("The saved rank lists are empty.")
         self.shrunken_polls = 0
         self.shrunken_changes: frozenset[tuple[str, str, str | None]] | None = None
 
@@ -220,14 +215,7 @@ class RankTrackerCog(PollingCog):
             )
         await edit_stat_channels(self.bot, ranks)
 
-    async def notify_change(
-        self, key: tuple[str, ...], notify: Callable[..., Awaitable[None]], *args: str
-    ) -> None:
-        if key not in self.known_changes:
-            await notify(*args)
-            self.known_changes.add(key)
-
-    async def on_rank_add(self, uuid: str, name: str, rank: SpecialRank):
+    def on_rank_add(self, uuid: str, name: str, rank: SpecialRank) -> list[Alert]:
         embed = make_embed(
             uuid,
             name,
@@ -235,11 +223,11 @@ class RankTrackerCog(PollingCog):
             f"{utils.esc_mrkdwn(name)} now has {format_rank(rank)} rank!",
         )
         logger.info("rank tracker alert: %s", embed.title)
-        await send(self.bot, rank, embed)
+        return send(rank, embed)
 
-    async def on_rank_change(
+    def on_rank_change(
         self, uuid: str, name: str, before: SpecialRank, after: SpecialRank
-    ):
+    ) -> list[Alert]:
         """Send one alert to every channel that follows the old or the new rank."""
         embed = make_embed(
             uuid,
@@ -253,9 +241,9 @@ class RankTrackerCog(PollingCog):
         for rank in (before, after):
             key = rank if rank in constants.RANK_TRACKER_CHANNELS else "special"
             channels.update(constants.RANK_TRACKER_CHANNELS[key])
-        await utils.broadcast(self.bot, channels, embed=embed)
+        return utils.broadcast(channels, embed=embed)
 
-    async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
+    def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank) -> list[Alert]:
         embed = make_embed(
             uuid,
             name,
@@ -263,11 +251,11 @@ class RankTrackerCog(PollingCog):
             f"{utils.esc_mrkdwn(name)} has lost {format_rank(rank)} rank",
         )
         logger.info("rank tracker alert: %s", embed.title)
-        await send(self.bot, rank, embed)
+        return send(rank, embed)
 
-    async def on_name_change(
+    def on_name_change(
         self, uuid: str, before: str, after: str, rank: SpecialRank
-    ):
+    ) -> list[Alert]:
         embed = make_embed(
             uuid,
             after,
@@ -275,7 +263,7 @@ class RankTrackerCog(PollingCog):
             f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}",
         )
         logger.info("rank tracker alert: %s", embed.title)
-        await send(self.bot, rank, embed, ping=False)
+        return send(rank, embed, ping=False)
 
     async def do_watchlist(self):
         for uuid, entry in list(self.watch_list.items()):
@@ -519,7 +507,7 @@ class RankTrackerCog(PollingCog):
         if not self.data.to_dict():
             await self.data.replace(player_ranks)
             await self.update_stat_channels(player_ranks)
-            logger.info("wrote rank data to empty ranks.json")
+            logger.info("Saved the first rank lists without alerts.")
             return
         if shrunken := shrunken_ranks(self.data.to_dict(), player_ranks):
             changes = frozenset(
@@ -544,46 +532,25 @@ class RankTrackerCog(PollingCog):
                 return
         self.shrunken_polls = 0
         self.shrunken_changes = None
-        for uuid, data in player_ranks.items():
+        alerts: list[Alert] = []
+        for uuid, player in player_ranks.items():
+            data = cast(dict[str, Any], player)
             old_data: dict[str, Any] | None = self.data.get(uuid)
             if not old_data:
-                await self.notify_change(
-                    ("add", uuid, data["rank"]),
-                    self.on_rank_add,
-                    uuid,
-                    data["name"],
-                    data["rank"],
-                )
+                alerts += self.on_rank_add(uuid, data["name"], data["rank"])
                 continue
             if old_data["rank"] != data["rank"]:
-                await self.notify_change(
-                    ("change", uuid, old_data["rank"], data["rank"]),
-                    self.on_rank_change,
-                    uuid,
-                    data["name"],
-                    old_data["rank"],
-                    data["rank"],
+                alerts += self.on_rank_change(
+                    uuid, data["name"], old_data["rank"], data["rank"]
                 )
             if old_data["name"] != data["name"]:
-                await self.notify_change(
-                    ("name", uuid, old_data["name"], data["name"]),
-                    self.on_name_change,
-                    uuid,
-                    old_data["name"],
-                    data["name"],
-                    data["rank"],
+                alerts += self.on_name_change(
+                    uuid, old_data["name"], data["name"], data["rank"]
                 )
         for uuid, data in self.data.data.items():
             if uuid not in player_ranks:
-                await self.notify_change(
-                    ("remove", uuid, data["rank"]),
-                    self.on_rank_remove,
-                    uuid,
-                    data["name"],
-                    data["rank"],
-                )
-        # Most polls find no change. Skip rewriting the file for those.
+                alerts += self.on_rank_remove(uuid, data["name"], data["rank"])
+        # Most polls find no change. Skip the write for those.
         if player_ranks != self.data.to_dict():
-            await self.data.replace(player_ranks)
-        self.known_changes.clear()
+            await self.data.replace(player_ranks, alerts)
         await self.update_stat_channels(player_ranks)

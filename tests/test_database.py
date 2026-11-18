@@ -240,3 +240,15 @@ class MigrationTests(unittest.TestCase):
         database = self.open()
         self.assertEqual(TrackerState(database, "version")["version"], "one")
         self.assertIn("a", TrackerState(database, "ranks"))
+
+    def test_trackers_read_the_imported_state(self):
+        from skypixel.trackers import firesaletracker, ranktracker
+        from tests import support
+
+        self.write("firesales.json", {})
+        self.write("ranks.json", {})
+        bot = support.make_bot(database=self.open())
+        self.assertTrue(firesaletracker.FireSaleTrackerCog(bot).initialized)
+        with self.assertLogs(ranktracker.logger, level="WARNING"):
+            ranks = ranktracker.RankTrackerCog(bot)
+        self.assertEqual(ranks.data.to_dict(), {})

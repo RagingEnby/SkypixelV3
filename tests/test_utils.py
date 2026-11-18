@@ -61,13 +61,11 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
                 await utils.send_to_channel(bot, 1, thread_id=2, content="test")
             )
 
-    async def test_broadcast_obeys_the_ten_embed_limit(self):
+    def test_broadcast_obeys_the_ten_embed_limit(self):
         embeds = [disnake.Embed(title=str(index)) for index in range(23)]
-        with patch.object(utils, "notify_to_channel", new_callable=AsyncMock) as send:
-            await utils.broadcast(support.make_bot(), {1: "ping"}, embeds=embeds)
-        self.assertEqual(
-            [len(call.kwargs["embeds"]) for call in send.call_args_list], [10, 10, 3]
-        )
+        alerts = utils.broadcast({1: "ping"}, embeds=embeds)
+        self.assertEqual([len(alert.embeds) for alert in alerts], [10, 10, 3])
+        self.assertEqual({alert.content for alert in alerts}, {"ping"})
 
     async def test_long_embed_fits_discord_limits(self):
         embed = disnake.Embed(title="t" * 300, description="d" * 5000)
@@ -97,15 +95,24 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(utils.truncate("abcdef", 3), "abc")
         self.assertEqual(utils.truncate("abc", 3), "abc")
 
-    async def test_broadcast_splits_large_embeds_without_cutting_text(self):
+    def test_broadcast_splits_large_embeds_without_cutting_text(self):
         embeds = [disnake.Embed(description="x" * 4000) for _ in range(3)]
-        with patch.object(utils, "notify_to_channel", new_callable=AsyncMock) as send:
-            await utils.broadcast(support.make_bot(), {1: "ping"}, embeds=embeds)
-        self.assertEqual(len(send.call_args_list), 3)
+        alerts = utils.broadcast({1: "ping"}, embeds=embeds)
         self.assertEqual(
-            [sum(map(len, call.kwargs["embeds"])) for call in send.call_args_list],
+            [
+                sum(len(disnake.Embed.from_dict(embed)) for embed in alert.embeds)
+                for alert in alerts
+            ],
             [4000, 4000, 4000],
         )
+
+    def test_broadcast_without_ping_sends_empty_content_to_every_channel(self):
+        alerts = utils.broadcast(
+            {1: "a", 2: "b"}, embed=disnake.Embed(title="Alert"), ping=False
+        )
+        self.assertEqual([alert.channel_id for alert in alerts], [1, 2])
+        self.assertEqual([alert.content for alert in alerts], ["", ""])
+        self.assertEqual([alert.embeds[0]["title"] for alert in alerts], ["Alert"] * 2)
 
     async def test_combined_embeds_fit_without_changing_cached_embeds(self):
         embeds = [disnake.Embed(description="x" * 4000) for _ in range(2)]

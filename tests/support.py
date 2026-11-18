@@ -3,7 +3,7 @@ import os
 import sys
 import tempfile
 import types
-from contextlib import nullcontext
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 TEST_STORAGE = tempfile.TemporaryDirectory(prefix="skypixel-tests-")
@@ -37,9 +37,39 @@ from skypixel.settings import Settings  # noqa: E402
 SETTINGS = Settings.load()
 
 
+def make_database():
+    """Return a state database in a new temporary directory."""
+    from skypixel.storage.database import Database
+
+    return Database(Path(tempfile.mkdtemp(dir=TEST_STORAGE.name)) / "skypixel.db")
+
+
+def fail_saves(database, *errors: BaseException | None):
+    """Patch database saves to raise each error in turn, then save normally.
+
+    None in errors lets that save go through.
+    """
+    original = database._save
+    remaining = list(errors)
+
+    def save(*args):
+        if remaining:
+            error = remaining.pop(0)
+            if error is not None:
+                raise error
+        return original(*args)
+
+    return patch.object(database, "_save", side_effect=save)
+
+
+def queued_alerts(database) -> list:
+    """Return the alerts waiting in the outbox, oldest first."""
+    return [pending.alert for pending in database._due_alerts(float("inf"))]
+
+
 def make_bot(**kwargs) -> Mock:
-    """Return a mock bot that carries the test settings."""
-    kwargs.setdefault("notifications", Mock(event=Mock(return_value=nullcontext())))
+    """Return a mock bot with the test settings and an empty state database."""
+    kwargs.setdefault("database", make_database())
     return Mock(settings=SETTINGS, **kwargs)
 
 

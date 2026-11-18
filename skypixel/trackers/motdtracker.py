@@ -6,7 +6,7 @@ import disnake
 from mcstatus import JavaServer
 
 from skypixel import constants, utils
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import Alert, TrackerState
 from skypixel.trackers.base import PollingCog
 
 if TYPE_CHECKING:
@@ -22,8 +22,8 @@ async def get_motd() -> list[str]:
     return [line.strip() for line in status.description.split("\n")]
 
 
-async def send(bot: SkypixelBot, embed: disnake.Embed, ping: bool = True):
-    await utils.broadcast(bot, constants.MOTD_TRACKER_CHANNELS, embed=embed, ping=ping)
+def send(embed: disnake.Embed, ping: bool = True) -> list[Alert]:
+    return utils.broadcast(constants.MOTD_TRACKER_CHANNELS, embed=embed, ping=ping)
 
 
 class MotdTrackerCog(PollingCog):
@@ -31,7 +31,7 @@ class MotdTrackerCog(PollingCog):
 
     def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "motd.json")
+        self.data = TrackerState(bot.database, "motd")
         self._last_ping: datetime | None = None
 
     @property
@@ -42,7 +42,7 @@ class MotdTrackerCog(PollingCog):
             else timedelta.max
         )
 
-    async def on_motd_update(self, before: list[str], after: list[str]):
+    def on_motd_update(self, before: list[str], after: list[str]) -> list[Alert]:
         embed = utils.add_footer(
             disnake.Embed(
                 title="Hypixel MOTD update!", color=constants.DEFAULT_EMBED_COLOR
@@ -50,15 +50,19 @@ class MotdTrackerCog(PollingCog):
         )
         embed.add_field(name="Before", value=utils.ansi_block(before), inline=False)
         embed.add_field(name="After", value=utils.ansi_block(after), inline=False)
-        should_ping = self.last_ping.total_seconds() / 60 > 10
-        await send(self.bot, embed, ping=should_ping)
-        if should_ping:
-            self._last_ping = datetime.now(UTC)
+        return send(embed, ping=self.should_ping())
+
+    def should_ping(self) -> bool:
+        return self.last_ping.total_seconds() / 60 > 10
 
     async def poll(self):
         motd = await get_motd()
         if motd != self.data.get("motd"):
             logger.info("MOTD changed from %s to %s.", self.data.get("motd"), motd)
+            alerts = []
             if self.data.get("motd"):
-                await self.on_motd_update(self.data.get("motd", []), motd)
-            await self.data.replace({**self.data, "motd": motd})
+                alerts = self.on_motd_update(self.data.get("motd", []), motd)
+            pinged = self.should_ping()
+            await self.data.replace({**self.data, "motd": motd}, alerts)
+            if alerts and pinged:
+                self._last_ping = datetime.now(UTC)

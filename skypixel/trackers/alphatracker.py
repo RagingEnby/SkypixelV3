@@ -6,7 +6,7 @@ import disnake
 from mcstatus import JavaServer
 
 from skypixel import constants, utils
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import Alert, TrackerState
 from skypixel.trackers.base import PollingCog
 
 if TYPE_CHECKING:
@@ -30,8 +30,8 @@ async def get_alpha_data() -> dict[str, Any]:
     return flatten_status(status.raw)
 
 
-async def send(bot: SkypixelBot, embed: disnake.Embed):
-    await utils.broadcast(bot, constants.ALPHA_TRACKER_CHANNELS, embed=embed)
+def send(embed: disnake.Embed) -> list[Alert]:
+    return utils.broadcast(constants.ALPHA_TRACKER_CHANNELS, embed=embed)
 
 
 class AlphaTrackerCog(PollingCog):
@@ -39,12 +39,14 @@ class AlphaTrackerCog(PollingCog):
 
     def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "alpha.json")
+        self.data = TrackerState(bot.database, "alpha")
 
-    async def on_status_update(self, before: dict[str, Any], after: dict[str, Any]):
+    def on_status_update(
+        self, before: dict[str, Any], after: dict[str, Any]
+    ) -> list[Alert]:
         diff = [k for k, v in after.items() if v != before.get(k)]
         if not diff:
-            return
+            return []
         embed = utils.add_footer(
             disnake.Embed(
                 title="Alpha Status Updated!", color=constants.DEFAULT_EMBED_COLOR
@@ -60,12 +62,13 @@ class AlphaTrackerCog(PollingCog):
             else:
                 value = f"Before: `{old}`\nAfter: `{new}`"
             embed.add_field(name=key, value=value, inline=False)
-        await send(self.bot, embed)
+        return send(embed)
 
     async def poll(self):
         status = await get_alpha_data()
         if status != self.data.to_dict():
+            alerts = []
             if self.data.to_dict():
                 logger.info("%s != %s", status, self.data.to_dict())
-                await self.on_status_update(self.data.to_dict(), status)
-            await self.data.replace(status)
+                alerts = self.on_status_update(self.data.to_dict(), status)
+            await self.data.replace(status, alerts)

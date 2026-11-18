@@ -1,11 +1,9 @@
-import asyncio
 import datetime
 import logging
 import random
 import re
 from contextlib import suppress
 from copy import deepcopy
-from typing import TYPE_CHECKING
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
@@ -13,11 +11,7 @@ import disnake
 
 from skypixel import constants
 from skypixel.clients import hypixel
-from skypixel.storage.notifications import notification_fingerprint
-
-if TYPE_CHECKING:
-    from skypixel.app import SkypixelBot
-
+from skypixel.storage.database import Alert
 
 logger = logging.getLogger(__name__)
 COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
@@ -247,17 +241,21 @@ async def send_to_channel(
         return None
 
 
-async def broadcast(
-    bot: SkypixelBot,
+def broadcast(
     channels: dict[int, str],
     *,
     embed: disnake.Embed | None = None,
     embeds: list[disnake.Embed] | None = None,
     ping: bool = True,
-) -> None:
-    batches = []
+) -> list[Alert]:
+    """Return the alerts that send the embeds to each channel with its ping.
+
+    A long embed list is split into messages of at most 10 embeds and 6000
+    characters.
+    """
+    batches: list[list[disnake.Embed]] = []
     if embeds is None:
-        batches.append(None)
+        batches.append([embed] if embed is not None else [])
     else:
         batch, length = [], 0
         for candidate in embeds:
@@ -269,46 +267,29 @@ async def broadcast(
             length += len(candidate)
         if batch:
             batches.append(batch)
-    version = notification_fingerprint(
-        {
-            "channels": channels,
-            "ping": ping,
-            "embeds": [
-                message.to_dict()
-                for message in (
-                    embeds
-                    if embeds is not None
-                    else [embed]
-                    if embed is not None
-                    else []
-                )
-            ],
-        }
-    )
-    async with bot.notifications.event("broadcast", version):
-        for batch in batches:
-            kwargs = {"embeds": batch} if batch is not None else {"embed": embed}
-            results = await asyncio.gather(
-                *(
-                    notify_to_channel(
-                        bot, channel_id, content if ping else "", **kwargs
-                    )
-                    for channel_id, content in channels.items()
-                ),
-                return_exceptions=True,
-            )
-            for result in results:
-                if isinstance(result, BaseException):
-                    raise result
+    return [
+        make_alert(channel_id, content if ping else "", embeds=batch)
+        for batch in batches
+        for channel_id, content in channels.items()
+    ]
 
 
-async def notify_to_channel(
-    bot: SkypixelBot,
+def make_alert(
     channel_id: int,
     content: str | None = None,
-    **kwargs,
-) -> disnake.Message | None:
-    return await bot.notifications.submit(channel_id, content, **kwargs)
+    *,
+    thread_id: int | None = None,
+    embed: disnake.Embed | None = None,
+    embeds: list[disnake.Embed] | None = None,
+) -> Alert:
+    """Return an alert for a tracker to save with its state."""
+    messages = embeds if embeds is not None else [embed] if embed is not None else []
+    return Alert(
+        channel_id,
+        content,
+        tuple(message.to_dict() for message in fit_embeds(messages)),
+        thread_id,
+    )
 
 
 def to_mc_text(text: str) -> str:

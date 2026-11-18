@@ -10,9 +10,8 @@ from skypixel import constants, utils
 from skypixel.clients import http, mojang
 from skypixel.domain import colors
 from skypixel.domain.nbt import ItemDecodeError, decode_single
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import Alert, TrackerState
 from skypixel.storage.mongo import UploadQueue
-from skypixel.storage.notifications import NotificationStorageError
 from skypixel.trackers import ranktracker
 from skypixel.trackers.base import PollingCog
 
@@ -110,49 +109,44 @@ async def make_auction_embed(
 
 
 class AHListener:
-    def __init__(self, bot: SkypixelBot):
-        self.bot = bot
+    """Build the alerts for one auction. Each method returns its alerts."""
 
     async def on_admin_spawned_auction(
         self, auction: dict[str, Any], item: dict[str, Any]
-    ):
+    ) -> list[Alert]:
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Origin Tag",
             value=item["tag"]["ExtraAttributes"]["originTag"],
             inline=True,
         )
-        await utils.notify_to_channel(
-            self.bot, constants.ADMIN_SPAWNED_ITEMS_CHANNEL, embed=embed
-        )
+        return [utils.make_alert(constants.ADMIN_SPAWNED_ITEMS_CHANNEL, embed=embed)]
 
     async def on_og_reforge_auction(
         self, auction: dict[str, Any], item: dict[str, Any]
-    ):
+    ) -> list[Alert]:
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Reforge",
             value=item["tag"]["ExtraAttributes"]["modifier"],
             inline=True,
         )
-        await utils.notify_to_channel(
-            self.bot, constants.OG_REFORGES_CHANNEL, embed=embed
-        )
+        return [utils.make_alert(constants.OG_REFORGES_CHANNEL, embed=embed)]
 
     async def on_semi_og_reforge_auction(
         self, auction: dict[str, Any], item: dict[str, Any]
-    ):
+    ) -> list[Alert]:
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Reforge",
             value=item["tag"]["ExtraAttributes"]["modifier"],
             inline=True,
         )
-        await utils.notify_to_channel(
-            self.bot, constants.SEMI_OG_REFORGES_CHANNEL, embed=embed
-        )
+        return [utils.make_alert(constants.SEMI_OG_REFORGES_CHANNEL, embed=embed)]
 
-    async def on_poi_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+    async def on_poi_auction(
+        self, auction: dict[str, Any], item: dict[str, Any]
+    ) -> list[Alert]:
         rankname = utils.remove_color_codes(
             await ranktracker.get_rankname(auction["auctioneer"])
         )
@@ -161,26 +155,22 @@ class AHListener:
             name=rankname,
             icon_url=constants.MC_HEAD_IMAGE.format(auction["auctioneer"]),
         )
-        await utils.notify_to_channel(
-            self.bot, constants.POI_AUCTIONS_CHANNEL, embed=embed
-        )
+        return [utils.make_alert(constants.POI_AUCTIONS_CHANNEL, embed=embed)]
 
     async def on_old_item_auction(
         self, auction: dict[str, Any], item: dict[str, Any], timestamp: int
-    ):
+    ) -> list[Alert]:
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Created At",
             value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
             inline=True,
         )
-        await utils.notify_to_channel(
-            self.bot, constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed
-        )
+        return [utils.make_alert(constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed)]
 
     async def on_seymour_auction(
         self, auction: dict[str, Any], item: dict[str, Any], hex_code: str
-    ):
+    ) -> list[Alert]:
         embed = await make_auction_embed(auction, item)
         embed.add_field(name="Hex Code", value=f"#{hex_code}", inline=True)
         armor_type = constants.SEYMOUR_IDS[item["tag"]["ExtraAttributes"]["id"]]
@@ -190,9 +180,7 @@ class AHListener:
             + "\n".join([f"{k}: {round(v, 2)}" for k, v in top_5.items()])
             + "```"
         )
-        await utils.notify_to_channel(
-            self.bot, constants.SEYMOUR_AUCTIONS_CHANNEL, embed=embed
-        )
+        return [utils.make_alert(constants.SEYMOUR_AUCTIONS_CHANNEL, embed=embed)]
 
     async def on_exotic_auction(
         self,
@@ -200,30 +188,27 @@ class AHListener:
         item: dict[str, Any],
         exotic_type: colors.ExoticType,
         hex_code: str,
-    ):
+    ) -> list[Alert]:
         embed = await make_auction_embed(auction, item)
         embed.add_field(name="Hex Code", value=f"#{hex_code}")
         embed.add_field(
             name="Exotic Type", value=exotic_type.replace("_", " ").title(), inline=True
         )
-        send_tasks = [
-            utils.notify_to_channel(
-                self.bot, constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed
-            )
-        ]
+        alerts = [utils.make_alert(constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed)]
         thread_id = constants.EXOTIC_AUCTIONS_THREADS.get(exotic_type)
         if thread_id:
-            send_tasks.append(
-                utils.notify_to_channel(
-                    self.bot,
+            alerts.append(
+                utils.make_alert(
                     constants.EXOTIC_AUCTIONS_THREADS_PARENT,
                     thread_id=thread_id,
                     embed=embed,
                 )
             )
-        await finish_tasks(*send_tasks)
+        return alerts
 
-    async def on_cake_soul_auction(self, auction: dict[str, Any], item: dict[str, Any]):
+    async def on_cake_soul_auction(
+        self, auction: dict[str, Any], item: dict[str, Any]
+    ) -> list[Alert]:
         embed = await make_auction_embed(auction, item)
         damage = item.get("Damage")
         dye_data = (
@@ -248,9 +233,11 @@ class AHListener:
             pings.append(f"<@&{constants.CHEAP_RED_SOUL_ROLE}>")
         if auction["bin"] and auction["starting_bid"] <= 5_000_000:
             pings.append(f"<@&{constants.CHEAP_SOUL_ROLE}>")
-        await utils.notify_to_channel(
-            self.bot, constants.CAKE_SOUL_AUCTIONS_CHANNEL, " ".join(pings), embed=embed
-        )
+        return [
+            utils.make_alert(
+                constants.CAKE_SOUL_AUCTIONS_CHANNEL, " ".join(pings), embed=embed
+            )
+        ]
 
     async def on_editioned_auction(
         self,
@@ -258,7 +245,7 @@ class AHListener:
         item: dict[str, Any],
         edition: int,
         timestamp: int | None,
-    ):
+    ) -> list[Alert]:
         embed = await make_auction_embed(auction, item)
         embed.add_field(
             name="Edition", value=f"#{utils.commaize(edition)}", inline=True
@@ -278,9 +265,7 @@ class AHListener:
                 value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
                 inline=True,
             )
-        await utils.notify_to_channel(
-            self.bot, constants.EDITIONED_AUCTIONS_CHANNEL, embed=embed
-        )
+        return [utils.make_alert(constants.EDITIONED_AUCTIONS_CHANNEL, embed=embed)]
 
 
 class AuctionTrackerCog(PollingCog):
@@ -298,23 +283,24 @@ class AuctionTrackerCog(PollingCog):
         # Save the scan cursors so a quick restart picks up where it stopped.
         # After a long outage, start fresh instead of alerting on every
         # auction made while the bot was down.
-        self.cursors = JsonWrapper(bot.settings.storage_dir / "auctions.json")
+        self.cursors = TrackerState(bot.database, "auctions")
         fresh = time.time() * 1000 - self.max_cursor_age * 1000
         self.last_scanned_active = self._load_cursor("active", fresh)
         self.last_scanned_ended = self._load_cursor("ended", fresh)
         self._scan_semaphore = asyncio.Semaphore(20)
         self._late_polls = {"active": 0, "ended": 0}
         # Not "listener", which would hide disnake's Cog.listener decorator.
-        self.alerts = AHListener(bot)
+        self.alerts = AHListener()
 
     def _load_cursor(self, name: str, fresh: float) -> int:
         cursor = self.cursors.get(name)
         return cursor if isinstance(cursor, int) and cursor >= fresh else 0
 
-    async def save_cursors(self) -> None:
+    async def save_cursors(self, alerts: list[Alert] | None = None) -> None:
+        """Save the scan cursors, and in the same transaction any new alerts."""
         cursors = {"active": self.last_scanned_active, "ended": self.last_scanned_ended}
-        if cursors != self.cursors.to_dict():
-            await self.cursors.replace(cursors)
+        if alerts or cursors != self.cursors.to_dict():
+            await self.cursors.replace(cursors, alerts or [])
 
     def next_delay(self, scanner: str, last_updated: int, changed: bool) -> float:
         """Wait for the next API update, backing off while the API is late."""
@@ -343,13 +329,13 @@ class AuctionTrackerCog(PollingCog):
 
     async def on_auction(
         self, auction: dict[str, Any], item: dict[str, Any], new: bool = True
-    ):
+    ) -> list[Alert]:
         self.log_auction(auction, item, ended=False)
         if not new:
-            return
+            return []
         extra_attributes = item.get("tag", {}).get("ExtraAttributes", {})
         if not extra_attributes.get("uuid"):
-            return
+            return []
         item_id = extra_attributes.get("id")
         timestamp = (
             utils.normalize_timestamp(extra_attributes["timestamp"])
@@ -369,7 +355,7 @@ class AuctionTrackerCog(PollingCog):
         accessory = auction.get(
             "category"
         ) == "accessories" or "accessories" in auction.get("categories", [])
-        tasks: list[Coroutine] = []
+        tasks: list[Coroutine[Any, Any, list[Alert]]] = []
 
         if extra_attributes.get("originTag") in constants.ADMIN_ORIGIN_TAGS:
             tasks.append(self.alerts.on_admin_spawned_auction(auction, item))
@@ -397,8 +383,17 @@ class AuctionTrackerCog(PollingCog):
             tasks.append(
                 self.alerts.on_editioned_auction(auction, item, edition, timestamp)
             )
-        if tasks:
-            await finish_tasks(*tasks)
+        # One failed alert, such as a failed rank lookup, must not drop the
+        # other alerts for the same auction.
+        alerts: list[Alert] = []
+        for result in await asyncio.gather(*tasks, return_exceptions=True):
+            if isinstance(result, Exception):
+                logger.error("Cannot process auction record.", exc_info=result)
+            elif isinstance(result, BaseException):
+                raise result
+            else:
+                alerts += result
+        return alerts
 
     async def on_auction_end(self, auction: dict[str, Any], item: dict[str, Any]):
         self.log_auction(auction, item, ended=True)
@@ -410,23 +405,22 @@ class AuctionTrackerCog(PollingCog):
         *,
         ended: bool = False,
         new: bool = True,
-    ):
+    ) -> list[Alert]:
         if item is None:
             logger.warning(
                 "Skipped malformed item data in auction %s.",
                 auction.get("auction_id" if ended else "uuid"),
             )
-            return
+            return []
         async with self._scan_semaphore:
             try:
                 if ended:
                     await self.on_auction_end(auction, item)
-                else:
-                    await self.on_auction(auction, item, new=new)
-            except NotificationStorageError:
-                raise
+                    return []
+                return await self.on_auction(auction, item, new=new)
             except Exception:
                 logger.exception("Cannot process auction record.")
+                return []
 
     async def active_scanner(self) -> float:
         page_0 = await get_active_auctions()
@@ -459,8 +453,9 @@ class AuctionTrackerCog(PollingCog):
                 # more threads would not decode faster.
                 items = await asyncio.to_thread(decode_items, auctions)
                 decoded_pages.append((auctions, items))
+            alerts: list[Alert] = []
             for auctions, items in decoded_pages:
-                await finish_tasks(
+                results = await finish_tasks(
                     *[
                         self.process_auction(
                             a,
@@ -470,7 +465,16 @@ class AuctionTrackerCog(PollingCog):
                         for a, item in zip(auctions, items, strict=True)
                     ]
                 )
+                alerts += [alert for result in results for alert in result]
+            # Save the alerts with the cursor that skips their auctions. If the
+            # save fails, the cursor stays put and the next scan finds them again.
+            scanned = self.last_scanned_active
             self.last_scanned_active = page_0["lastUpdated"]
+            try:
+                await self.save_cursors(alerts)
+            except BaseException:
+                self.last_scanned_active = scanned
+                raise
             logger.debug("processed auctions")
         return self.next_delay("active", self.last_scanned_active, changed)
 

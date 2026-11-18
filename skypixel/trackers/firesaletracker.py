@@ -1,13 +1,12 @@
 import logging
 import time
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import disnake
 
 from skypixel import constants, utils
 from skypixel.clients import http, hypixel
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import Alert, TrackerState
 from skypixel.storage.mongo import UploadQueue
 from skypixel.trackers.base import PollingCog
 
@@ -29,8 +28,8 @@ async def get_fire_sales() -> dict[str, dict[str, Any]]:
     }
 
 
-async def send(bot: SkypixelBot, embeds: list[disnake.Embed]):
-    await utils.broadcast(bot, constants.FIRE_SALE_TRACKER_CHANNELS, embeds=embeds)
+def send(embeds: list[disnake.Embed]) -> list[Alert]:
+    return utils.broadcast(constants.FIRE_SALE_TRACKER_CHANNELS, embeds=embeds)
 
 
 class FireSaleTrackerCog(PollingCog):
@@ -38,10 +37,11 @@ class FireSaleTrackerCog(PollingCog):
 
     def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "firesales.json")
+        self.data = TrackerState(bot.database, "firesales")
         self.uploads = UploadQueue(bot.settings.mongodb_uri, "SkyBlock", "firesales")
-        # Ended sales are pruned, so an empty file does not mean the first run.
-        self.initialized = Path(self.data.file_path).exists()
+        # Ended sales are pruned, so empty state does not mean the first run.
+        # Only missing state does.
+        self.initialized = self.data.exists
 
     def log_firesale(self, item_id: str, sale: dict[str, Any]):
         doc = sale.copy()
@@ -83,8 +83,7 @@ class FireSaleTrackerCog(PollingCog):
                 if initialized:
                     embeds.append(self.make_fire_sale_embed(item_id, sale))
                 new_sales[item_id] = sale
-        if embeds:
-            await send(self.bot, embeds)
+        alerts = send(embeds) if embeds else []
         # Forget ended sales so a later sale of the same item is announced.
         now = time.time() * 1000
         kept = {
@@ -95,7 +94,7 @@ class FireSaleTrackerCog(PollingCog):
             or sale["end"] > now
         }
         if new_sales or len(kept) != len(self.data) or not self.initialized:
-            await self.data.replace({**kept, **new_sales})
+            await self.data.replace({**kept, **new_sales}, alerts)
             self.initialized = True
         await self.uploads.flush()
 

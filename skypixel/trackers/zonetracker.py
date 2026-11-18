@@ -5,7 +5,7 @@ import disnake
 
 from skypixel import constants, utils
 from skypixel.clients import http
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import Alert, TrackerState
 from skypixel.trackers.base import PollingCog
 
 if TYPE_CHECKING:
@@ -23,8 +23,8 @@ async def get_zones() -> set[str]:
     return set(data["zones"])
 
 
-async def send(bot: SkypixelBot, embed: disnake.Embed):
-    await utils.broadcast(bot, constants.ZONE_TRACKER_CHANNELS, embed=embed)
+def send(embed: disnake.Embed) -> list[Alert]:
+    return utils.broadcast(constants.ZONE_TRACKER_CHANNELS, embed=embed)
 
 
 class ZoneTrackerCog(PollingCog):
@@ -32,12 +32,12 @@ class ZoneTrackerCog(PollingCog):
 
     def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "zones.json")
+        self.data = TrackerState(bot.database, "zones")
         if not self.data.get("zones"):
-            logger.warning("zones.json is empty")
+            logger.warning("The saved zone list is empty.")
             self.data["zones"] = []
 
-    async def on_new_zone(self, zones: set[str]):
+    def on_new_zone(self, zones: set[str]) -> list[Alert]:
         logger.debug("new zones detected: %s", zones)
         embed = utils.add_footer(
             disnake.Embed(
@@ -48,14 +48,13 @@ class ZoneTrackerCog(PollingCog):
                 color=constants.DEFAULT_EMBED_COLOR,
             )
         )
-        await send(self.bot, embed)
+        return send(embed)
 
     async def poll(self):
         zones = await get_zones()
         new = {zone for zone in zones if zone not in self.data["zones"]}
         if new:
-            if self.data.get("zones"):
-                await self.on_new_zone(new)
+            alerts = self.on_new_zone(new) if self.data.get("zones") else []
             await self.data.replace(
-                {**self.data, "zones": self.data["zones"] + sorted(new)}
+                {**self.data, "zones": self.data["zones"] + sorted(new)}, alerts
             )

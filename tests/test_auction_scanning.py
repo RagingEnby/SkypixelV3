@@ -71,6 +71,37 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
                 og.assert_not_awaited()
                 semi.assert_awaited_once_with(auction, item)
 
+    async def test_one_failed_alert_keeps_the_other_alerts_for_the_auction(self):
+        cog = self.cog()
+        auction = {"uuid": "auction", "auctioneer": "a" * 32, "category": "armor"}
+        item = {
+            "tag": {
+                "ExtraAttributes": {
+                    "uuid": "item",
+                    "id": "TEST_HELMET",
+                    "originTag": next(iter(auctionhouse.constants.ADMIN_ORIGIN_TAGS)),
+                    "modifier": next(iter(auctionhouse.constants.OG_REFORGES)),
+                }
+            }
+        }
+        kept = auctionhouse.utils.make_alert(1, "kept")
+        with (
+            patch.object(
+                cog.alerts,
+                "on_admin_spawned_auction",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("lookup failed"),
+            ),
+            patch.object(
+                cog.alerts,
+                "on_og_reforge_auction",
+                new_callable=AsyncMock,
+                return_value=[kept],
+            ),
+            self.assertLogs(auctionhouse.logger, level="ERROR"),
+        ):
+            self.assertEqual(await cog.on_auction(auction, item), [kept])
+
     def page(self, number, starts, updated=200_000):
         return {
             "page": number,
@@ -263,11 +294,12 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         cog.last_scanned_active, cog.last_scanned_ended = recent, old
         await cog.save_cursors()
-        restarted = auctionhouse.AuctionTrackerCog(support.make_bot())
+        restarted = auctionhouse.AuctionTrackerCog(
+            support.make_bot(database=cog.bot.database)
+        )
         self.assertEqual(restarted.last_scanned_active, recent)
         # A cursor from before a long outage would alert on every auction.
         self.assertEqual(restarted.last_scanned_ended, 0)
-        await cog.cursors.replace({})
 
     async def test_stored_auctions_keep_the_decoded_item_only(self):
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())

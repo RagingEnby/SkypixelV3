@@ -1,12 +1,11 @@
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import disnake
 
 from skypixel import constants, utils
 from skypixel.clients import http
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import Alert, TrackerState
 from skypixel.trackers.base import PollingCog
 
 if TYPE_CHECKING:
@@ -87,8 +86,8 @@ async def get_jobs() -> list[Job]:
     return [Job.from_dict(job) for job in data["jobs"]]
 
 
-async def send(bot: SkypixelBot, embed: disnake.Embed):
-    await utils.broadcast(bot, constants.JOB_TRACKER_CHANNELS, embed=embed)
+def send(embed: disnake.Embed) -> list[Alert]:
+    return utils.broadcast(constants.JOB_TRACKER_CHANNELS, embed=embed)
 
 
 class JobTrackerCog(PollingCog):
@@ -97,12 +96,12 @@ class JobTrackerCog(PollingCog):
 
     def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "jobs.json")
+        self.data = TrackerState(bot.database, "jobs")
         self.empty_polls = 0
-        # An empty file means no open jobs. A missing file means the first run.
-        self.initialized = Path(self.data.file_path).exists()
+        # Saved empty state means no open jobs. No saved state means the first run.
+        self.initialized = self.data.exists
 
-    async def on_job_update(self, job: Job, added: bool):
+    def on_job_update(self, job: Job, added: bool) -> list[Alert]:
         embed = utils.add_footer(
             disnake.Embed(
                 title="New Job Opening!" if added else "Job Opening Removed!",
@@ -112,7 +111,7 @@ class JobTrackerCog(PollingCog):
                 else constants.COLOR_CODES["c"],
             )
         )
-        await send(self.bot, embed)
+        return send(embed)
 
     async def poll(self):
         jobs = await get_jobs()
@@ -128,11 +127,12 @@ class JobTrackerCog(PollingCog):
                 return
         self.empty_polls = 0
         current = {job.title: job.to_dict() for job in jobs}
+        alerts: list[Alert] = []
         for job in jobs:
             if self.initialized and job.title not in self.data:
-                await self.on_job_update(job, True)
+                alerts += self.on_job_update(job, True)
         for title, data in list(self.data.items()):
             if title not in current:
-                await self.on_job_update(Job.from_dict(data), False)
-        await self.data.replace(current)
+                alerts += self.on_job_update(Job.from_dict(data), False)
+        await self.data.replace(current, alerts)
         self.initialized = True

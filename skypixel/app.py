@@ -12,7 +12,8 @@ from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
 from skypixel.log_setup import configure_logging
 from skypixel.settings import ConfigurationError, Settings
-from skypixel.storage.notifications import NotificationOutbox
+from skypixel.storage.database import Database
+from skypixel.storage.notifications import Outbox
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,11 @@ class SkypixelBot(commands.InteractionBot):
         super().__init__(intents=intents, owner_id=constants.OWNER_ID, **kwargs)
         self._close_lock = asyncio.Lock()
         self._resources_closed = False
-        self.notifications = NotificationOutbox(
-            self, settings.storage_dir / "notifications.json"
+        # Imports the old JSON state files the first time the database is made.
+        self.database = Database(
+            settings.storage_dir / "skypixel.db", legacy_dir=settings.storage_dir
         )
+        self.notifications = Outbox(self, self.database)
         self._notification_task: asyncio.Task | None = None
 
     async def close(self) -> None:

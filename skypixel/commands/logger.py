@@ -7,7 +7,7 @@ from disnake.ext import commands
 
 from skypixel import checks, constants, utils
 from skypixel.log_setup import redact
-from skypixel.storage.json_store import JsonWrapper
+from skypixel.storage.database import TrackerState
 
 if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
@@ -79,7 +79,7 @@ def check_error_embed(error: commands.CheckFailure) -> disnake.Embed:
 class LoggerCog(commands.Cog):
     def __init__(self, bot: SkypixelBot):
         self.bot = bot
-        self.dm_notices = JsonWrapper(bot.settings.storage_dir / "dmnotices.json")
+        self.dm_notices = TrackerState(bot.database, "dmnotices")
 
     @commands.Cog.listener()
     async def on_slash_command(self, inter: disnake.AppCmdInter):
