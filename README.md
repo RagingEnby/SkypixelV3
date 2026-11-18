@@ -3,6 +3,23 @@ Skypixel is a Discord bot I have worked on and off on for a couple years now. It
 
 Originally, Skypixel was made as a frontend to search through spreadsheets from [iTEM](https://tem.cx/) in the same style as [TEMBot](https://discord.com/users/937105508320546896)'s `/spook-search` command. However, over time it evolved into much more.
 
+# Running it
+Skypixel needs [uv](https://docs.astral.sh/uv/), a Discord bot token, and a MongoDB database.
+
+1. Set `SKYPIXEL_BOT_TOKEN` and `SKYPIXEL_MONGODB_URI`, or copy `scrts.py.example` to `scrts.py` and fill it in.
+2. Run `uv run main.py`.
+
+The bot keeps its state and logs in `storage/`. Set `SKYPIXEL_STORAGE_DIR` to use another folder.
+
+The channel and role IDs in `skypixel/constants.py` belong to the live bot's servers. Change them before you run your own copy.
+
+# Checks
+```sh
+uv run ruff check .
+uv run ruff format --check .
+uv run python -W error::ResourceWarning -m unittest discover -s tests -t .
+```
+
 # History
 - SkypixelV1 was HORRIBLY coded with abysmal performance, near constant crashes, and a level beyond spaghetti code.
 - SkypixelV2 was never finished as I lost interest before finishing it. Then, upon coming back to it, I realized just how bad the code was again!
