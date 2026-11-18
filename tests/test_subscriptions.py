@@ -12,7 +12,7 @@ import tests.support as support
 from skypixel import app, subscriptions
 from skypixel.settings import ConfigurationError
 
-VALID = """
+VALID: str = """
 [[version]]
 channel = 1
 ping = "<@&10>"
@@ -43,19 +43,19 @@ class LoadTests(unittest.TestCase):
         path.write_text(text, encoding="utf-8")
         return path
 
-    def test_load_reads_channels_and_pings(self):
+    def test_load_reads_channels_and_pings(self) -> None:
         loaded = subscriptions.load(self.write(VALID))
         self.assertEqual(loaded.version, {1: "<@&10>"})
         self.assertEqual(loaded.fire_sale, {2: "use code rail :)"})
         self.assertEqual(loaded.motd, {})
         self.assertEqual(loaded.rank, {"youtube": {3: ""}, "special": {4: "<@&11>"}})
 
-    def test_the_tracked_file_is_valid(self):
+    def test_the_tracked_file_is_valid(self) -> None:
         loaded = subscriptions.load(subscriptions.DEFAULT_PATH)
         self.assertIn("special", loaded.rank)
         self.assertTrue(loaded.version)
 
-    def test_environment_variable_overrides_the_path(self):
+    def test_environment_variable_overrides_the_path(self) -> None:
         path = self.write(VALID)
         with patch.dict(os.environ, {"SKYPIXEL_SUBSCRIPTIONS": str(path)}):
             self.assertEqual(subscriptions.configured_path(), path)
@@ -65,7 +65,7 @@ class LoadTests(unittest.TestCase):
                 subscriptions.configured_path(), subscriptions.DEFAULT_PATH
             )
 
-    def test_current_loads_once_and_install_replaces_it(self):
+    def test_current_loads_once_and_install_replaces_it(self) -> None:
         path = self.write(VALID)
         with (
             patch.object(subscriptions, "_current", None),
@@ -77,75 +77,82 @@ class LoadTests(unittest.TestCase):
             subscriptions.install(replacement)
             self.assertIs(subscriptions.current(), replacement)
 
-    def test_missing_file_names_the_path_and_variable(self):
+    def test_missing_file_names_the_path_and_variable(self) -> None:
         path = Path(tempfile.gettempdir()) / "skypixel-missing-subscriptions.toml"
         with self.assertRaisesRegex(ConfigurationError, "SKYPIXEL_SUBSCRIPTIONS"):
             subscriptions.load(path)
 
-    def test_invalid_toml_is_a_configuration_error(self):
+    def test_invalid_toml_is_a_configuration_error(self) -> None:
         with self.assertRaisesRegex(ConfigurationError, "not valid TOML"):
             subscriptions.load(self.write("[[version]\n"))
 
 
 class ValidationTests(unittest.TestCase):
-    def assertInvalid(self, text: str, message: str):
+    def assertInvalid(self, text: str, message: str) -> None:
         with self.assertRaises(subscriptions.SubscriptionError) as caught:
             parse(text)
         self.assertIn(message, str(caught.exception))
         self.assertIn("test.toml", str(caught.exception))
 
-    def test_channel_id_must_be_an_integer(self):
+    def test_channel_id_must_be_an_integer(self) -> None:
         self.assertInvalid(
             '[[version]]\nchannel = "1"\nping = ""\n[[rank.special]]\n'
             'channel = 4\nping = ""\n',
             "version[0]: channel must be a positive integer channel ID, got '1'",
         )
 
-    def test_channel_id_must_not_be_a_boolean_or_float(self):
+    def test_channel_id_must_not_be_a_boolean_or_float(self) -> None:
         for value in ("true", "1.0", "0"):
             with self.subTest(value=value):
                 self.assertInvalid(
                     f'[[zone]]\nchannel = {value}\nping = ""\n', "zone[0]: channel"
                 )
 
-    def test_ping_must_be_a_string(self):
+    def test_ping_must_be_a_string(self) -> None:
         self.assertInvalid(
             "[[rank.special]]\nchannel = 4\nping = 5\n",
             "rank.special[0] (channel 4): ping must be a string",
         )
 
-    def test_missing_ping_is_an_error(self):
+    def test_missing_ping_is_an_error(self) -> None:
         self.assertInvalid(
             "[[motd]]\nchannel = 4\n", "motd[0] (channel 4): ping must be a string"
         )
 
-    def test_rank_keys_must_be_known(self):
+    def test_rank_keys_must_be_known(self) -> None:
         self.assertInvalid(
             '[[rank.admin]]\nchannel = 4\nping = ""\n', "Unknown rank keys: admin"
         )
 
-    def test_rank_special_is_required(self):
+    def test_rank_special_is_required(self) -> None:
         self.assertInvalid(
             '[[rank.youtube]]\nchannel = 4\nping = ""\n', "rank.special is missing"
         )
 
-    def test_unknown_sections_and_keys_are_errors(self):
+    def test_unknown_sections_and_keys_are_errors(self) -> None:
         self.assertInvalid('[[versions]]\nchannel = 1\nping = ""\n', "versions")
         self.assertInvalid(
             '[[job]]\nchannel = 1\nping = ""\nrole = 2\n', "job[0] has unknown keys"
         )
 
-    def test_section_must_be_a_list_of_entries(self):
+    def test_section_must_be_a_list_of_entries(self) -> None:
         self.assertInvalid("[alpha]\nchannel = 1\n", "alpha must be a list")
 
-    def test_duplicate_channel_in_one_section_is_an_error(self):
+    def test_duplicate_channel_in_one_section_is_an_error(self) -> None:
         self.assertInvalid(
             '[[job]]\nchannel = 1\nping = "a"\n[[job]]\nchannel = 1\nping = "b"\n',
             "job[1]: channel 1 is listed twice",
         )
 
 
-def channel(*, view=True, send=True, embed=True, thread_send=True, kind=None):
+def channel(
+    *,
+    view: bool = True,
+    send: bool = True,
+    embed: bool = True,
+    thread_send: bool = True,
+    kind: type[disnake.TextChannel | disnake.Thread] | None = None,
+) -> Mock:
     result = Mock(spec=kind or disnake.TextChannel)
     result.guild = Mock(me=Mock(), __str__=Mock(return_value="Guild"))
     result.permissions_for.return_value = Mock(
@@ -158,7 +165,7 @@ def channel(*, view=True, send=True, embed=True, thread_send=True, kind=None):
 
 
 class ChannelCheckTests(unittest.IsolatedAsyncioTestCase):
-    def test_problem_channels_are_logged_and_good_ones_are_not(self):
+    def test_problem_channels_are_logged_and_good_ones_are_not(self) -> None:
         channels = {
             1: channel(),
             2: None,
@@ -184,7 +191,7 @@ class ChannelCheckTests(unittest.IsolatedAsyncioTestCase):
         bot.get_channel.assert_any_call(2)
         self.assertEqual(bot.get_channel.call_count, 5)
 
-    def test_threads_need_send_messages_in_threads(self):
+    def test_threads_need_send_messages_in_threads(self) -> None:
         channels = {
             1: channel(kind=disnake.Thread, send=False),
             2: channel(kind=disnake.Thread, thread_send=False),
@@ -196,7 +203,7 @@ class ChannelCheckTests(unittest.IsolatedAsyncioTestCase):
             ["channel 2 (version) in Guild: missing Send Messages in Threads"],
         )
 
-    def test_uncached_bot_member_is_a_problem(self):
+    def test_uncached_bot_member_is_a_problem(self) -> None:
         uncached = channel()
         uncached.guild.me = None
         bot = Mock(get_channel=Mock(return_value=uncached))
@@ -206,7 +213,7 @@ class ChannelCheckTests(unittest.IsolatedAsyncioTestCase):
             ["channel 1 (version): the bot is not cached as a member of Guild"],
         )
 
-    async def test_on_ready_checks_the_channels_once(self):
+    async def test_on_ready_checks_the_channels_once(self) -> None:
         bot = app.SkypixelBot(
             support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
         )

@@ -9,8 +9,9 @@ import os
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
+from datetime import date, datetime, time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, get_args
+from typing import TYPE_CHECKING, TypedDict, get_args
 
 import disnake
 
@@ -20,14 +21,25 @@ from skypixel.settings import ConfigurationError
 if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-ENVIRONMENT_VARIABLE = "SKYPIXEL_SUBSCRIPTIONS"
-DEFAULT_PATH = Path("config/subscriptions.toml")
+ENVIRONMENT_VARIABLE: str = "SKYPIXEL_SUBSCRIPTIONS"
+DEFAULT_PATH: Path = Path("config/subscriptions.toml")
 # The rank tracker sends a rank without its own section to "special".
 RANK_KEYS: frozenset[str] = frozenset((*get_args(SpecialRank), "special"))
 
 type Channels = dict[int, str]
+# A value parsed from TOML text.
+type TOML = (
+    dict[str, TOML] | list[TOML] | str | int | float | bool | datetime | date | time
+)
+
+
+class SubscriptionEntry(TypedDict):
+    """One [[section]] entry in the subscriptions file."""
+
+    channel: int
+    ping: str
 
 
 class SubscriptionError(ConfigurationError):
@@ -36,17 +48,17 @@ class SubscriptionError(ConfigurationError):
 
 @dataclass(frozen=True)
 class Subscriptions:
-    version: Channels = field(default_factory=dict)
-    motd: Channels = field(default_factory=dict)
-    job: Channels = field(default_factory=dict)
-    fire_sale: Channels = field(default_factory=dict)
-    alpha: Channels = field(default_factory=dict)
-    zone: Channels = field(default_factory=dict)
-    rank: dict[str, Channels] = field(default_factory=dict)
+    version: Channels = field(default_factory=dict[int, str])
+    motd: Channels = field(default_factory=dict[int, str])
+    job: Channels = field(default_factory=dict[int, str])
+    fire_sale: Channels = field(default_factory=dict[int, str])
+    alpha: Channels = field(default_factory=dict[int, str])
+    zone: Channels = field(default_factory=dict[int, str])
+    rank: dict[str, Channels] = field(default_factory=dict[str, Channels])
 
     def sections(self) -> dict[str, Channels]:
         """Return every channel list by its name in the file, such as rank.staff."""
-        result = {
+        result: dict[str, Channels] = {
             item.name: getattr(self, item.name)
             for item in fields(self)
             if item.name != "rank"
@@ -65,7 +77,7 @@ def configured_path() -> Path:
     return Path(os.environ.get(ENVIRONMENT_VARIABLE, DEFAULT_PATH))
 
 
-def _channels(entries: Any, where: str) -> Channels:
+def _channels(entries: TOML, where: str) -> Channels:
     if not isinstance(entries, list):
         raise SubscriptionError(
             f"{where} must be a list of [[{where}]] entries, not {type(entries).__name__}."
@@ -80,25 +92,32 @@ def _channels(entries: Any, where: str) -> Channels:
             raise SubscriptionError(
                 f"{name} has unknown keys: {', '.join(sorted(unknown))}."
             )
-        channel = entry.get("channel")
-        if type(channel) is not int or channel <= 0:
+        checked = _entry(entry, name)
+        if checked["channel"] in channels:
             raise SubscriptionError(
-                f"{name}: channel must be a positive integer channel ID, "
-                f"got {channel!r}."
+                f"{name}: channel {checked['channel']} is listed twice."
             )
-        ping = entry.get("ping")
-        if not isinstance(ping, str):
-            raise SubscriptionError(
-                f"{name} (channel {channel}): ping must be a string, got {ping!r}. "
-                'Use ping = "" for no ping.'
-            )
-        if channel in channels:
-            raise SubscriptionError(f"{name}: channel {channel} is listed twice.")
-        channels[channel] = ping
+        channels[checked["channel"]] = checked["ping"]
     return channels
 
 
-def parse(data: Mapping[str, Any], source: str = "subscriptions") -> Subscriptions:
+def _entry(entry: dict[str, TOML], name: str) -> SubscriptionEntry:
+    channel = entry.get("channel")
+    # type() rather than isinstance(), so a bool such as true is rejected.
+    if type(channel) is not int or channel <= 0:
+        raise SubscriptionError(
+            f"{name}: channel must be a positive integer channel ID, got {channel!r}."
+        )
+    ping = entry.get("ping")
+    if not isinstance(ping, str):
+        raise SubscriptionError(
+            f"{name} (channel {channel}): ping must be a string, got {ping!r}. "
+            'Use ping = "" for no ping.'
+        )
+    return {"channel": channel, "ping": ping}
+
+
+def parse(data: Mapping[str, TOML], source: str = "subscriptions") -> Subscriptions:
     """Check the parsed TOML and return the subscriptions it lists."""
     try:
         unknown = set(data) - {*FLAT_SECTIONS, "rank"}
@@ -108,7 +127,7 @@ def parse(data: Mapping[str, Any], source: str = "subscriptions") -> Subscriptio
                 f"Use {', '.join((*FLAT_SECTIONS, 'rank'))}."
             )
         flat = {name: _channels(data.get(name, []), name) for name in FLAT_SECTIONS}
-        ranks = data.get("rank", {})
+        ranks: TOML = data.get("rank", {})
         if not isinstance(ranks, dict):
             raise SubscriptionError("rank must be a table of [[rank.<rank>]] lists.")
         unknown = set(ranks) - RANK_KEYS
@@ -131,7 +150,7 @@ def load(path: Path | None = None) -> Subscriptions:
     path = configured_path() if path is None else path
     try:
         with path.open("rb") as file:
-            data = tomllib.load(file)
+            data: dict[str, TOML] = tomllib.load(file)
     except FileNotFoundError:
         raise SubscriptionError(
             f"The subscriptions file {path} does not exist. "
@@ -164,7 +183,7 @@ def channel_problems(bot: SkypixelBot, subscriptions: Subscriptions) -> list[str
     for section, channels in subscriptions.sections().items():
         for channel_id in channels:
             sections.setdefault(channel_id, []).append(section)
-    problems = []
+    problems: list[str] = []
     for channel_id, names in sections.items():
         where = f"channel {channel_id} ({', '.join(names)})"
         channel = bot.get_channel(channel_id)
@@ -175,7 +194,9 @@ def channel_problems(bot: SkypixelBot, subscriptions: Subscriptions) -> list[str
             problems.append(f"{where}: it is not a server channel")
             continue
         member = channel.guild.me
-        if member is None:
+        # disnake types this as always set, but it is None when the bot's own
+        # member is not cached.
+        if member is None:  # pyright: ignore[reportUnnecessaryComparison]
             problems.append(
                 f"{where}: the bot is not cached as a member of {channel.guild}"
             )
@@ -199,7 +220,9 @@ def channel_problems(bot: SkypixelBot, subscriptions: Subscriptions) -> list[str
     return problems
 
 
-def check_channels(bot: SkypixelBot, subscriptions: Subscriptions | None = None):
+def check_channels(
+    bot: SkypixelBot, subscriptions: Subscriptions | None = None
+) -> None:
     """Log a warning for each subscribed channel the bot cannot use."""
     for problem in channel_problems(bot, subscriptions or current()):
         logger.warning("Alert subscription problem: %s.", problem)
