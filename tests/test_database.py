@@ -175,7 +175,13 @@ class MigrationTests(unittest.TestCase):
             for path in self.storage.iterdir()
             if not path.name.startswith("skypixel.db")
         }
-        self.assertEqual(after, before)
+        # Each imported file keeps its contents under a new name. items.json
+        # is not state, so it keeps its name.
+        expected = {
+            name if name == "items.json" else name + ".migrated": content
+            for name, content in before.items()
+        }
+        self.assertEqual(after, expected)
         self.assertEqual(sum("Imported" in line for line in logs.output), len(files))
 
     def test_missing_and_empty_files_keep_first_run_detection(self):
@@ -219,7 +225,19 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(pending[1].alert.channel_id, 6)
         self.assertGreater(pending[1].created_at, time.time() - 60)
         self.assertIn("Imported 2 pending alerts", "\n".join(logs.output))
-        self.assertTrue((self.storage / "notifications.json").exists())
+        self.assertFalse((self.storage / "notifications.json").exists())
+        for name in ("notifications.json", "notifications.events.json"):
+            self.assertTrue((self.storage / (name + ".migrated")).exists())
+
+    def test_a_lost_database_does_not_import_the_old_files_again(self):
+        self.write("version.json", {"version": "one"})
+        self.write("notifications.json", {"a": {"channel_id": 1, "embeds": []}})
+        self.open()
+        for path in self.storage.glob("skypixel.db*"):
+            path.unlink()
+        database = self.open()
+        self.assertFalse(TrackerState(database, "version").exists)
+        self.assertEqual(asyncio.run(database.due_alerts(float("inf"))), [])
 
     def test_import_runs_only_once(self):
         self.write("version.json", {"version": "one"})

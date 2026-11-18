@@ -67,6 +67,8 @@ LEGACY_STATE_FILES = (
     "zones",
 )
 LEGACY_TRACKER = "migrated"
+# Added to an imported file's name, as in ranks.json.migrated.
+LEGACY_SUFFIX = ".migrated"
 
 
 @dataclass(frozen=True)
@@ -129,8 +131,10 @@ class Database:
             for statement in SCHEMA.split(";"):
                 if statement.strip():
                     connection.execute(statement)
-            imported = (
-                _import_legacy(connection, legacy_dir) if legacy_dir is not None else []
+            imported, files = (
+                _import_legacy(connection, legacy_dir)
+                if legacy_dir is not None
+                else ([], [])
             )
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         except BaseException:
@@ -140,6 +144,7 @@ class Database:
         logger.info("Created the state database at %s.", self.path)
         for line in imported:
             logger.info(line)
+        _retire_legacy(files)
 
     def load_state(self, tracker: str) -> tuple[bool, dict[str, Any]]:
         """Return whether the tracker has saved state, and the state."""
@@ -252,14 +257,35 @@ async def _run_to_completion(function, *args) -> Any:
         raise
 
 
-def _import_legacy(connection: sqlite3.Connection, directory: Path) -> list[str]:
-    """Copy the JSON state files into the new tables. Leave the files in place."""
+def _retire_legacy(files: list[Path]) -> None:
+    """Rename the imported JSON files so they can never be imported again.
+
+    If the database were lost while the files kept their names, the next start
+    would import their stale state and send every old pending alert again.
+    """
+    for path in files:
+        try:
+            path.rename(path.with_name(path.name + LEGACY_SUFFIX))
+        except OSError:
+            logger.exception("Cannot rename %s after importing it.", path)
+
+
+def _import_legacy(
+    connection: sqlite3.Connection, directory: Path
+) -> tuple[list[str], list[Path]]:
+    """Copy the JSON state files into the new tables.
+
+    Return the log lines and the files that were read. The caller renames the
+    files after the transaction commits.
+    """
     imported = []
+    files = []
     for name in LEGACY_STATE_FILES:
         path = directory / f"{name}.json"
         if not path.exists():
             continue
         data = read_json(path)
+        files.append(path)
         connection.execute(
             "INSERT INTO state (tracker, json) VALUES (?, ?)", (name, json.dumps(data))
         )
@@ -269,7 +295,11 @@ def _import_legacy(connection: sqlite3.Connection, directory: Path) -> list[str]
         pending = read_json(path)
         # A message listed as delivered in an event was sent, but the bot
         # stopped before it could remove the message from notifications.json.
-        events = read_json(directory / "notifications.events.json")
+        events_path = directory / "notifications.events.json"
+        events = read_json(events_path)
+        files.append(path)
+        if events_path.exists():
+            files.append(events_path)
         delivered = {
             key
             for event in events.values()
@@ -317,7 +347,7 @@ def _import_legacy(connection: sqlite3.Connection, directory: Path) -> list[str]
         )
     if not imported:
         imported.append(f"Found no JSON state files to import in {directory}.")
-    return imported
+    return imported, files
 
 
 class TrackerState(MutableMapping[str, Any]):
