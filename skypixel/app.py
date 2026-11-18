@@ -8,12 +8,23 @@ import disnake
 from disnake.ext import commands
 
 from skypixel import checks, constants
-from skypixel.clients import hypixel
 from skypixel.commands import owner
+from skypixel.commands.guild import GuildCog
+from skypixel.commands.itemdb import ItemDBCog
+from skypixel.commands.logger import LoggerCog
 from skypixel.log_setup import configure_logging
 from skypixel.services import Services
 from skypixel.settings import ConfigurationError, Settings
 from skypixel.storage.notifications import NotificationOutbox
+from skypixel.trackers.alphatracker import AlphaTrackerCog
+from skypixel.trackers.auctionhouse import AuctionTrackerCog
+from skypixel.trackers.firesaletracker import FireSaleTrackerCog
+from skypixel.trackers.jobtracker import JobTrackerCog
+from skypixel.trackers.motdtracker import MotdTrackerCog
+from skypixel.trackers.ranktracker import RankTrackerCog
+from skypixel.trackers.status import StatusUpdaterCog
+from skypixel.trackers.versiontracker import VersionTrackerCog
+from skypixel.trackers.zonetracker import ZoneTrackerCog
 
 logger = logging.getLogger(__name__)
 
@@ -77,25 +88,6 @@ class SkypixelBot(commands.InteractionBot):
 
 
 def load_cogs() -> list[type[commands.Cog]]:
-    """Import the cogs. Call this after hypixel.load_items().
-
-    The memento search and the alert rules read the catalog.
-    """
-    if not hypixel.MEMENTOS:
-        raise RuntimeError("Load the item catalog before importing the cogs.")
-    from skypixel.commands.guild import GuildCog
-    from skypixel.commands.itemdb import ItemDBCog
-    from skypixel.commands.logger import LoggerCog
-    from skypixel.trackers.alphatracker import AlphaTrackerCog
-    from skypixel.trackers.auctionhouse import AuctionTrackerCog
-    from skypixel.trackers.firesaletracker import FireSaleTrackerCog
-    from skypixel.trackers.jobtracker import JobTrackerCog
-    from skypixel.trackers.motdtracker import MotdTrackerCog
-    from skypixel.trackers.ranktracker import RankTrackerCog
-    from skypixel.trackers.status import StatusUpdaterCog
-    from skypixel.trackers.versiontracker import VersionTrackerCog
-    from skypixel.trackers.zonetracker import ZoneTrackerCog
-
     return [
         AlphaTrackerCog,
         AuctionTrackerCog,
