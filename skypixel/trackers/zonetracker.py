@@ -8,7 +8,7 @@ from skypixel.clients import http
 from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
-URL: str = "https://api.ragingenby.dev/skyblock/zones"
+URL: str = "https://api.ragingenby.dev/hypixel/skyblock/zones"
 logger = logging.getLogger(__name__)
 
 
