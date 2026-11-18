@@ -145,11 +145,14 @@ class ValidationTests(unittest.TestCase):
         )
 
 
-def channel(*, view=True, send=True, embed=True) -> Mock:
-    result = Mock(spec=disnake.TextChannel)
+def channel(*, view=True, send=True, embed=True, thread_send=True, kind=None):
+    result = Mock(spec=kind or disnake.TextChannel)
     result.guild = Mock(me=Mock(), __str__=Mock(return_value="Guild"))
     result.permissions_for.return_value = Mock(
-        view_channel=view, send_messages=send, embed_links=embed
+        view_channel=view,
+        send_messages=send,
+        send_messages_in_threads=thread_send,
+        embed_links=embed,
     )
     return result
 
@@ -180,6 +183,28 @@ class ChannelCheckTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("channel 5 (rank.special): it is not a server channel", text)
         bot.get_channel.assert_any_call(2)
         self.assertEqual(bot.get_channel.call_count, 5)
+
+    def test_threads_need_send_messages_in_threads(self):
+        channels = {
+            1: channel(kind=disnake.Thread, send=False),
+            2: channel(kind=disnake.Thread, thread_send=False),
+        }
+        bot = Mock(get_channel=Mock(side_effect=channels.get))
+        config = subscriptions.Subscriptions(version={1: "", 2: ""})
+        self.assertEqual(
+            subscriptions.channel_problems(bot, config),
+            ["channel 2 (version) in Guild: missing Send Messages in Threads"],
+        )
+
+    def test_uncached_bot_member_is_a_problem(self):
+        uncached = channel()
+        uncached.guild.me = None
+        bot = Mock(get_channel=Mock(return_value=uncached))
+        config = subscriptions.Subscriptions(version={1: ""})
+        self.assertEqual(
+            subscriptions.channel_problems(bot, config),
+            ["channel 1 (version): the bot is not cached as a member of Guild"],
+        )
 
     async def test_on_ready_checks_the_channels_once(self):
         bot = app.SkypixelBot(

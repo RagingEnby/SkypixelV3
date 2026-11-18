@@ -174,12 +174,22 @@ def channel_problems(bot: SkypixelBot, subscriptions: Subscriptions) -> list[str
         if not isinstance(channel, disnake.abc.GuildChannel | disnake.Thread):
             problems.append(f"{where}: it is not a server channel")
             continue
-        permissions = channel.permissions_for(channel.guild.me)
+        member = channel.guild.me
+        if member is None:
+            problems.append(
+                f"{where}: the bot is not cached as a member of {channel.guild}"
+            )
+            continue
+        permissions = channel.permissions_for(member)
+        if isinstance(channel, disnake.Thread):
+            send = ("Send Messages in Threads", permissions.send_messages_in_threads)
+        else:
+            send = ("Send Messages", permissions.send_messages)
         missing = [
             label
             for label, allowed in (
                 ("View Channel", permissions.view_channel),
-                ("Send Messages", permissions.send_messages),
+                send,
                 ("Embed Links", permissions.embed_links),
             )
             if not allowed
