@@ -1,13 +1,17 @@
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import disnake
-from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +87,7 @@ async def get_jobs() -> list[Job]:
     return [Job.from_dict(job) for job in data["jobs"]]
 
 
-async def send(bot: commands.InteractionBot, embed: disnake.Embed):
+async def send(bot: SkypixelBot, embed: disnake.Embed):
     await utils.broadcast(bot, constants.JOB_TRACKER_CHANNELS, embed=embed)
 
 
@@ -91,7 +95,7 @@ class JobTrackerCog(PollingCog):
     interval = 1800
     confirm_polls = 3
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
         self.data = JsonWrapper(bot.settings.storage_dir / "jobs.json")
         self.empty_polls = 0

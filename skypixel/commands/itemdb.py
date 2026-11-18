@@ -1,7 +1,7 @@
 import json
 import logging
 from itertools import islice
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import disnake
 from disnake.ext import commands
@@ -11,6 +11,10 @@ from skypixel.clients import hypixel
 from skypixel.commands.item_views import SoulSearchView, make_item_embed, make_item_view
 from skypixel.domain.items import PrefixRank, make_player_regex, search_souls_query
 from skypixel.storage.items import ItemRepository
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +46,7 @@ def find_memento(text: str) -> str | None:
 
 
 class ItemDBCog(commands.Cog):
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         self.item_db = ItemRepository(bot.settings.mongodb_uri)
         self.bot = bot
 

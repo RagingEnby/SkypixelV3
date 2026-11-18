@@ -1,5 +1,6 @@
 import logging
 import traceback
+from typing import TYPE_CHECKING, Any
 
 import disnake
 from disnake.ext import commands
@@ -8,6 +9,10 @@ from skypixel import checks, constants, utils
 from skypixel.log_setup import redact
 from skypixel.storage.json_store import JsonWrapper
 
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
+
 logger = logging.getLogger(__name__)
 DM_NOTICE = (
     "Messages you send to Skypixel are forwarded to its owner, @ragingenby. "
@@ -15,11 +20,12 @@ DM_NOTICE = (
 )
 
 
-def prettify_params(options: disnake.AppCmdInter | dict) -> list[str]:
-    if not isinstance(options, dict):
-        options = getattr(options, "options", {})
-    params = []
-    for name, value in options.items():
+def prettify_params(options: disnake.AppCmdInter | dict[str, Any]) -> list[str]:
+    values: dict[str, Any] = (
+        options if isinstance(options, dict) else getattr(options, "options", {})
+    )
+    params: list[str] = []
+    for name, value in values.items():
         if isinstance(value, dict):
             params.append(name)
             params.extend(prettify_params(value))
@@ -71,7 +77,7 @@ def check_error_embed(error: commands.CheckFailure) -> disnake.Embed:
 
 
 class LoggerCog(commands.Cog):
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         self.bot = bot
         self.dm_notices = JsonWrapper(bot.settings.storage_dir / "dmnotices.json")
 

@@ -2,6 +2,7 @@ import asyncio
 import logging
 import signal
 from contextlib import suppress
+from typing import Protocol, runtime_checkable
 
 import disnake
 from disnake.ext import commands
@@ -14,6 +15,13 @@ from skypixel.settings import ConfigurationError, Settings
 from skypixel.storage.notifications import NotificationOutbox
 
 logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class ClosableCog(Protocol):
+    """A cog with resources, such as a database client, to release on shutdown."""
+
+    async def close(self) -> None: ...
 
 
 class SkypixelBot(commands.InteractionBot):
@@ -39,7 +47,7 @@ class SkypixelBot(commands.InteractionBot):
                     *(
                         cog.close()
                         for cog in self.cogs.values()
-                        if callable(getattr(cog, "close", None))
+                        if isinstance(cog, ClosableCog)
                     ),
                     return_exceptions=True,
                 )
@@ -73,7 +81,7 @@ class SkypixelBot(commands.InteractionBot):
 def load_cogs() -> list[type[commands.Cog]]:
     """Import the cogs. Call this after hypixel.load_items().
 
-    itemdb reads the memento list when it is imported.
+    The memento search and the alert rules read the catalog.
     """
     if not hypixel.MEMENTOS:
         raise RuntimeError("Load the item catalog before importing the cogs.")
@@ -127,7 +135,7 @@ async def run() -> None:
         secrets=(settings.bot_token, settings.mongodb_uri),
     )
     bot = None
-    shutdown_task = None
+    shutdown_task: asyncio.Task[None] | None = None
     installed_signals = []
     loop = asyncio.get_running_loop()
     try:

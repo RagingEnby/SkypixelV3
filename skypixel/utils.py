@@ -5,6 +5,7 @@ import random
 import re
 from contextlib import suppress
 from copy import deepcopy
+from typing import TYPE_CHECKING
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
@@ -13,6 +14,10 @@ import disnake
 from skypixel import constants
 from skypixel.clients import hypixel
 from skypixel.storage.notifications import notification_fingerprint
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 logger = logging.getLogger(__name__)
 COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
@@ -61,9 +66,9 @@ def fit_embed(embed: disnake.Embed, max_length: int = 6000) -> disnake.Embed:
             continue
         embed.set_field_at(
             index,
-            name=field.name[:256],
-            value=truncate(field.value, 1024),
-            inline=field.inline,
+            name=(field.name or "")[:256],
+            value=truncate(field.value or "", 1024),
+            inline=bool(field.inline),
         )
     if embed.author.name:
         embed.set_author(
@@ -78,12 +83,13 @@ def fit_embed(embed: disnake.Embed, max_length: int = 6000) -> disnake.Embed:
         if excess <= 0:
             break
         field = embed.fields[index]
-        if len(field.value) > excess:
+        value = field.value or ""
+        if len(value) > excess:
             embed.set_field_at(
                 index,
                 name=field.name,
-                value=truncate(field.value, len(field.value) - excess),
-                inline=field.inline,
+                value=truncate(value, len(value) - excess),
+                inline=bool(field.inline),
             )
         else:
             embed.remove_field(index)
@@ -242,7 +248,7 @@ async def send_to_channel(
 
 
 async def broadcast(
-    bot: disnake.Client,
+    bot: SkypixelBot,
     channels: dict[int, str],
     *,
     embed: disnake.Embed | None = None,
@@ -297,7 +303,7 @@ async def broadcast(
 
 
 async def notify_to_channel(
-    bot: disnake.Client,
+    bot: SkypixelBot,
     channel_id: int,
     content: str | None = None,
     **kwargs,

@@ -41,7 +41,7 @@ def get_item_color(item: dict[str, Any]) -> int:
     if item["itemId"] == "CAKE_SOUL" and soul_durability in constants.MINECRAFT_DYES:
         return constants.MINECRAFT_DYES[soul_durability]["hex"]
     return constants.RARITY_COLORS.get(
-        item.get("rarity"), constants.DEFAULT_EMBED_COLOR
+        item.get("rarity") or "", constants.DEFAULT_EMBED_COLOR
     )
 
 

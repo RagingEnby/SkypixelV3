@@ -1,18 +1,22 @@
 import logging
 from datetime import UTC, datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import disnake
 from disnake.ext import commands
 
 from skypixel import constants, utils
 
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
+
 logger = logging.getLogger(__name__)
 JoinLeave = Literal["join", "leave"]
 
 
 class GuildCog(commands.Cog):
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         self.bot = bot
 
     async def on_bot_joinleave(self, guild: disnake.Guild, action: JoinLeave):

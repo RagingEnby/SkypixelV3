@@ -1,13 +1,17 @@
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import disnake
-from disnake.ext import commands
 from mcstatus import JavaServer
 
 from skypixel import constants, utils
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +22,14 @@ async def get_motd() -> list[str]:
     return [line.strip() for line in status.description.split("\n")]
 
 
-async def send(bot: commands.InteractionBot, embed: disnake.Embed, ping: bool = True):
+async def send(bot: SkypixelBot, embed: disnake.Embed, ping: bool = True):
     await utils.broadcast(bot, constants.MOTD_TRACKER_CHANNELS, embed=embed, ping=ping)
 
 
 class MotdTrackerCog(PollingCog):
     interval = 240
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
         self.data = JsonWrapper(bot.settings.storage_dir / "motd.json")
         self._last_ping: datetime | None = None

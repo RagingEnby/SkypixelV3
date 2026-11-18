@@ -1,16 +1,19 @@
 import logging
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import disnake
-from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http, hypixel
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.storage.mongo import UploadQueue
 from skypixel.trackers.base import PollingCog
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 logger = logging.getLogger(__name__)
 URL: str = "https://api.hypixel.net/v2/skyblock/firesales"
@@ -26,14 +29,14 @@ async def get_fire_sales() -> dict[str, dict[str, Any]]:
     }
 
 
-async def send(bot: commands.InteractionBot, embeds: list[disnake.Embed]):
+async def send(bot: SkypixelBot, embeds: list[disnake.Embed]):
     await utils.broadcast(bot, constants.FIRE_SALE_TRACKER_CHANNELS, embeds=embeds)
 
 
 class FireSaleTrackerCog(PollingCog):
     interval = 120
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
         self.data = JsonWrapper(bot.settings.storage_dir / "firesales.json")
         self.uploads = UploadQueue(bot.settings.mongodb_uri, "SkyBlock", "firesales")

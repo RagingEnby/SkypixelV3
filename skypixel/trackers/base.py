@@ -2,11 +2,15 @@ import asyncio
 import logging
 from contextlib import suppress
 from functools import wraps
+from typing import TYPE_CHECKING
 
 from disnake.ext import commands
 
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.storage.notifications import NotificationOutbox, notification_fingerprint
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
 
 
 class PollingCog(commands.Cog):
@@ -14,7 +18,7 @@ class PollingCog(commands.Cog):
 
     interval: float = 60
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         self.bot = bot
         self.task: asyncio.Task | None = None
         self._close_lock = asyncio.Lock()

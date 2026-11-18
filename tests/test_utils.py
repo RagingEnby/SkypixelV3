@@ -210,7 +210,7 @@ class LoggingTests(unittest.TestCase):
             finally:
                 for logger in (root, logging.getLogger("disnake")):
                     for handler in list(logger.handlers):
-                        if getattr(handler, "_skypixel_handler", False):
+                        if handler.get_name() == "skypixel":
                             logger.removeHandler(handler)
                             handler.close()
                 root.setLevel(level)

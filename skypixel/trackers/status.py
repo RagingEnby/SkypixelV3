@@ -1,13 +1,17 @@
 import logging
 import time
+from typing import TYPE_CHECKING
 
 import disnake
-from disnake.ext import commands
 
 from skypixel import utils
 from skypixel.clients import hypixel
 from skypixel.trackers import ranktracker
 from skypixel.trackers.base import PollingCog
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +40,7 @@ class StatusUpdaterCog(PollingCog):
     # The item counts change slowly, so count each item twice an hour at most.
     count_ttl = 30 * 60
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
         self.index = 0
         self._counts: dict[str, tuple[float, int]] = {}
@@ -58,10 +62,10 @@ class StatusUpdaterCog(PollingCog):
         cached = self._counts.get(item_id)
         if cached and time.monotonic() - cached[0] < self.count_ttl:
             return cached[1]
-        itemdb_cog = self.bot.get_cog("ItemDBCog")
-        if not itemdb_cog:
+        item_db = getattr(self.bot.get_cog("ItemDBCog"), "item_db", None)
+        if item_db is None:
             return 0
-        count = await itemdb_cog.item_db.count_documents({"itemId": item_id})
+        count = await item_db.count_documents({"itemId": item_id})
         self._counts[item_id] = (time.monotonic(), count)
         return count
 

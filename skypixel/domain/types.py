@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, TypedDict
 
 ArmorType = Literal["helmet", "chestplate", "leggings", "boots"]
 
@@ -26,6 +26,14 @@ PrefixRank = Literal[
     "[OWNER]",
     "[ዞ]",
 ]
+
+
+class Dye(TypedDict):
+    item: str
+    colorName: str
+    hex: int
+    image: str
+
 
 SpecialRank = Literal[
     "youtube", "staff", "pig_plus_plus_plus", "innit", "events", "mojang", "mcp"

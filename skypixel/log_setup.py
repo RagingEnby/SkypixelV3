@@ -3,6 +3,8 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+HANDLER_NAME = "skypixel"
+
 
 def redact(text: str, secrets: tuple[str, ...]) -> str:
     for secret in secrets:
@@ -22,7 +24,7 @@ class RedactingFormatter(logging.Formatter):
 
 def _remove_own_handlers(logger: logging.Logger) -> None:
     for handler in list(logger.handlers):
-        if getattr(handler, "_skypixel_handler", False):
+        if handler.get_name() == HANDLER_NAME:
             logger.removeHandler(handler)
             handler.close()
 
@@ -58,5 +60,5 @@ def configure_logging(storage_dir: Path, *, secrets: tuple[str, ...] = ()) -> No
         (disnake_logger, _file_handler(storage_dir / "disnake.log")),
     ):
         handler.setFormatter(formatter)
-        handler._skypixel_handler = True
+        handler.set_name(HANDLER_NAME)
         logger.addHandler(handler)

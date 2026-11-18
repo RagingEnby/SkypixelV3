@@ -1,12 +1,16 @@
 import logging
+from typing import TYPE_CHECKING
 
 import disnake
-from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 logger = logging.getLogger(__name__)
 URL: str = "https://api.hypixel.net/v2/resources/skyblock/skills"
@@ -21,14 +25,14 @@ async def get_version() -> str:
     return version
 
 
-async def send(bot: commands.InteractionBot, embed: disnake.Embed):
+async def send(bot: SkypixelBot, embed: disnake.Embed):
     await utils.broadcast(bot, constants.VERSION_TRACKER_CHANNELS, embed=embed)
 
 
 class VersionTrackerCog(PollingCog):
     interval = 120
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
         self.data = JsonWrapper(bot.settings.storage_dir / "version.json")
         if not self.data.get("version"):

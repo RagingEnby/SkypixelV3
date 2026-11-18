@@ -24,7 +24,7 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
         }
         with (
             patch.object(
-                cog.listener, "on_exotic_auction", new_callable=AsyncMock
+                cog.alerts, "on_exotic_auction", new_callable=AsyncMock
             ) as alert,
             patch.object(
                 auctionhouse.mojang,
@@ -59,10 +59,10 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
                 }
                 with (
                     patch.object(
-                        cog.listener, "on_og_reforge_auction", new_callable=AsyncMock
+                        cog.alerts, "on_og_reforge_auction", new_callable=AsyncMock
                     ) as og,
                     patch.object(
-                        cog.listener,
+                        cog.alerts,
                         "on_semi_og_reforge_auction",
                         new_callable=AsyncMock,
                     ) as semi,

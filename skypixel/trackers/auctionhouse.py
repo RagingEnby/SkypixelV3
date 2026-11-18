@@ -2,10 +2,9 @@ import asyncio
 import logging
 import time
 from collections.abc import Coroutine
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import disnake
-from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http, mojang
@@ -16,6 +15,10 @@ from skypixel.storage.mongo import UploadQueue
 from skypixel.storage.notifications import NotificationStorageError
 from skypixel.trackers import ranktracker
 from skypixel.trackers.base import PollingCog
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 logger = logging.getLogger(__name__)
 ACTIVE_URL: str = "https://api.hypixel.net/v2/skyblock/auctions?page={}"
@@ -107,7 +110,7 @@ async def make_auction_embed(
 
 
 class AHListener:
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         self.bot = bot
 
     async def on_admin_spawned_auction(
@@ -222,7 +225,10 @@ class AHListener:
 
     async def on_cake_soul_auction(self, auction: dict[str, Any], item: dict[str, Any]):
         embed = await make_auction_embed(auction, item)
-        dye_data = constants.MINECRAFT_DYES.get(item.get("Damage"))
+        damage = item.get("Damage")
+        dye_data = (
+            constants.MINECRAFT_DYES.get(damage) if isinstance(damage, int) else None
+        )
         if dye_data:
             embed.title = dye_data["colorName"].title() + " Cake Soul"
             embed.color = dye_data["hex"]
@@ -281,7 +287,7 @@ class AuctionTrackerCog(PollingCog):
     interval = 15
     max_cursor_age = 10 * 60
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
         self.active_uploads = UploadQueue(
             bot.settings.mongodb_uri, "SkyBlock", "auctions"
@@ -298,7 +304,8 @@ class AuctionTrackerCog(PollingCog):
         self.last_scanned_ended = self._load_cursor("ended", fresh)
         self._scan_semaphore = asyncio.Semaphore(20)
         self._late_polls = {"active": 0, "ended": 0}
-        self.listener = AHListener(bot)
+        # Not "listener", which would hide disnake's Cog.listener decorator.
+        self.alerts = AHListener(bot)
 
     def _load_cursor(self, name: str, fresh: float) -> int:
         cursor = self.cursors.get(name)
@@ -365,30 +372,30 @@ class AuctionTrackerCog(PollingCog):
         tasks: list[Coroutine] = []
 
         if extra_attributes.get("originTag") in constants.ADMIN_ORIGIN_TAGS:
-            tasks.append(self.listener.on_admin_spawned_auction(auction, item))
+            tasks.append(self.alerts.on_admin_spawned_auction(auction, item))
         if not accessory and extra_attributes.get("modifier") in constants.OG_REFORGES:
-            tasks.append(self.listener.on_og_reforge_auction(auction, item))
+            tasks.append(self.alerts.on_og_reforge_auction(auction, item))
         if accessory and extra_attributes.get("modifier", "none") != "none":
-            tasks.append(self.listener.on_semi_og_reforge_auction(auction, item))
+            tasks.append(self.alerts.on_semi_og_reforge_auction(auction, item))
         if auction["auctioneer"] in ranktracker.POI_UUIDS:
-            tasks.append(self.listener.on_poi_auction(auction, item))
+            tasks.append(self.alerts.on_poi_auction(auction, item))
         if (
             timestamp
             and timestamp <= 1575910800
             and auction["starting_bid"] <= 100_000_000
         ):
-            tasks.append(self.listener.on_old_item_auction(auction, item, timestamp))
+            tasks.append(self.alerts.on_old_item_auction(auction, item, timestamp))
         if item_id in constants.SEYMOUR_IDS and hex_code:
-            tasks.append(self.listener.on_seymour_auction(auction, item, hex_code))
+            tasks.append(self.alerts.on_seymour_auction(auction, item, hex_code))
         if exotic_type and hex_code:
             tasks.append(
-                self.listener.on_exotic_auction(auction, item, exotic_type, hex_code)
+                self.alerts.on_exotic_auction(auction, item, exotic_type, hex_code)
             )
         if item_id == "CAKE_SOUL":
-            tasks.append(self.listener.on_cake_soul_auction(auction, item))
+            tasks.append(self.alerts.on_cake_soul_auction(auction, item))
         if edition and edition > 0:
             tasks.append(
-                self.listener.on_editioned_auction(auction, item, edition, timestamp)
+                self.alerts.on_editioned_auction(auction, item, edition, timestamp)
             )
         if tasks:
             await finish_tasks(*tasks)
@@ -507,7 +514,7 @@ class AuctionTrackerCog(PollingCog):
         for delay in delays:
             if isinstance(delay, BaseException):
                 raise delay
-        return min(delays)
+        return min(delay for delay in delays if not isinstance(delay, BaseException))
 
     async def close_resources(self):
         await finish_tasks(self.active_uploads.close(), self.ended_uploads.close())

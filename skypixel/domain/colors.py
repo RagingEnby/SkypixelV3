@@ -342,7 +342,7 @@ def find_closest_pieces(armor_type: ArmorType, color: str | int) -> dict[str, fl
         if isinstance(color, str)
         else colorcompare.int_to_lab(color)
     )
-    candidates = {**ARMOR_COLORS[armor_type.lower()], **ARMOR_COLORS["other"]}
+    candidates = {**ARMOR_COLORS[armor_type], **ARMOR_COLORS["other"]}
     matches = {}
     for name, candidate_lab in candidates.items():
         matches[name] = colorcompare.compare_delta_cie(lab, candidate_lab)
@@ -351,7 +351,7 @@ def find_closest_pieces(armor_type: ArmorType, color: str | int) -> dict[str, fl
 
 @lru_cache(maxsize=1024)
 def get_top_5(armor_type: ArmorType, color: str | int) -> dict[str, float]:
-    top_5 = {}
+    top_5: dict[str, float] = {}
     groups = set()
     for name, distance in find_closest_pieces(armor_type, color).items():
         if len(top_5) >= 5:

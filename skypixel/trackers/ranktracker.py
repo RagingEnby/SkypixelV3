@@ -3,7 +3,7 @@ import logging
 import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import disnake
 from curl_cffi.requests.exceptions import HTTPError, RequestException
@@ -15,6 +15,10 @@ from skypixel.commands.rank_views import RankListView
 from skypixel.domain.types import SpecialRank
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +75,7 @@ async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
 
 
 async def edit_stat_channels(
-    bot: commands.InteractionBot, rank_data: dict[str, list[dict[str, str]]]
+    bot: SkypixelBot, rank_data: dict[str, list[dict[str, str]]]
 ):
     rank_data = rank_data.copy()
     rank_data["special"] = [
@@ -101,7 +105,7 @@ async def edit_stat_channels(
             logger.error("Cannot rename a rank channel.", exc_info=result)
 
 
-async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
+async def get_rank_lists() -> dict[str, list[dict[str, str]]]:
     global RANK_LIST_CACHE, RANK_LIST_CACHE_TIME
     async with RANK_LIST_CACHE_LOCK:
         if (
@@ -152,7 +156,7 @@ async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
 
 
 async def send(
-    bot: commands.InteractionBot,
+    bot: SkypixelBot,
     rank: Literal["special"] | SpecialRank,
     embed: disnake.Embed,
     ping: bool = True,
@@ -198,7 +202,7 @@ class RankTrackerCog(PollingCog):
     interval = 240
     confirm_polls = 3
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
         self.data = JsonWrapper(bot.settings.storage_dir / "ranks.json")
         self.watch_list = JsonWrapper(bot.settings.storage_dir / "rankwatchlist.json")

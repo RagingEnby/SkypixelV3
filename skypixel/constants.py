@@ -1,4 +1,4 @@
-from skypixel.domain.types import ArmorType, ExoticType
+from skypixel.domain.types import ArmorType, Dye, ExoticType
 
 OWNER_PFP: str = "https://github.com/RagingEnby/SkypixelRepo/blob/main/pfp.png?raw=true"
 DISCORD_INVITE: str = "https://discord.gg/uSQx2rWHu2"
@@ -140,7 +140,7 @@ RANK_COLORS: dict[str, int] = {
     "mojang": COLOR_CODES["6"],
     "mcp": COLOR_CODES["c"],
 }
-MINECRAFT_DYES: dict[int, dict[str, str | int]] = {
+MINECRAFT_DYES: dict[int, Dye] = {
     0: {
         "item": "Ink Sac",
         "colorName": "black",

@@ -1,12 +1,16 @@
 import logging
+from typing import TYPE_CHECKING
 
 import disnake
-from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
 
 URL: str = "https://api.ragingenby.dev/hypixel/skyblock/zones"
 logger = logging.getLogger(__name__)
@@ -19,14 +23,14 @@ async def get_zones() -> set[str]:
     return set(data["zones"])
 
 
-async def send(bot: commands.InteractionBot, embed: disnake.Embed):
+async def send(bot: SkypixelBot, embed: disnake.Embed):
     await utils.broadcast(bot, constants.ZONE_TRACKER_CHANNELS, embed=embed)
 
 
 class ZoneTrackerCog(PollingCog):
     interval = 12000
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
         self.data = JsonWrapper(bot.settings.storage_dir / "zones.json")
         if not self.data.get("zones"):

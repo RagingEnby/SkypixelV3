@@ -1,18 +1,22 @@
 import logging
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any
 
 import disnake
-from disnake.ext import commands
 from mcstatus import JavaServer
 
 from skypixel import constants, utils
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
+
 logger = logging.getLogger(__name__)
 
 
-def flatten_status(status: dict[str, Any]) -> dict[str, Any]:
+def flatten_status(status: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "MC Version": status["version"]["name"],
         "Version Protocol": status["version"]["protocol"],
@@ -26,14 +30,14 @@ async def get_alpha_data() -> dict[str, Any]:
     return flatten_status(status.raw)
 
 
-async def send(bot: commands.InteractionBot, embed: disnake.Embed):
+async def send(bot: SkypixelBot, embed: disnake.Embed):
     await utils.broadcast(bot, constants.ALPHA_TRACKER_CHANNELS, embed=embed)
 
 
 class AlphaTrackerCog(PollingCog):
     interval = 240
 
-    def __init__(self, bot: commands.InteractionBot):
+    def __init__(self, bot: SkypixelBot):
         super().__init__(bot)
         self.data = JsonWrapper(bot.settings.storage_dir / "alpha.json")
 
