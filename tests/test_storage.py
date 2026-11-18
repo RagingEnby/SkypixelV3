@@ -162,6 +162,15 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(RuntimeError):
             _ = collection.client
 
+    async def test_reads_stop_after_the_time_limit(self):
+        collection = Collection("mongodb://localhost", "test", "items")
+        inner = Mock(count_documents=AsyncMock(), find=Mock())
+        with patch.object(Collection, "collection", inner):
+            collection.find({})
+            await collection.count_documents({})
+        self.assertEqual(inner.find.call_args.kwargs["max_time_ms"], 30_000)
+        self.assertEqual(inner.count_documents.await_args.kwargs["maxTimeMS"], 30_000)
+
     async def test_collections_share_one_client_until_the_last_one_closes(self):
         client = Mock(close=AsyncMock())
         with patch(

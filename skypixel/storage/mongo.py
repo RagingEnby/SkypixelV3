@@ -6,6 +6,9 @@ from pymongo import AsyncMongoClient, UpdateOne
 from pymongo.errors import BulkWriteError
 
 logger = logging.getLogger(__name__)
+# Stop a read after 30 seconds. A slow search would otherwise keep running on
+# the server after Discord gave up on the command.
+QUERY_TIME_LIMIT_MS = 30_000
 
 
 async def flush_queue(collection: Collection, queue: list[dict[str, Any]]) -> None:
@@ -77,12 +80,15 @@ class Collection:
         return self.db[self.collection_name]
 
     def find(self, *args, **kwargs):
+        kwargs.setdefault("max_time_ms", QUERY_TIME_LIMIT_MS)
         return self.collection.find(*args, **kwargs)
 
     async def find_one(self, *args, **kwargs):
+        kwargs.setdefault("max_time_ms", QUERY_TIME_LIMIT_MS)
         return await self.collection.find_one(*args, **kwargs)
 
     async def count_documents(self, *args, **kwargs):
+        kwargs.setdefault("maxTimeMS", QUERY_TIME_LIMIT_MS)
         return await self.collection.count_documents(*args, **kwargs)
 
     async def bulk_write(self, *args, **kwargs):

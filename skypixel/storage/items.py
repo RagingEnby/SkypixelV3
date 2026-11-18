@@ -1,7 +1,7 @@
 import time
 from typing import Any
 
-from skypixel.storage.mongo import Collection
+from skypixel.storage.mongo import QUERY_TIME_LIMIT_MS, Collection
 
 
 def soul_rank_pipeline(query: dict) -> list[dict]:
@@ -104,6 +104,8 @@ class ItemRepository(Collection):
 
     async def search_souls(self, query: dict) -> dict[str, int]:
         """Count souls by captured rank. Build the query with search_souls_query."""
-        cursor = await self.collection.aggregate(soul_rank_pipeline(query))
+        cursor = await self.collection.aggregate(
+            soul_rank_pipeline(query), maxTimeMS=QUERY_TIME_LIMIT_MS
+        )
         results = await cursor.to_list(length=1)
         return results[0] if results else {}
