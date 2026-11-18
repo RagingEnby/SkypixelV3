@@ -199,6 +199,8 @@ class MigrationTests(unittest.TestCase):
                     "created_at": 1234.5,
                 },
                 "broken": {"content": "no channel"},
+                "bad-time": {"channel_id": 4, "created_at": "yesterday"},
+                "bad-embeds": {"channel_id": 5, "embeds": {"title": "Alert"}},
             },
         )
         self.write(

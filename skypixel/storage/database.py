@@ -282,6 +282,8 @@ def _import_legacy(connection: sqlite3.Connection, directory: Path) -> list[str]
                 key in delivered
                 or not isinstance(message, dict)
                 or not isinstance(message.get("channel_id"), int)
+                or not isinstance(message.get("created_at", 0), int | float)
+                or not isinstance(message.get("embeds") or [], list)
             ):
                 skipped += 1
                 continue
