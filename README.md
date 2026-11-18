@@ -35,3 +35,6 @@ uv run python -W error::ResourceWarning -m unittest discover -s tests -t .
 - [Antisniper](https://api.antisniper.net/) for supplying the initial rank tracker data
 - [matdev](https://matdoes.dev/) for supplying a [VERY large Minecraft player database](https://matdoes.dev/minecraft-uuids) used in the bots backend
 - [Hypixel](https://api.hypixel.net/) for making this project possible
+
+# License
+Skypixel is licensed under the [GNU Affero General Public License v3.0](LICENSE). You may change and sell the code, but anything you build from it, including a hosted copy of the bot, must be released under the same license with its source.

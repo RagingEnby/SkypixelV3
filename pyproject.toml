@@ -3,6 +3,8 @@ name = "skypixelv3"
 version = "3.0.0-alpha.1"
 description = "A Discord bot for Hypixel SkyBlock item collectors"
 authors = [{name="RagingEnby", email="contact@ragingenby.dev"}]
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
 dependencies = [
     "curl-cffi>=0.13.0,<1",
