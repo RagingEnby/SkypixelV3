@@ -248,3 +248,19 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             await outbox.flush()
         self.assertFalse(outbox.pending)
         self.assertFalse(outbox.events)
+
+    async def test_alert_saved_without_an_age_is_retried_and_not_dropped(self):
+        self.bot.get_channel.return_value = None
+        outbox = self.bot.notifications
+        with self.assertLogs(utils.logger, level="WARNING"):
+            await utils.notify_to_channel(self.bot, 1, embed=disnake.Embed(title="A"))
+        key = next(iter(outbox.pending))
+        legacy = {k: v for k, v in outbox.pending[key].items() if k != "created_at"}
+        await outbox.pending.set_and_save(key, legacy)
+        with self.assertLogs(utils.logger, level="WARNING"):
+            await outbox.flush()
+        self.assertIn("created_at", outbox.pending[key])
+        self.bot.get_channel.return_value = self.channel
+        await outbox.flush()
+        self.channel.send.assert_awaited_once()
+        self.assertFalse(outbox.pending)

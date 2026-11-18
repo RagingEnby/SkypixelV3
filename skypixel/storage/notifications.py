@@ -197,21 +197,28 @@ class NotificationOutbox:
                     event_id: {**event, "delivered": [*event["delivered"], key]},
                 }
                 await self.events.save()
-        elif time.time() - message.get("created_at", 0) > self.max_age:
-            # Messages saved before created_at existed count as expired.
+        else:
+            created_at = message.get("created_at")
+            if created_at is None:
+                # The message was saved before messages recorded their age.
+                # Start its clock now so it still gets the full retry window.
+                created_at = time.time()
+                await self.pending.set_and_save(
+                    key, {**message, "created_at": created_at}
+                )
+            if time.time() - created_at <= self.max_age:
+                failures = self._failures.get(key, 0)
+                self._failures[key] = failures + 1
+                self._retry_at[key] = time.monotonic() + min(
+                    self.retry_delay * 2 ** min(failures, 10), self.max_retry_delay
+                )
+                return None
             logger.error(
                 "Dropped an alert for channel %s or thread %s after %s failed sends.",
                 message["channel_id"],
                 message["thread_id"],
                 self._failures.get(key, 0) + 1,
             )
-        else:
-            failures = self._failures.get(key, 0)
-            self._failures[key] = failures + 1
-            self._retry_at[key] = time.monotonic() + min(
-                self.retry_delay * 2 ** min(failures, 10), self.max_retry_delay
-            )
-            return None
         self._failures.pop(key, None)
         self._retry_at.pop(key, None)
         await self.pending.remove_and_save(key)
