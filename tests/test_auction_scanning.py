@@ -268,3 +268,12 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
         # A cursor from before a long outage would alert on every auction.
         self.assertEqual(restarted.last_scanned_ended, 0)
         await cog.cursors.replace({})
+
+    async def test_stored_auctions_keep_the_decoded_item_only(self):
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
+        cog.log_auction({"uuid": "a", "item_bytes": "raw"}, {"id": 1}, ended=False)
+        cog.log_auction({"auction_id": "b", "item_bytes": "raw"}, {"id": 2}, ended=True)
+        self.assertEqual(
+            cog.active_uploads.docs, [{"_id": "a", "item_data": {"id": 1}}]
+        )
+        self.assertEqual(cog.ended_uploads.docs, [{"_id": "b", "item_data": {"id": 2}}])

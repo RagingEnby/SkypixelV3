@@ -324,7 +324,8 @@ class AuctionTrackerCog(PollingCog):
         await finish_tasks(self.active_uploads.flush(), self.ended_uploads.flush())
 
     def log_auction(self, auction: dict[str, Any], item: dict[str, Any], ended: bool):
-        doc = auction.copy()
+        # item_data is the decoded item_bytes, so storing both doubles the item.
+        doc = {key: value for key, value in auction.items() if key != "item_bytes"}
         doc["item_data"] = item
         if ended:
             doc["_id"] = doc.pop("auction_id")
