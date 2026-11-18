@@ -1,11 +1,11 @@
 import time
-from typing import Any
 
+from skypixel.domain.types import Document
 from skypixel.storage.mongo import QUERY_TIME_LIMIT_MS, Collection
 
 
-def soul_rank_pipeline(query: dict) -> list[dict]:
-    pipeline = [
+def soul_rank_pipeline(query: Document) -> list[Document]:
+    pipeline: list[Document] = [
         {"$match": query},
         {
             "$addFields": {
@@ -69,15 +69,15 @@ def soul_rank_pipeline(query: dict) -> list[dict]:
 
 
 class ItemRepository(Collection):
-    cache_ttl = 300
-    cache_limit = 512
+    cache_ttl: int = 300
+    cache_limit: int = 512
 
-    def __init__(self, uri: str):
+    def __init__(self, uri: str) -> None:
         super().__init__(uri, "SkyBlock", "itemdb")
-        self.cache: dict[str, dict[str, Any]] = {}
+        self.cache: dict[str, Document] = {}
         self._cached_at: dict[str, float] = {}
 
-    def cache_items(self, items: list[dict[str, Any]]) -> None:
+    def cache_items(self, items: list[Document]) -> None:
         now = time.monotonic()
         for item in items:
             uuid = item["_id"]
@@ -89,7 +89,7 @@ class ItemRepository(Collection):
             del self.cache[uuid]
             self._cached_at.pop(uuid, None)
 
-    async def get_item(self, uuid: str) -> dict[str, Any] | None:
+    async def get_item(self, uuid: str) -> Document | None:
         if (
             uuid in self.cache
             and time.monotonic() - self._cached_at.get(uuid, 0) < self.cache_ttl
@@ -102,7 +102,7 @@ class ItemRepository(Collection):
             self.cache_items([item])
         return item
 
-    async def search_souls(self, query: dict) -> dict[str, int]:
+    async def search_souls(self, query: Document) -> dict[str, int]:
         """Count souls by captured rank. Build the query with search_souls_query."""
         cursor = await self.collection.aggregate(
             soul_rank_pipeline(query), maxTimeMS=QUERY_TIME_LIMIT_MS

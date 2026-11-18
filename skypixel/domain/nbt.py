@@ -4,16 +4,30 @@ import zlib
 from base64 import b64decode, b64encode
 from binascii import Error as Base64Error
 from contextlib import suppress
-from typing import Any
+from typing import TypeGuard, overload
 
 from nbt import nbt
+
+# A value read from NBT. Int arrays arrive as list[int] and byte arrays as
+# bytearray. ensure_all_decoded also puts parsed petInfo JSON here.
+type NBTData = (
+    dict[str, NBTData]
+    | list[NBTData]
+    | list[int]
+    | bytearray
+    | str
+    | int
+    | float
+    | bool
+    | None
+)
 
 
 class ItemDecodeError(ValueError):
     pass
 
 
-def nbt_to_dict(nbt_data: Any) -> Any:
+def nbt_to_dict(nbt_data: nbt.TAG) -> NBTData:
     if isinstance(nbt_data, (nbt.NBTFile, nbt.TAG_Compound)):
         return {tag.name: nbt_to_dict(tag) for tag in nbt_data.tags}
     if isinstance(nbt_data, nbt.TAG_List):
@@ -21,7 +35,13 @@ def nbt_to_dict(nbt_data: Any) -> Any:
     return nbt_data.value
 
 
-def raw_decode(data: bytes) -> list[dict[str, Any]]:
+def _is_item_list(items: NBTData) -> TypeGuard[list[dict[str, NBTData]]]:
+    return isinstance(items, list) and not any(
+        not isinstance(item, dict) for item in items
+    )
+
+
+def raw_decode(data: bytes) -> list[dict[str, NBTData]]:
     try:
         with io.BytesIO(data) as fileobj:
             parsed = nbt_to_dict(nbt.NBTFile(fileobj=fileobj))
@@ -37,14 +57,17 @@ def raw_decode(data: bytes) -> list[dict[str, Any]]:
     if (
         not isinstance(parsed, dict)
         or set(parsed) != {"i"}
-        or not isinstance(parsed["i"], list)
-        or any(not isinstance(item, dict) for item in parsed["i"])
+        or not _is_item_list(items := parsed["i"])
     ):
         raise ItemDecodeError("Expected an NBT item list.")
-    return parsed["i"]
+    return items
 
 
-def ensure_all_decoded(data: Any) -> Any:
+@overload
+def ensure_all_decoded(data: dict[str, NBTData]) -> dict[str, NBTData]: ...
+@overload
+def ensure_all_decoded(data: NBTData) -> NBTData: ...
+def ensure_all_decoded(data: NBTData) -> NBTData:
     if isinstance(data, dict):
         for key, value in data.items():
             if key == "petInfo" and isinstance(value, str):
@@ -61,7 +84,8 @@ def ensure_all_decoded(data: Any) -> Any:
     return data
 
 
-def decode(item_bytes: str) -> list[dict[str, Any]]:
+def decode(item_bytes: object) -> list[dict[str, NBTData]]:
+    """Decode base64 item data. Anything other than a str raises ItemDecodeError."""
     if not isinstance(item_bytes, str):
         raise ItemDecodeError("Expected base64 item data as text.")
     try:
@@ -71,7 +95,7 @@ def decode(item_bytes: str) -> list[dict[str, Any]]:
     return [ensure_all_decoded(item) for item in raw_decode(raw) if item]
 
 
-def decode_single(item_bytes: str) -> dict[str, Any]:
+def decode_single(item_bytes: object) -> dict[str, NBTData]:
     items = decode(item_bytes)
     if not items:
         raise ItemDecodeError("The item data contains no items.")
