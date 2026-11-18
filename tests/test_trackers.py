@@ -773,7 +773,7 @@ class StatusCountTests(unittest.IsolatedAsyncioTestCase):
         item_db = Mock(count_documents=AsyncMock(return_value=1234))
         bot = Mock(
             change_presence=AsyncMock(),
-            get_cog=Mock(return_value=Mock(item_db=item_db)),
+            services=Mock(item_db=item_db),
         )
         cog = StatusUpdaterCog(bot)
         await cog._item_count_status("TEST_MEMENTO")

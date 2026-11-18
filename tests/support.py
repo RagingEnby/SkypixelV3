@@ -32,6 +32,7 @@ ITEMS = [
 ]
 
 
+from skypixel.services import Services  # noqa: E402
 from skypixel.settings import Settings  # noqa: E402
 
 SETTINGS = Settings.load()
@@ -40,6 +41,7 @@ SETTINGS = Settings.load()
 def make_bot(**kwargs) -> Mock:
     """Return a mock bot that carries the test settings."""
     kwargs.setdefault("notifications", Mock(event=Mock(return_value=nullcontext())))
+    kwargs.setdefault("services", Services(SETTINGS))
     return Mock(settings=SETTINGS, **kwargs)
 
 

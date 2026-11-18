@@ -10,7 +10,6 @@ from skypixel import constants, utils
 from skypixel.clients import hypixel
 from skypixel.commands.item_views import SoulSearchView, make_item_embed, make_item_view
 from skypixel.domain.items import PrefixRank, player_filter, search_souls_query
-from skypixel.storage.items import ItemRepository
 
 if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
@@ -65,7 +64,7 @@ def gift_query(
 
 class ItemDBCog(commands.Cog):
     def __init__(self, bot: SkypixelBot):
-        self.item_db = ItemRepository(bot.settings.mongodb_uri)
+        self.item_db = bot.services.item_db
         self.bot = bot
 
     async def do_search_command(
@@ -438,6 +437,3 @@ class ItemDBCog(commands.Cog):
             ),
             ephemeral=True,
         )
-
-    async def close(self):
-        await self.item_db.close()

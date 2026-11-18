@@ -12,7 +12,7 @@ from disnake.ext import commands
 
 import tests.support as support
 from skypixel import app, checks, settings
-from skypixel.clients import hypixel
+from skypixel.clients import http, hypixel, mojang
 
 
 class SettingsTests(unittest.TestCase):
@@ -80,8 +80,8 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
         )
         with (
-            patch.object(app.mojang, "close", side_effect=OSError),
-            patch.object(app.http, "close", new_callable=AsyncMock) as close_http,
+            patch.object(mojang, "close", side_effect=OSError),
+            patch.object(http, "close", new_callable=AsyncMock) as close_http,
             self.assertLogs(app.logger, level="ERROR"),
         ):
             await bot.close()
@@ -89,7 +89,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(bot.is_closed())
 
     async def test_the_bot_registers_all_existing_cogs_and_commands(self):
-        with patch.object(app.http, "close", new_callable=AsyncMock):
+        with patch.object(http, "close", new_callable=AsyncMock):
             bot = app.create_bot(
                 support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
             )
@@ -123,7 +123,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch.object(bot.notifications, "run", side_effect=run),
-            patch.object(app.http, "close", new_callable=AsyncMock),
+            patch.object(http, "close", new_callable=AsyncMock),
         ):
             await bot.on_ready()
             await started.wait()
@@ -152,7 +152,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         bot.add_cog(FailedCog())
         bot.add_cog(GoodCog())
         with (
-            patch.object(app.http, "close", new_callable=AsyncMock) as close_http,
+            patch.object(http, "close", new_callable=AsyncMock) as close_http,
             self.assertLogs(app.logger, level="ERROR"),
         ):
             await bot.close()
@@ -168,7 +168,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         async def load_items(storage_dir):
             events.append("items")
 
-        def create_bot(settings):
+        def create_bot(settings, services):
             events.append("commands")
             return bot
 
@@ -209,7 +209,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                 new_callable=AsyncMock,
                 side_effect=ValueError("bad catalog"),
             ),
-            patch.object(app.http, "close", new_callable=AsyncMock) as close,
+            patch.object(http, "close", new_callable=AsyncMock) as close,
         ):
             with self.assertRaises(ValueError):
                 await app.run()

@@ -8,9 +8,10 @@ import disnake
 from disnake.ext import commands
 
 from skypixel import checks, constants
-from skypixel.clients import http, hypixel, mojang
+from skypixel.clients import hypixel
 from skypixel.commands import owner
 from skypixel.log_setup import configure_logging
+from skypixel.services import Services
 from skypixel.settings import ConfigurationError, Settings
 from skypixel.storage.notifications import NotificationOutbox
 
@@ -25,8 +26,9 @@ class ClosableCog(Protocol):
 
 
 class SkypixelBot(commands.InteractionBot):
-    def __init__(self, settings: Settings, **kwargs):
+    def __init__(self, settings: Settings, services: Services | None = None, **kwargs):
         self.settings = settings
+        self.services = services or Services(settings)
         intents = disnake.Intents.default()
         intents.members = True
         super().__init__(intents=intents, owner_id=constants.OWNER_ID, **kwargs)
@@ -58,12 +60,8 @@ class SkypixelBot(commands.InteractionBot):
                     self._notification_task.cancel()
                     with suppress(asyncio.CancelledError):
                         await self._notification_task
-                results = await asyncio.gather(
-                    mojang.close(), http.close(), return_exceptions=True
-                )
-                for result in results:
-                    if isinstance(result, BaseException):
-                        logger.error("A client failed to close.", exc_info=result)
+                for error in await self.services.close():
+                    logger.error("A client failed to close.", exc_info=error)
             finally:
                 await super().close()
             logger.info("The bot has shut down.")
@@ -114,8 +112,10 @@ def load_cogs() -> list[type[commands.Cog]]:
     ]
 
 
-def create_bot(settings: Settings, **kwargs) -> SkypixelBot:
-    bot = SkypixelBot(settings, **kwargs)
+def create_bot(
+    settings: Settings, services: Services | None = None, **kwargs
+) -> SkypixelBot:
+    bot = SkypixelBot(settings, services, **kwargs)
     for cog in load_cogs():
         bot.add_cog(cog(bot))
     owner.register(bot)
@@ -134,13 +134,14 @@ async def run() -> None:
         settings.storage_dir,
         secrets=(settings.bot_token, settings.mongodb_uri),
     )
+    services = Services(settings)
     bot = None
     shutdown_task: asyncio.Task[None] | None = None
     installed_signals = []
     loop = asyncio.get_running_loop()
     try:
-        await hypixel.load_items(settings.storage_dir)
-        bot = create_bot(settings)
+        await services.load_catalog(settings.storage_dir)
+        bot = create_bot(settings, services)
 
         def stop() -> None:
             nonlocal shutdown_task
@@ -164,7 +165,8 @@ async def run() -> None:
         if bot is not None:
             await bot.close()
         else:
-            await http.close()
+            for error in await services.close():
+                logger.error("A client failed to close.", exc_info=error)
 
 
 def main() -> None:

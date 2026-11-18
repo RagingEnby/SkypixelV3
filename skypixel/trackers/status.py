@@ -62,10 +62,7 @@ class StatusUpdaterCog(PollingCog):
         cached = self._counts.get(item_id)
         if cached and time.monotonic() - cached[0] < self.count_ttl:
             return cached[1]
-        item_db = getattr(self.bot.get_cog("ItemDBCog"), "item_db", None)
-        if item_db is None:
-            return 0
-        count = await item_db.count_documents({"itemId": item_id})
+        count = await self.bot.services.item_db.count_documents({"itemId": item_id})
         self._counts[item_id] = (time.monotonic(), count)
         return count
 
