@@ -18,7 +18,14 @@ import logging
 import sqlite3
 import threading
 import time
-from collections.abc import Callable, Iterator, Mapping, MutableMapping, Sequence
+from collections.abc import (
+    Callable,
+    Generator,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    Sequence,
+)
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -132,7 +139,7 @@ class Database:
         return connection
 
     @contextmanager
-    def _transaction(self) -> Iterator[sqlite3.Connection]:
+    def _transaction(self) -> Generator[sqlite3.Connection]:
         with self._write_lock, closing(self._connect()) as connection:
             connection.execute("BEGIN IMMEDIATE")
             try:

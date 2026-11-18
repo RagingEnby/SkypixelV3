@@ -62,7 +62,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         with self.assertLogs(utils.logger, level="ERROR"):
             self.assertIsNone(await utils.send_to_channel(bot, 1, "test", thread_id=2))
 
-    def test_broadcast_obeys_the_ten_embed_limit(self):
+    def test_broadcast_obeys_the_ten_embed_limit(self) -> None:
         embeds = [disnake.Embed(title=str(index)) for index in range(23)]
         alerts = utils.broadcast({1: "ping"}, embeds=embeds)
         self.assertEqual([len(alert.embeds) for alert in alerts], [10, 10, 3])
@@ -106,7 +106,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(utils.truncate("abcdef", 3), "abc")
         self.assertEqual(utils.truncate("abc", 3), "abc")
 
-    def test_broadcast_splits_large_embeds_without_cutting_text(self):
+    def test_broadcast_splits_large_embeds_without_cutting_text(self) -> None:
         embeds = [disnake.Embed(description="x" * 4000) for _ in range(3)]
         alerts = utils.broadcast({1: "ping"}, embeds=embeds)
         self.assertEqual(
@@ -117,15 +117,17 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
             [4000, 4000, 4000],
         )
 
-    def test_broadcast_without_ping_sends_empty_content_to_every_channel(self):
+    def test_broadcast_without_ping_sends_empty_content_to_every_channel(self) -> None:
         alerts = utils.broadcast(
             {1: "a", 2: "b"}, embed=disnake.Embed(title="Alert"), ping=False
         )
         self.assertEqual([alert.channel_id for alert in alerts], [1, 2])
         self.assertEqual([alert.content for alert in alerts], ["", ""])
-        self.assertEqual([alert.embeds[0]["title"] for alert in alerts], ["Alert"] * 2)
+        self.assertEqual(
+            [alert.embeds[0].get("title") for alert in alerts], ["Alert"] * 2
+        )
 
-    async def test_combined_embeds_fit_without_changing_cached_embeds(self):
+    async def test_combined_embeds_fit_without_changing_cached_embeds(self) -> None:
         embeds = [disnake.Embed(description="x" * 4000) for _ in range(2)]
         embeds[0].add_field(name="Attributes", value="v" * 1000)
         result = utils.fit_embeds(embeds)

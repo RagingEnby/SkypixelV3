@@ -173,8 +173,12 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             await cog.do_watchlist()
             self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
 
-    async def test_rate_limit_stops_the_watchlist_without_changing_players(self):
-        state = TrackerState(support.make_database(), "rankwatchlist")
+    async def test_rate_limit_stops_the_watchlist_without_changing_players(
+        self,
+    ) -> None:
+        state: TrackerState[ranktracker.WatchEntry] = TrackerState(
+            support.make_database(), "rankwatchlist"
+        )
         state.data = {"first": "same", "second": "same"}
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.watch_list = state
@@ -276,8 +280,10 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             await ranktracker.edit_stat_channels(bot, data)
         self.assertEqual(set(data), {"innit"})
 
-    async def test_watchlist_can_remove_more_than_one_player(self):
-        state = TrackerState(support.make_database(), "rankwatchlist")
+    async def test_watchlist_can_remove_more_than_one_player(self) -> None:
+        state: TrackerState[ranktracker.WatchEntry] = TrackerState(
+            support.make_database(), "rankwatchlist"
+        )
         state.data = {"a": "old", "b": "old"}
         state.remove_and_save = AsyncMock(wraps=state.remove_and_save)
         cog = ranktracker.RankTrackerCog(support.make_bot())
@@ -314,7 +320,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("NEW", cog.data)
         self.assertEqual(len(support.queued_alerts(cog.bot.database)), 1)
 
-    async def test_failed_rank_save_queues_each_alert_once_on_retry(self):
+    async def test_failed_rank_save_queues_each_alert_once_on_retry(self) -> None:
         cog = ranktracker.RankTrackerCog(support.make_bot())
         before: dict[str, ranktracker.PlayerRank] = {
             "player": {"name": "Before", "rank": "youtube"}
@@ -344,7 +350,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             [(1, "yt"), (2, "staff"), (2, "")],
         )
         self.assertEqual(
-            [alert.embeds[0]["title"] for alert in alerts],
+            [alert.embeds[0].get("title") for alert in alerts],
             [
                 "After went from [YOUTUBE] to [STAFF] rank!",
                 "After went from [YOUTUBE] to [STAFF] rank!",
@@ -373,7 +379,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         stats.assert_awaited_once()
         self.assertEqual(cog.data.to_dict(), ranks)
 
-    async def test_fire_sale_alert_build_failure_keeps_the_sale_for_retry(self):
+    async def test_fire_sale_alert_build_failure_keeps_the_sale_for_retry(self) -> None:
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.data.data = {"OLD": {"amount": 1}}
         sales = {"NEW": {"amount": 2}}
@@ -648,9 +654,12 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
                 await ranktracker.get_rankname("../ranks")
         fetch.assert_not_awaited()
 
-    async def test_full_watchlist_rejects_new_players(self):
-        state = TrackerState(support.make_database(), "rankwatchlist")
-        state.data = {"a": None}
+    async def test_full_watchlist_rejects_new_players(self) -> None:
+        state: TrackerState[ranktracker.WatchEntry] = TrackerState(
+            support.make_database(), "rankwatchlist"
+        )
+        # Only the entry count matters here.
+        state.data = {"a": "rank"}
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.watch_list = state
         inter = support.make_inter()
@@ -664,7 +673,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
             ),
         ):
             await cog.watch.callback(cog, inter, "Player")
-        self.assertEqual(state.to_dict(), {"a": None})
+        self.assertEqual(state.to_dict(), {"a": "rank"})
         self.assertEqual(support.error_title(inter), "Watchlist Full!")
 
     async def test_auction_items_decode_off_the_event_loop(self) -> None:
@@ -757,15 +766,16 @@ class RankChangeAlertTests(unittest.IsolatedAsyncioTestCase):
             [(1, "a"), (2, "c"), (3, "d")],
         )
         self.assertEqual(
-            {alert.embeds[0]["title"] for alert in alerts},
+            {alert.embeds[0].get("title") for alert in alerts},
             {"Name went from [YOUTUBE] to [STAFF] rank!"},
         )
 
 
 class WatchlistCommandTests(unittest.IsolatedAsyncioTestCase):
-    def cog(self, name):
-        cog = ranktracker.RankTrackerCog(support.make_bot(is_owner=AsyncMock()))
-        cog.bot.is_owner.return_value = False
+    def cog(self, name: str) -> ranktracker.RankTrackerCog:
+        cog = ranktracker.RankTrackerCog(
+            support.make_bot(is_owner=AsyncMock(return_value=False))
+        )
         cog.watch_list = TrackerState(support.make_database(), name)
         cog.watch_list.data = {"b": {"rankname": None, "name": "Player", "added_by": 1}}
         return cog

@@ -3,6 +3,8 @@ import os
 import sys
 import tempfile
 import types
+from collections.abc import Mapping, Sequence
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, Mock, patch
@@ -11,6 +13,7 @@ if TYPE_CHECKING:
     from disnake.types.interactions import EditApplicationCommand
 
     from skypixel.clients.hypixel import SkyblockItem
+    from skypixel.storage.database import Alert, Database
 
 TEST_STORAGE = tempfile.TemporaryDirectory(prefix="skypixel-tests-")
 atexit.register(TEST_STORAGE.cleanup)
@@ -43,40 +46,46 @@ from skypixel.settings import Settings  # noqa: E402
 SETTINGS = Settings.load()
 
 
-def make_database():
+def make_database() -> Database:
     """Return a state database in a new temporary directory."""
     from skypixel.storage.database import Database
 
     return Database(Path(tempfile.mkdtemp(dir=TEST_STORAGE.name)) / "skypixel.db")
 
 
-def fail_saves(database, *errors: BaseException | None):
+def fail_saves(
+    database: Database, *errors: BaseException | None
+) -> AbstractContextManager[Mock]:
     """Patch database saves to raise each error in turn, then save normally.
 
     None in errors lets that save go through.
     """
-    original = database._save
+    # The tests reach into the database to fail one write at a time.
+    original = database._save  # pyright: ignore[reportPrivateUsage]
     remaining = list(errors)
 
-    def save(*args):
+    def save(tracker: str, data: Mapping[str, object], alerts: Sequence[Alert]) -> None:
         if remaining:
             error = remaining.pop(0)
             if error is not None:
                 raise error
-        return original(*args)
+        return original(tracker, data, alerts)
 
     return patch.object(database, "_save", side_effect=save)
 
 
-def queued_alerts(database) -> list:
+def queued_alerts(database: Database) -> list[Alert]:
     """Return the alerts waiting in the outbox, oldest first."""
-    return [pending.alert for pending in database._due_alerts(float("inf"))]
+    pending = database._due_alerts(float("inf"))  # pyright: ignore[reportPrivateUsage]
+    return [row.alert for row in pending]
 
 
-def make_bot(**kwargs) -> Mock:
+def make_bot(**kwargs: object) -> Mock:
     """Return a mock bot with the test settings and an empty state database."""
     kwargs.setdefault("database", make_database())
-    return Mock(settings=SETTINGS, **kwargs)
+    bot = Mock(settings=SETTINGS)
+    bot.configure_mock(**kwargs)
+    return bot
 
 
 def make_inter(**kwargs: object) -> Mock:

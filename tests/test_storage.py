@@ -18,12 +18,12 @@ from skypixel.storage.mongo import Collection, UploadQueue
 class JsonFileTests(unittest.IsolatedAsyncioTestCase):
     """The item catalog cache is still a JSON file."""
 
-    def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
+    def setUp(self) -> None:
+        self.directory: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.path = Path(self.directory.name) / "items.json"
+        self.path: Path = Path(self.directory.name) / "items.json"
 
-    async def test_save_and_reload(self):
+    async def test_save_and_reload(self) -> None:
         await storage.write_json(self.path, {"value": 1})
         self.assertEqual(storage.read_json(self.path), {"value": 1})
         self.assertEqual(storage.read_json(self.path.with_name("missing.json")), {})
@@ -34,7 +34,7 @@ class JsonFileTests(unittest.IsolatedAsyncioTestCase):
         await storage.write_json(self.path, {"value": 1})
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o640)
 
-    async def test_failed_replace_preserves_original_file(self):
+    async def test_failed_replace_preserves_original_file(self) -> None:
         self.path.write_text('{"old": 1}')
         with patch(
             "skypixel.storage.json_store.os.replace",
@@ -45,13 +45,15 @@ class JsonFileTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(json.loads(self.path.read_text()), {"old": 1})
         self.assertEqual(list(self.path.parent.iterdir()), [self.path])
 
-    async def test_cancelled_write_finishes_before_the_caller_sees_the_cancel(self):
+    async def test_cancelled_write_finishes_before_the_caller_sees_the_cancel(
+        self,
+    ) -> None:
         started = asyncio.Event()
         release = threading.Event()
         loop = asyncio.get_running_loop()
         original = storage._write_atomic
 
-        def write(path, content):
+        def write(path: Path, content: str) -> None:
             loop.call_soon_threadsafe(started.set)
             if not release.wait(timeout=2):
                 raise TimeoutError("The test did not release the write.")
@@ -68,13 +70,13 @@ class JsonFileTests(unittest.IsolatedAsyncioTestCase):
                 await task
         self.assertEqual(storage.read_json(self.path), {"value": 1})
 
-    async def test_corrupt_file_is_not_silently_discarded(self):
+    async def test_corrupt_file_is_not_silently_discarded(self) -> None:
         self.path.write_text('{"unfinished":')
         with self.assertRaises(StorageError):
             storage.read_json(self.path)
         self.assertEqual(self.path.read_text(), '{"unfinished":')
 
-    async def test_non_object_file_is_rejected(self):
+    async def test_non_object_file_is_rejected(self) -> None:
         self.path.write_text("[]")
         with self.assertRaises(StorageError):
             storage.read_json(self.path)

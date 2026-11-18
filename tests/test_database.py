@@ -5,23 +5,25 @@ import tempfile
 import threading
 import time
 import unittest
+from collections.abc import Mapping, Sequence
 from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
+from skypixel.domain.types import JSONInput
 from skypixel.storage import database as database_module
 from skypixel.storage.database import Alert, Database, TrackerState
 from skypixel.storage.json_store import StorageError
 
 
 class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
-    def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
+    def setUp(self) -> None:
+        self.directory: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.path = Path(self.directory.name) / "skypixel.db"
-        self.database = Database(self.path)
+        self.path: Path = Path(self.directory.name) / "skypixel.db"
+        self.database: Database = Database(self.path)
 
-    async def test_save_and_reload(self):
+    async def test_save_and_reload(self) -> None:
         state = TrackerState(self.database, "ranks")
         self.assertFalse(state.exists)
         await state.replace({"player": {"rank": "staff", "name": "Player"}})
@@ -30,12 +32,13 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(reloaded.to_dict(), state.to_dict())
         self.assertEqual(TrackerState(self.database, "zones").to_dict(), {})
 
-    async def test_database_uses_wal_mode(self):
+    async def test_database_uses_wal_mode(self) -> None:
         with closing(sqlite3.connect(self.path)) as connection:
-            mode = connection.execute("PRAGMA journal_mode").fetchone()[0]
+            row: tuple[str] = connection.execute("PRAGMA journal_mode").fetchone()
+        mode = row[0]
         self.assertEqual(mode, "wal")
 
-    async def test_replace_updates_memory_only_after_a_successful_save(self):
+    async def test_replace_updates_memory_only_after_a_successful_save(self) -> None:
         state = TrackerState(self.database, "motd")
         await state.replace({"old": 1})
         with patch.object(self.database, "_save", side_effect=OSError):
@@ -46,7 +49,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         await state.replace({"new": 2})
         self.assertEqual(TrackerState(self.database, "motd").to_dict(), {"new": 2})
 
-    async def test_failed_save_rolls_back_the_state_and_its_alerts(self):
+    async def test_failed_save_rolls_back_the_state_and_its_alerts(self) -> None:
         state = TrackerState(self.database, "version")
         alert = Alert(1, "ping")
         with patch.object(Alert, "payload", side_effect=ValueError("bad alert")):
@@ -55,12 +58,14 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(TrackerState(self.database, "version").exists)
         self.assertEqual(await self.database.due_alerts(float("inf")), [])
 
-    async def test_concurrent_watchlist_edits_preserve_both_updates(self):
+    async def test_concurrent_watchlist_edits_preserve_both_updates(self) -> None:
         state = TrackerState(self.database, "rankwatchlist")
         started, release = asyncio.Event(), asyncio.Event()
         original = self.database.save
 
-        async def save(tracker, data, alerts=()):
+        async def save(
+            tracker: str, data: Mapping[str, object], alerts: Sequence[Alert] = ()
+        ) -> None:
             if data == {"first": 1}:
                 started.set()
                 await release.wait()
@@ -79,7 +84,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             TrackerState(self.database, "rankwatchlist").to_dict(), {"second": 2}
         )
 
-    async def test_mapping_views_follow_loaded_and_replaced_data(self):
+    async def test_mapping_views_follow_loaded_and_replaced_data(self) -> None:
         await TrackerState(self.database, "alpha").replace({"old": 1})
         state = TrackerState(self.database, "alpha")
         self.assertEqual(list(state.items()), [("old", 1)])
@@ -87,14 +92,16 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(list(state.keys()), ["new"])
         self.assertEqual(list(state.values()), [2])
 
-    async def test_cancelled_save_commits_before_releasing_the_lock(self):
+    async def test_cancelled_save_commits_before_releasing_the_lock(self) -> None:
         state = TrackerState(self.database, "jobs")
         started = asyncio.Event()
         release, second_started = threading.Event(), threading.Event()
         loop = asyncio.get_running_loop()
-        original = self.database._save
+        original = self.database._save  # pyright: ignore[reportPrivateUsage]
 
-        def save(tracker, data, alerts):
+        def save(
+            tracker: str, data: Mapping[str, object], alerts: Sequence[Alert]
+        ) -> None:
             if data == {"first": 1}:
                 loop.call_soon_threadsafe(started.set)
                 if not release.wait(timeout=2):
@@ -119,13 +126,15 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             await second
         self.assertEqual(TrackerState(self.database, "jobs").to_dict(), {"second": 2})
 
-    async def test_saves_run_off_the_event_loop(self):
-        threads = []
-        original = self.database._save
+    async def test_saves_run_off_the_event_loop(self) -> None:
+        threads: list[int] = []
+        original = self.database._save  # pyright: ignore[reportPrivateUsage]
 
-        def save(*args):
+        def save(
+            tracker: str, data: Mapping[str, object], alerts: Sequence[Alert]
+        ) -> None:
             threads.append(threading.get_ident())
-            original(*args)
+            original(tracker, data, alerts)
 
         with patch.object(self.database, "_save", side_effect=save):
             await TrackerState(self.database, "zones").replace({"zones": []})
@@ -133,19 +142,19 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
 
 
 class MigrationTests(unittest.TestCase):
-    def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
+    def setUp(self) -> None:
+        self.directory: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.storage = Path(self.directory.name)
-        self.path = self.storage / "skypixel.db"
+        self.storage: Path = Path(self.directory.name)
+        self.path: Path = self.storage / "skypixel.db"
 
-    def write(self, name, data):
+    def write(self, name: str, data: JSONInput) -> None:
         (self.storage / name).write_text(json.dumps(data))
 
-    def open(self):
+    def open(self) -> Database:
         return Database(self.path, legacy_dir=self.storage)
 
-    def test_first_start_imports_every_state_file_and_keeps_the_files(self):
+    def test_first_start_imports_every_state_file_and_keeps_the_files(self) -> None:
         files = {
             name: {"key": name}
             for name in (
@@ -184,7 +193,7 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(after, expected)
         self.assertEqual(sum("Imported" in line for line in logs.output), len(files))
 
-    def test_missing_and_empty_files_keep_first_run_detection(self):
+    def test_missing_and_empty_files_keep_first_run_detection(self) -> None:
         self.write("jobs.json", {})
         database = self.open()
         jobs = TrackerState(database, "jobs")
@@ -192,7 +201,7 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(jobs.to_dict(), {})
         self.assertFalse(TrackerState(database, "firesales").exists)
 
-    def test_pending_alerts_are_imported_and_delivered_ones_are_skipped(self):
+    def test_pending_alerts_are_imported_and_delivered_ones_are_skipped(self) -> None:
         self.write(
             "notifications.json",
             {
@@ -229,7 +238,7 @@ class MigrationTests(unittest.TestCase):
         for name in ("notifications.json", "notifications.events.json"):
             self.assertTrue((self.storage / (name + ".migrated")).exists())
 
-    def test_a_lost_database_does_not_import_the_old_files_again(self):
+    def test_a_lost_database_does_not_import_the_old_files_again(self) -> None:
         self.write("version.json", {"version": "one"})
         self.write("notifications.json", {"a": {"channel_id": 1, "embeds": []}})
         self.open()
@@ -239,7 +248,7 @@ class MigrationTests(unittest.TestCase):
         self.assertFalse(TrackerState(database, "version").exists)
         self.assertEqual(asyncio.run(database.due_alerts(float("inf"))), [])
 
-    def test_import_runs_only_once(self):
+    def test_import_runs_only_once(self) -> None:
         self.write("version.json", {"version": "one"})
         self.open()
         self.write("version.json", {"version": "two"})
@@ -248,25 +257,24 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(TrackerState(database, "version")["version"], "one")
         self.assertEqual(asyncio.run(database.due_alerts(float("inf"))), [])
 
-    def test_corrupt_file_stops_the_import_and_a_later_start_retries_it(self):
+    def test_corrupt_file_stops_the_import_and_a_later_start_retries_it(self) -> None:
         self.write("version.json", {"version": "one"})
         (self.storage / "ranks.json").write_text('{"unfinished":')
         with self.assertRaises(StorageError):
             self.open()
         with closing(sqlite3.connect(self.path)) as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 0)
-            self.assertEqual(
-                connection.execute(
-                    "SELECT name FROM sqlite_master WHERE type = 'table'"
-                ).fetchall(),
-                [],
-            )
+            version: tuple[int] = connection.execute("PRAGMA user_version").fetchone()
+            tables: list[tuple[str]] = connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        self.assertEqual(version[0], 0)
+        self.assertEqual(tables, [])
         self.write("ranks.json", {"a": {"name": "A", "rank": "staff"}})
         database = self.open()
         self.assertEqual(TrackerState(database, "version")["version"], "one")
         self.assertIn("a", TrackerState(database, "ranks"))
 
-    def test_trackers_read_the_imported_state(self):
+    def test_trackers_read_the_imported_state(self) -> None:
         from skypixel.trackers import firesaletracker, ranktracker
         from tests import support
 

@@ -101,7 +101,7 @@ class FireSaleInitializationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             len(alerts), len(firesaletracker.constants.FIRE_SALE_TRACKER_CHANNELS)
         )
-        self.assertEqual(alerts[0].embeds[0]["title"], "New Fire Sale Added!")
+        self.assertEqual(alerts[0].embeds[0].get("title"), "New Fire Sale Added!")
         self.assertIn("NEW", cog.data)
 
     async def test_failed_empty_first_save_keeps_initialization_pending(self) -> None:

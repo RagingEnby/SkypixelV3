@@ -84,10 +84,16 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
                 og.assert_not_awaited()
                 semi.assert_awaited_once_with(auction, item)
 
-    async def test_one_failed_alert_keeps_the_other_alerts_for_the_auction(self):
+    async def test_one_failed_alert_keeps_the_other_alerts_for_the_auction(
+        self,
+    ) -> None:
         cog = self.cog()
-        auction = {"uuid": "auction", "auctioneer": "a" * 32, "category": "armor"}
-        item = {
+        auction: auctionhouse.Auction = {
+            "uuid": "auction",
+            "auctioneer": "a" * 32,
+            "category": "armor",
+        }
+        item: auctionhouse.Item = {
             "tag": {
                 "ExtraAttributes": {
                     "uuid": "item",
@@ -115,7 +121,7 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
         ):
             self.assertEqual(await cog.on_auction(auction, item), [kept])
 
-    def page(self, number, starts, updated=200_000):
+    def page(self, number: int, starts: list[int], updated: int = 200_000) -> Document:
         return {
             "page": number,
             "totalPages": 3,
