@@ -12,7 +12,7 @@ from uuid import uuid4
 import disnake
 
 from skypixel import constants
-from skypixel.storage.json import JsonWrapper
+from skypixel.storage.json_store import JsonWrapper
 
 logger = logging.getLogger(__name__)
 

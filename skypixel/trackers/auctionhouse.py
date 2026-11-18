@@ -11,7 +11,7 @@ from skypixel import constants, utils
 from skypixel.clients import http, mojang
 from skypixel.domain import colors
 from skypixel.domain.nbt import ItemDecodeError, decode_single
-from skypixel.storage.json import JsonWrapper
+from skypixel.storage.json_store import JsonWrapper
 from skypixel.storage.mongo import UploadQueue
 from skypixel.storage.notifications import NotificationStorageError
 from skypixel.trackers import ranktracker

@@ -5,8 +5,8 @@ import disnake
 from disnake.ext import commands
 
 from skypixel import checks, constants, utils
-from skypixel.logging import redact
-from skypixel.storage.json import JsonWrapper
+from skypixel.log_setup import redact
+from skypixel.storage.json_store import JsonWrapper
 
 logger = logging.getLogger(__name__)
 DM_NOTICE = (

@@ -8,7 +8,7 @@ from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http, hypixel
-from skypixel.storage.json import JsonWrapper
+from skypixel.storage.json_store import JsonWrapper
 from skypixel.storage.mongo import UploadQueue
 from skypixel.trackers.base import PollingCog
 

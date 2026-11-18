@@ -25,7 +25,7 @@ class RankValidationTests(unittest.IsolatedAsyncioTestCase):
                 ranktracker, "edit_stat_channels", new_callable=AsyncMock
             ) as counts,
             patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
-            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
             self.assertLogs(ranktracker.logger, level="ERROR"),
         ):
             for _ in snapshots:
@@ -58,7 +58,7 @@ class RankValidationTests(unittest.IsolatedAsyncioTestCase):
             patch.object(ranktracker, "invalidate_rank_lists"),
             patch.object(ranktracker, "edit_stat_channels", new_callable=AsyncMock),
             patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
-            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
             self.assertLogs(ranktracker.logger, level="ERROR"),
         ):
             await cog.poll()
@@ -83,7 +83,9 @@ class FireSaleInitializationTests(unittest.IsolatedAsyncioTestCase):
             ),
             patch.object(firesaletracker, "send", new_callable=AsyncMock) as notify,
             patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-            patch("skypixel.storage.json.write_json", new_callable=AsyncMock) as save,
+            patch(
+                "skypixel.storage.json_store.write_json", new_callable=AsyncMock
+            ) as save,
         ):
             await cog.poll()
             self.assertTrue(cog.initialized)
@@ -100,7 +102,9 @@ class FireSaleInitializationTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(firesaletracker, "get_fire_sales", return_value={}),
             patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-            patch("skypixel.storage.json.write_json", side_effect=[OSError, None]),
+            patch(
+                "skypixel.storage.json_store.write_json", side_effect=[OSError, None]
+            ),
         ):
             with self.assertRaises(OSError):
                 await cog.poll()

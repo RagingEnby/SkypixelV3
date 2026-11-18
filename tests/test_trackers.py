@@ -8,7 +8,7 @@ from curl_cffi.requests.exceptions import HTTPError
 
 import tests.support as support
 from skypixel import app
-from skypixel.storage.json import JsonWrapper
+from skypixel.storage.json_store import JsonWrapper
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
     auctionhouse,
@@ -289,7 +289,9 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             patch.object(cog, "make_fire_sale_embed", return_value=Mock()),
             patch.object(firesaletracker, "send", new_callable=AsyncMock),
             patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-            patch("skypixel.storage.json.write_json", side_effect=[OSError, None]),
+            patch(
+                "skypixel.storage.json_store.write_json", side_effect=[OSError, None]
+            ),
         ):
             with self.assertRaises(OSError):
                 await cog.poll()
@@ -538,7 +540,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             patch.object(ranktracker, "get_player_ranks", return_value=after),
             patch.object(ranktracker, "invalidate_rank_lists") as invalidate,
             patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
-            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
             self.assertLogs(ranktracker.logger, level="ERROR"),
         ):
             await cog.poll()
@@ -569,7 +571,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(jobtracker, "get_jobs", return_value=[]),
             patch.object(cog, "on_job_update", new_callable=AsyncMock) as notify,
-            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
             self.assertLogs(jobtracker.logger, level="WARNING"),
         ):
             await cog.poll()
@@ -586,7 +588,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(jobtracker, "get_jobs", return_value=[self.job("Dev")]),
             patch.object(cog, "on_job_update", new_callable=AsyncMock) as notify,
-            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
         ):
             await cog.poll()
         notify.assert_not_awaited()
@@ -600,7 +602,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(jobtracker, "get_jobs", return_value=[self.job("Dev")]),
             patch.object(cog, "on_job_update", new_callable=AsyncMock) as notify,
-            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
         ):
             await cog.poll()
         notify.assert_awaited_once()
@@ -693,7 +695,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
             patch.object(firesaletracker, "get_fire_sales", return_value={}),
             patch.object(firesaletracker, "send", new_callable=AsyncMock),
             patch.object(cog.uploads, "flush", new_callable=AsyncMock),
-            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            patch("skypixel.storage.json_store.write_json", new_callable=AsyncMock),
         ):
             await cog.poll()
             self.assertEqual(set(cog.data), {"LIVE"})

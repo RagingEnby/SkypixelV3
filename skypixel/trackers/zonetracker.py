@@ -5,7 +5,7 @@ from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http
-from skypixel.storage.json import JsonWrapper
+from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 URL: str = "https://api.ragingenby.dev/hypixel/skyblock/zones"

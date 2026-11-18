@@ -9,7 +9,7 @@ from disnake.ext import commands
 from skypixel import checks, constants
 from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
-from skypixel.logging import configure_logging
+from skypixel.log_setup import configure_logging
 from skypixel.settings import ConfigurationError, Settings
 from skypixel.storage.notifications import NotificationOutbox
 

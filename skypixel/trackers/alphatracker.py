@@ -6,7 +6,7 @@ from disnake.ext import commands
 from mcstatus import JavaServer
 
 from skypixel import constants, utils
-from skypixel.storage.json import JsonWrapper
+from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)

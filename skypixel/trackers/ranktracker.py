@@ -13,7 +13,7 @@ from skypixel import constants, utils
 from skypixel.clients import http, mojang
 from skypixel.commands.rank_views import RankListView
 from skypixel.domain.types import SpecialRank
-from skypixel.storage.json import JsonWrapper
+from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)

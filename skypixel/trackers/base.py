@@ -5,7 +5,7 @@ from functools import wraps
 
 from disnake.ext import commands
 
-from skypixel.storage.json import JsonWrapper
+from skypixel.storage.json_store import JsonWrapper
 from skypixel.storage.notifications import NotificationOutbox, notification_fingerprint
 
 

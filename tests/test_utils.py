@@ -14,7 +14,7 @@ from skypixel import checks, constants, utils
 from skypixel.commands import owner
 from skypixel.commands.guild import GuildCog
 from skypixel.commands.logger import DM_NOTICE, LoggerCog
-from skypixel.logging import RedactingFormatter, configure_logging
+from skypixel.log_setup import RedactingFormatter, configure_logging
 
 
 class DiscordTests(unittest.IsolatedAsyncioTestCase):

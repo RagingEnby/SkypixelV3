@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from pymongo.errors import BulkWriteError
 
-from skypixel.storage import json as storage
-from skypixel.storage.json import JsonWrapper, StorageError
+from skypixel.storage import json_store as storage
+from skypixel.storage.json_store import JsonWrapper, StorageError
 from skypixel.storage.mongo import Collection, UploadQueue
 
 
@@ -75,7 +75,8 @@ class JsonStorageTests(unittest.IsolatedAsyncioTestCase):
         state = JsonWrapper(self.path)
         state.data = {"new": 2}
         with patch(
-            "skypixel.storage.json.os.replace", side_effect=OSError("disk failure")
+            "skypixel.storage.json_store.os.replace",
+            side_effect=OSError("disk failure"),
         ):
             with self.assertRaises(OSError):
                 await state.save()
@@ -128,7 +129,7 @@ class JsonStorageTests(unittest.IsolatedAsyncioTestCase):
             JsonWrapper(self.path)
 
     async def test_file_without_directory_component(self):
-        with patch("skypixel.storage.json._write_atomic") as write:
+        with patch("skypixel.storage.json_store._write_atomic") as write:
             state = JsonWrapper("missing-test-state.json")
             state["value"] = 1
             await state.save()
