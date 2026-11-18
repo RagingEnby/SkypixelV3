@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 import disnake
 
-from skypixel import constants, utils
+from skypixel import constants, subscriptions, utils
 from skypixel.clients import http
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
@@ -24,7 +24,7 @@ async def get_zones() -> set[str]:
 
 
 async def send(bot: SkypixelBot, embed: disnake.Embed):
-    await utils.broadcast(bot, constants.ZONE_TRACKER_CHANNELS, embed=embed)
+    await utils.broadcast(bot, subscriptions.current().zone, embed=embed)
 
 
 class ZoneTrackerCog(PollingCog):

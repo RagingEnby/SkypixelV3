@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import disnake
 from mcstatus import JavaServer
 
-from skypixel import constants, utils
+from skypixel import constants, subscriptions, utils
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
@@ -23,7 +23,7 @@ async def get_motd() -> list[str]:
 
 
 async def send(bot: SkypixelBot, embed: disnake.Embed, ping: bool = True):
-    await utils.broadcast(bot, constants.MOTD_TRACKER_CHANNELS, embed=embed, ping=ping)
+    await utils.broadcast(bot, subscriptions.current().motd, embed=embed, ping=ping)
 
 
 class MotdTrackerCog(PollingCog):

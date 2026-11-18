@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 import disnake
 
-from skypixel import constants, utils
+from skypixel import constants, subscriptions, utils
 from skypixel.clients import http, hypixel
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.storage.mongo import UploadQueue
@@ -30,7 +30,7 @@ async def get_fire_sales() -> dict[str, dict[str, Any]]:
 
 
 async def send(bot: SkypixelBot, embeds: list[disnake.Embed]):
-    await utils.broadcast(bot, constants.FIRE_SALE_TRACKER_CHANNELS, embeds=embeds)
+    await utils.broadcast(bot, subscriptions.current().fire_sale, embeds=embeds)
 
 
 class FireSaleTrackerCog(PollingCog):

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 import disnake
 from mcstatus import JavaServer
 
-from skypixel import constants, utils
+from skypixel import constants, subscriptions, utils
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
@@ -31,7 +31,7 @@ async def get_alpha_data() -> dict[str, Any]:
 
 
 async def send(bot: SkypixelBot, embed: disnake.Embed):
-    await utils.broadcast(bot, constants.ALPHA_TRACKER_CHANNELS, embed=embed)
+    await utils.broadcast(bot, subscriptions.current().alpha, embed=embed)
 
 
 class AlphaTrackerCog(PollingCog):

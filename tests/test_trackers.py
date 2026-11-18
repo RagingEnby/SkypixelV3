@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from curl_cffi.requests.exceptions import HTTPError
 
 import tests.support as support
-from skypixel import app
+from skypixel import app, subscriptions
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
@@ -715,7 +715,9 @@ class RankChangeAlertTests(unittest.IsolatedAsyncioTestCase):
         cog = ranktracker.RankTrackerCog(support.make_bot())
         channels = {"youtube": {1: "a", 2: "b"}, "staff": {2: "c", 3: "d"}}
         with (
-            patch.object(ranktracker.constants, "RANK_TRACKER_CHANNELS", channels),
+            patch.object(
+                subscriptions, "_current", subscriptions.Subscriptions(rank=channels)
+            ),
             patch.object(
                 ranktracker.utils, "broadcast", new_callable=AsyncMock
             ) as broadcast,

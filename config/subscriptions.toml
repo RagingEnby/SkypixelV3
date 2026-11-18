@@ -1,0 +1,163 @@
+# Channels that receive each alert, and the text sent with it.
+#
+# Each [[section]] entry is one channel:
+#   channel = the Discord channel ID, as a number (no quotes)
+#   ping    = text sent with the alert, such as a role mention "<@&ROLE_ID>",
+#             or "" for no text
+#
+# To add a subscriber, copy an entry into the section and change both values.
+# To remove one, delete its three lines. Restart the bot to apply the change.
+# The bot refuses to start if an entry is malformed, and logs a warning on
+# startup for each channel it cannot find or post embeds in.
+#
+# Rank sections: rank.<rank> for youtube, staff, pig_plus_plus_plus, innit,
+# events, mojang, or mcp. rank.special is required: ranks without their own
+# section are sent there.
+#
+# Set SKYPIXEL_SUBSCRIPTIONS to read this file from another path.
+
+# SkyBlock version changes.
+
+[[version]]
+channel = 1172205656112123994
+ping = "<@&1139315700339593256>"
+
+[[version]]
+channel = 1210333444563935295
+ping = ""
+
+[[version]]
+channel = 1391179788164530276
+ping = "<@&1400911988305039370>"
+
+# Hypixel MOTD changes.
+
+[[motd]]
+channel = 1177121432820527144
+ping = "<@&1177330036664193084>"
+
+[[motd]]
+channel = 1177328270006554826
+ping = "<@&1177329389550178354>"
+
+[[motd]]
+channel = 1391179788164530276
+ping = ""
+
+# New Hypixel job postings on the forums.
+
+[[job]]
+channel = 1425521819179286588
+ping = "<@&1425521864775569408>"
+
+# Fire sales.
+
+[[fire_sale]]
+channel = 1179543769905893416
+ping = "<@&1190093109938368552>"
+
+[[fire_sale]]
+channel = 1190098169703448576
+ping = "use code rail :)"
+
+[[fire_sale]]
+channel = 938088437200846948
+ping = "<@&937729428430151770>"
+
+[[fire_sale]]
+channel = 1391179788164530276
+ping = ""
+
+[[fire_sale]]
+channel = 1396953342932029612
+ping = ""
+
+# Alpha server openings.
+
+[[alpha]]
+channel = 1210999395865202688
+ping = "<@&1358904280165126434>"
+
+[[alpha]]
+channel = 1210333444563935295
+ping = ""
+
+[[alpha]]
+channel = 1382202837856944289
+ping = ""
+
+[[alpha]]
+channel = 1391179788164530276
+ping = "<@&1400910798368407712>"
+
+[[alpha]]
+channel = 1396953342932029612
+ping = ""
+
+# New SkyBlock zones.
+
+[[zone]]
+channel = 1256334830048903198
+ping = "<@&1210085254635724840>"
+
+[[zone]]
+channel = 1210333444563935295
+ping = ""
+
+[[zone]]
+channel = 1391179788164530276
+ping = ""
+
+# Players who gain or lose the youtube rank.
+
+[[rank.youtube]]
+channel = 1121130539097784401
+ping = "<@&1122272183733977249>"
+
+[[rank.youtube]]
+channel = 1173855870568902747
+ping = "<@&1177329153607991428>"
+
+[[rank.youtube]]
+channel = 1365021125628919898
+ping = "<@&1400910189678301276>"
+
+[[rank.youtube]]
+channel = 1444771276597100584
+ping = "<@&1444771346671341589>"
+
+# Players who gain or lose the staff rank.
+
+[[rank.staff]]
+channel = 1364997652323897415
+ping = "<@&1122272183733977249>"
+
+[[rank.staff]]
+channel = 1173855870568902747
+ping = "<@&1177329153607991428>"
+
+[[rank.staff]]
+channel = 1365021125628919898
+ping = "<@&1400910189678301276>"
+
+[[rank.staff]]
+channel = 1444771255424254013
+ping = "<@&1444771346671341589>"
+
+# Players who gain or lose any other special rank.
+
+[[rank.special]]
+channel = 1269021624338878464
+ping = "<@&1122272183733977249>"
+
+[[rank.special]]
+channel = 1173855870568902747
+ping = "<@&1177329153607991428>"
+
+[[rank.special]]
+channel = 1365021125628919898
+ping = "<@&1400910189678301276>"
+
+[[rank.special]]
+channel = 1444771291390546221
+ping = "<@&1444771346671341589>"

@@ -7,7 +7,7 @@ from typing import Protocol, runtime_checkable
 import disnake
 from disnake.ext import commands
 
-from skypixel import checks, constants
+from skypixel import checks, constants, subscriptions
 from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
 from skypixel.log_setup import configure_logging
@@ -130,6 +130,7 @@ def create_bot(settings: Settings, **kwargs) -> SkypixelBot:
 async def run() -> None:
     settings = Settings.load()
     settings.validate()
+    subscriptions.install(subscriptions.load())
     configure_logging(
         settings.storage_dir,
         secrets=(settings.bot_token, settings.mongodb_uri),

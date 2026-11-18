@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import disnake
 
-from skypixel import constants, utils
+from skypixel import constants, subscriptions, utils
 from skypixel.storage.notifications import NotificationOutbox, NotificationStorageError
 from skypixel.trackers import auctionhouse, versiontracker
 
@@ -68,7 +68,9 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
                 versiontracker, "get_version", side_effect=["new", "new", "old", "new"]
             ),
             patch.object(
-                versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
+                subscriptions,
+                "_current",
+                subscriptions.Subscriptions(version={1: "ping"}),
             ),
         ):
             with patch.object(cog.data, "replace", side_effect=OSError):
@@ -143,7 +145,9 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(versiontracker, "get_version", return_value="new"),
             patch.object(
-                versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
+                subscriptions,
+                "_current",
+                subscriptions.Subscriptions(version={1: "ping"}),
             ),
             self.assertLogs(utils.logger, level="ERROR"),
         ):
@@ -163,7 +167,9 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(versiontracker, "get_version", return_value="new"),
             patch.object(
-                versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
+                subscriptions,
+                "_current",
+                subscriptions.Subscriptions(version={1: "ping"}),
             ),
             patch.object(
                 self.bot.notifications.pending, "set_and_save", side_effect=OSError

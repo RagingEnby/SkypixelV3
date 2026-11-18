@@ -9,7 +9,7 @@ import disnake
 from curl_cffi.requests.exceptions import HTTPError, RequestException
 from disnake.ext import commands
 
-from skypixel import constants, utils
+from skypixel import constants, subscriptions, utils
 from skypixel.clients import http, mojang
 from skypixel.commands.rank_views import RankListView
 from skypixel.domain.types import SpecialRank
@@ -81,13 +81,13 @@ async def edit_stat_channels(
     rank_data["special"] = [
         player
         for key, players in rank_data.items()
-        if key not in constants.RANK_TRACKER_CHANNELS
+        if key not in subscriptions.current().rank
         for player in players
     ]
     tasks = []
-    for rank in constants.RANK_TRACKER_CHANNELS:
+    for rank in subscriptions.current().rank:
         players = rank_data.get(rank, [])
-        channels = constants.RANK_TRACKER_CHANNELS[rank]
+        channels = subscriptions.current().rank[rank]
         for channel_id in channels:
             channel = bot.get_channel(channel_id)
             name = f"{rank}-{len(players)}"
@@ -161,10 +161,10 @@ async def send(
     embed: disnake.Embed,
     ping: bool = True,
 ):
-    if rank not in constants.RANK_TRACKER_CHANNELS:
+    if rank not in subscriptions.current().rank:
         rank = "special"
     await utils.broadcast(
-        bot, constants.RANK_TRACKER_CHANNELS[rank], embed=embed, ping=ping
+        bot, subscriptions.current().rank[rank], embed=embed, ping=ping
     )
 
 
@@ -251,8 +251,8 @@ class RankTrackerCog(PollingCog):
         logger.info("rank tracker alert: %s", embed.title)
         channels: dict[int, str] = {}
         for rank in (before, after):
-            key = rank if rank in constants.RANK_TRACKER_CHANNELS else "special"
-            channels.update(constants.RANK_TRACKER_CHANNELS[key])
+            key = rank if rank in subscriptions.current().rank else "special"
+            channels.update(subscriptions.current().rank[key])
         await utils.broadcast(self.bot, channels, embed=embed)
 
     async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
