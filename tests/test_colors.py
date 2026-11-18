@@ -6,10 +6,12 @@ from skypixel.domain import colorcompare, colors
 
 
 class ColorTests(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.addCleanup(hypixel.initialize, support.ITEMS)
 
-    def test_optional_catalog_fields_and_invalid_dyes_do_not_break_startup(self):
+    def test_optional_catalog_fields_and_invalid_dyes_do_not_break_startup(
+        self,
+    ) -> None:
         hypixel.initialize(
             [
                 {"id": "EMPTY", "material": None, "description": None},
@@ -29,7 +31,7 @@ class ColorTests(unittest.TestCase):
             colorcompare.hex_to_lab("123456"),
         )
 
-    def test_reloading_the_catalog_invalidates_color_matches(self):
+    def test_reloading_the_catalog_invalidates_color_matches(self) -> None:
         colors.get_top_5("helmet", "010203")
         hypixel.initialize(
             [
@@ -45,7 +47,7 @@ class ColorTests(unittest.TestCase):
         self.assertEqual(next(iter(matches)), "New Helmet")
         self.assertEqual(matches["New Helmet"], 0)
 
-    def test_lab_white_and_black_match_the_reference_endpoints(self):
+    def test_lab_white_and_black_match_the_reference_endpoints(self) -> None:
         for rgb, expected in (((0, 0, 0), (0, 0, 0)), ((255, 255, 255), (100, 0, 0))):
             with self.subTest(rgb=rgb):
                 for value, reference in zip(
@@ -53,7 +55,7 @@ class ColorTests(unittest.TestCase):
                 ):
                     self.assertAlmostEqual(value, reference, delta=0.02)
 
-    def test_color_distances_are_symmetric_and_zero_for_identical_colors(self):
+    def test_color_distances_are_symmetric_and_zero_for_identical_colors(self) -> None:
         first = colorcompare.hex_to_lab("123456")
         second = colorcompare.hex_to_lab("ABCDEF")
         for distance in (
@@ -64,7 +66,7 @@ class ColorTests(unittest.TestCase):
                 self.assertEqual(distance(first, first), 0)
                 self.assertAlmostEqual(distance(first, second), distance(second, first))
 
-    def test_og_fairy_colors_match_the_item_rules(self):
+    def test_og_fairy_colors_match_the_item_rules(self) -> None:
         hypixel.initialize(
             [
                 *support.ITEMS,

@@ -19,10 +19,11 @@ class UserNotAPatron(commands.CheckFailure):
 
 
 async def patron_only_check(
-    bot: commands.InteractionBot, inter: disnake.Interaction
+    bot: commands.InteractionBot, inter: disnake.Interaction[disnake.Client]
 ) -> bool:
     owners = inter.authorizing_integration_owners
-    if owners is None or owners.user_id is None:
+    # disnake types this as always set. Keep the None check as a guard.
+    if owners is None or owners.user_id is None:  # pyright: ignore[reportUnnecessaryComparison]
         return True
     # A command installed both ways carries both keys. The server's install
     # authorizes it without a patron role. A guild_id of 0 means the bot's DMs.

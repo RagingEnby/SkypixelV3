@@ -3,25 +3,73 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from copy import deepcopy
 from pathlib import Path
+from typing import NotRequired, TypedDict, TypeGuard
 from uuid import uuid4
 
 import disnake
+from disnake.types.embed import Embed as EmbedData
 
 from skypixel import constants, delivery, embed_utils
 from skypixel.storage.json_store import JsonWrapper
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-def notification_fingerprint(data: dict) -> str:
+class PendingMessage(TypedDict):
+    """A message in notifications.json that waits for delivery."""
+
+    channel_id: int
+    thread_id: int | None
+    content: str | None
+    embeds: list[EmbedData]
+    # submit() adds these two before it saves the message. Messages saved by
+    # older versions can lack created_at.
+    event_id: NotRequired[str]
+    created_at: NotRequired[float]
+
+
+class NotificationEvent(TypedDict):
+    """One poll's record in notifications.events.json."""
+
+    source: str
+    version: str
+    complete: bool
+    delivered: list[str]
+
+
+class EventContext(TypedDict):
+    """The event that the current task belongs to."""
+
+    source: str
+    version: str
+    id: str | None
+
+
+class SubmitOptions(TypedDict, total=False):
+    """Keyword arguments of NotificationOutbox.submit()."""
+
+    thread_id: int | None
+    embed: disnake.Embed | None
+    embeds: list[disnake.Embed] | None
+
+
+def _is_embed_list(value: object) -> TypeGuard[list[EmbedData]]:
+    # Callers pass the output of Embed.to_dict() under "embeds".
+    return isinstance(value, list)
+
+
+def notification_fingerprint(data: Mapping[str, object]) -> str:
     data = deepcopy(data)
-    for embed in data.get("embeds", []):
-        if embed.get("footer", {}).get("text") in constants.CREDIT_FOOTERS:
-            embed.pop("footer")
+    embeds = data.get("embeds", [])
+    if _is_embed_list(embeds):
+        for embed in embeds:
+            if embed.get("footer", {}).get("text") in constants.CREDIT_FOOTERS:
+                embed.pop("footer")
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
@@ -57,28 +105,30 @@ class NotificationOutbox:
     dropped, so a deleted channel cannot hold a message forever.
     """
 
-    max_age = 6 * 60 * 60
-    retry_delay = 15
-    max_retry_delay = 15 * 60
+    max_age: int = 6 * 60 * 60
+    retry_delay: int = 15
+    max_retry_delay: int = 15 * 60
 
-    def __init__(self, bot: disnake.Client, path: Path):
-        self.bot = bot
-        self.pending = JsonWrapper(path)
-        self.events = JsonWrapper(path.with_suffix(".events.json"))
-        self._delivery_lock = asyncio.Lock()
+    def __init__(self, bot: disnake.Client, path: Path) -> None:
+        self.bot: disnake.Client = bot
+        self.pending: JsonWrapper[PendingMessage] = JsonWrapper(path)
+        self.events: JsonWrapper[NotificationEvent] = JsonWrapper(
+            path.with_suffix(".events.json")
+        )
+        self._delivery_lock: asyncio.Lock = asyncio.Lock()
         # Failed sends for each pending key, and when run() may try it again.
         self._failures: dict[str, int] = {}
         self._retry_at: dict[str, float] = {}
-        self._event: ContextVar[dict | None] = ContextVar(
+        self._event: ContextVar[EventContext | None] = ContextVar(
             "notification_event", default=None
         )
 
     @asynccontextmanager
-    async def event(self, source: str, version: str):
+    async def event(self, source: str, version: str) -> AsyncGenerator[None]:
         if self._event.get() is not None:
             yield
             return
-        context = {"source": source, "version": version, "id": None}
+        context: EventContext = {"source": source, "version": version, "id": None}
         token = self._event.set(context)
         try:
             yield
@@ -92,7 +142,7 @@ class NotificationOutbox:
         finally:
             self._event.reset(token)
 
-    async def _begin_event(self, context: dict) -> str:
+    async def _begin_event(self, context: EventContext) -> str:
         if context["id"] is not None:
             return context["id"]
         for key, event in list(self.events.items()):
@@ -129,7 +179,7 @@ class NotificationOutbox:
         messages = (
             embeds if embeds is not None else [embed] if embed is not None else []
         )
-        message = {
+        message: PendingMessage = {
             "channel_id": channel_id,
             "thread_id": thread_id,
             "content": content,
@@ -195,21 +245,28 @@ class NotificationOutbox:
                     event_id: {**event, "delivered": [*event["delivered"], key]},
                 }
                 await self.events.save()
-        elif time.time() - message.get("created_at", 0) > self.max_age:
-            # Messages saved before created_at existed count as expired.
+        else:
+            created_at = message.get("created_at")
+            if created_at is None:
+                # The message was saved before messages recorded their age.
+                # Start its clock now so it still gets the full retry window.
+                created_at = time.time()
+                await self.pending.set_and_save(
+                    key, {**message, "created_at": created_at}
+                )
+            if time.time() - created_at <= self.max_age:
+                failures = self._failures.get(key, 0)
+                self._failures[key] = failures + 1
+                self._retry_at[key] = time.monotonic() + min(
+                    self.retry_delay * 2 ** min(failures, 10), self.max_retry_delay
+                )
+                return None
             logger.error(
                 "Dropped an alert for channel %s or thread %s after %s failed sends.",
                 message["channel_id"],
                 message["thread_id"],
                 self._failures.get(key, 0) + 1,
             )
-        else:
-            failures = self._failures.get(key, 0)
-            self._failures[key] = failures + 1
-            self._retry_at[key] = time.monotonic() + min(
-                self.retry_delay * 2 ** min(failures, 10), self.max_retry_delay
-            )
-            return None
         self._failures.pop(key, None)
         self._retry_at.pop(key, None)
         await self.pending.remove_and_save(key)

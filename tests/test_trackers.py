@@ -1,13 +1,16 @@
+# pyright: reportPrivateUsage=false
 import asyncio
 import threading
 import unittest
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, Mock, patch
 
 from curl_cffi.requests.exceptions import HTTPError
 
 import tests.support as support
 from skypixel import app
+from skypixel.domain.types import Document
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
@@ -21,12 +24,12 @@ from skypixel.trackers.status import StatusUpdaterCog
 
 
 class ProbeCog(PollingCog):
-    async def poll(self):
+    async def poll(self) -> None:
         await asyncio.Future()
 
 
 class PollingTests(unittest.IsolatedAsyncioTestCase):
-    async def test_rank_status_uses_cached_special_rank_lists(self):
+    async def test_rank_status_uses_cached_special_rank_lists(self) -> None:
         bot = Mock(change_presence=AsyncMock(), guilds=[])
         cog = StatusUpdaterCog(bot)
         players = [{"id": "one", "name": "One"}, {"id": "two", "name": "Two"}]
@@ -43,7 +46,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         activity = bot.change_presence.await_args.kwargs["activity"]
         self.assertEqual(activity.state, "Tracking 2 [STAFF] players")
 
-    async def test_rank_status_handles_an_empty_special_rank(self):
+    async def test_rank_status_handles_an_empty_special_rank(self) -> None:
         bot = Mock(change_presence=AsyncMock(), guilds=[])
         cog = StatusUpdaterCog(bot)
         with patch.object(ranktracker, "get_rank_lists", return_value={"staff": []}):
@@ -51,7 +54,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         activity = bot.change_presence.await_args.kwargs["activity"]
         self.assertEqual(activity.state, "Tracking 0 [YOUTUBE] players")
 
-    async def test_status_failure_does_not_stop_the_rotation(self):
+    async def test_status_failure_does_not_stop_the_rotation(self) -> None:
         bot = Mock(change_presence=AsyncMock(), guilds=[])
         cog = StatusUpdaterCog(bot)
         cog.index = 2
@@ -69,28 +72,29 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         await cog.poll()
         bot.change_presence.assert_awaited_once()
 
-    async def test_reconnect_keeps_one_task(self):
+    async def test_reconnect_keeps_one_task(self) -> None:
         cog = ProbeCog(support.make_bot())
         await cog.on_ready()
         task = cog.task
         await cog.on_ready()
         self.assertIs(cog.task, task)
         await cog.close()
+        assert task is not None
         self.assertTrue(task.cancelled())
         self.assertIsNone(cog.task)
 
-    async def test_close_waits_for_poll_cleanup(self):
+    async def test_close_waits_for_poll_cleanup(self) -> None:
         started, stopped = asyncio.Event(), asyncio.Event()
         cog = ProbeCog(support.make_bot())
 
-        async def poll():
+        async def poll() -> None:
             started.set()
             try:
                 await asyncio.Future()
             finally:
                 stopped.set()
 
-        async def close_resources():
+        async def close_resources() -> None:
             self.assertTrue(stopped.is_set())
 
         cog.poll = poll
@@ -102,13 +106,13 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         await cog.on_ready()
         self.assertIsNone(cog.task)
 
-    async def test_poll_error_does_not_stop_the_tracker(self):
+    async def test_poll_error_does_not_stop_the_tracker(self) -> None:
         cog = ProbeCog(support.make_bot())
         cog._logger = Mock()
         complete = asyncio.Event()
         attempts = 0
 
-        async def poll():
+        async def poll() -> None:
             nonlocal attempts
             attempts += 1
             if attempts == 1:
@@ -124,7 +128,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(attempts, 2)
         cog._logger.exception.assert_called_once()
 
-    def test_poll_intervals_match_the_existing_bot(self):
+    def test_poll_intervals_match_the_existing_bot(self) -> None:
         expected = {
             "AlphaTrackerCog": 240,
             "FireSaleTrackerCog": 120,
@@ -137,26 +141,32 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         }
         cogs = {cog.__name__: cog for cog in app.load_cogs()}
         for name, interval in expected.items():
-            self.assertEqual(cogs[name].interval, interval)
+            cog_type = cogs[name]
+            assert issubclass(cog_type, PollingCog)
+            self.assertEqual(cog_type.interval, interval)
 
 
 class RankCacheTests(unittest.IsolatedAsyncioTestCase):
-    async def test_rank_lookup_keeps_the_player_lists(self):
+    async def test_rank_lookup_keeps_the_player_lists(self) -> None:
         response = Mock(json=Mock(return_value={"rankname": "[ADMIN] Player"}))
+        no_players: ranktracker.RankLists = {"staff": []}
         with (
-            patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": []}),
+            patch.object(ranktracker, "RANK_LIST_CACHE", no_players),
             patch.object(ranktracker.http, "get", return_value=response),
         ):
             self.assertEqual(await ranktracker.get_rankname("Player"), "[ADMIN] Player")
             self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
 
-    async def test_unchanged_watchlist_keeps_the_player_lists(self):
-        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-same.json")
+    async def test_unchanged_watchlist_keeps_the_player_lists(self) -> None:
+        state: JsonWrapper[ranktracker.WatchEntry] = JsonWrapper(
+            support.TEST_STORAGE.name + "/watch-same.json"
+        )
+        no_players: ranktracker.RankLists = {"staff": []}
         state.data = {"a": "same"}
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.watch_list = state
         with (
-            patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": []}),
+            patch.object(ranktracker, "RANK_LIST_CACHE", no_players),
             patch.object(
                 ranktracker, "get_rankname", new_callable=AsyncMock, return_value="same"
             ),
@@ -164,8 +174,12 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             await cog.do_watchlist()
             self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
 
-    async def test_rate_limit_stops_the_watchlist_without_changing_players(self):
-        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-limited.json")
+    async def test_rate_limit_stops_the_watchlist_without_changing_players(
+        self,
+    ) -> None:
+        state: JsonWrapper[ranktracker.WatchEntry] = JsonWrapper(
+            support.TEST_STORAGE.name + "/watch-limited.json"
+        )
         state.data = {"first": "same", "second": "same"}
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.watch_list = state
@@ -177,10 +191,10 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
         get.assert_awaited_once_with("first")
         self.assertEqual(state.data, {"first": "same", "second": "same"})
 
-    async def test_invalidation_during_a_fetch_expires_the_fetched_lists(self):
-        data = {"staff": [{"id": "abc", "name": "Player"}]}
+    async def test_invalidation_during_a_fetch_expires_the_fetched_lists(self) -> None:
+        data: ranktracker.RankLists = {"staff": [{"id": "abc", "name": "Player"}]}
 
-        async def fetch(url):
+        async def fetch(url: str) -> ranktracker.RankLists:
             ranktracker.invalidate_rank_lists()
             return data
 
@@ -195,7 +209,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             await ranktracker.get_rank_lists()
         self.assertEqual(get.await_count, 2)
 
-    async def test_empty_rank_response_does_not_replace_the_cache(self):
+    async def test_empty_rank_response_does_not_replace_the_cache(self) -> None:
         cached = {"staff": [{"id": "abc", "name": "Player"}]}
         with (
             patch.object(ranktracker, "RANK_LIST_CACHE", cached),
@@ -213,7 +227,9 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
                 await ranktracker.get_rank_lists()
             self.assertEqual(ranktracker.RANK_LIST_CACHE, cached)
 
-    async def test_concurrent_reads_fetch_once_and_do_not_mutate_the_cache(self):
+    async def test_concurrent_reads_fetch_once_and_do_not_mutate_the_cache(
+        self,
+    ) -> None:
         data = {"staff": [{"id": "abc", "name": "Player"}]}
         with (
             patch.object(ranktracker, "RANK_LIST_CACHE", None),
@@ -233,10 +249,11 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             snapshots[0]["staff"][0]["name"] = "Changed"
             self.assertEqual(ranktracker.RANK_LIST_CACHE, data)
             self.assertEqual(snapshots[1]["staff"][0]["name"], "Player")
+            assert ranktracker.RANK_LIST_CACHE is not None
             self.assertNotIn("special", ranktracker.RANK_LIST_CACHE)
         fetch.assert_awaited_once()
 
-    async def test_rank_cache_expires_after_its_ttl(self):
+    async def test_rank_cache_expires_after_its_ttl(self) -> None:
         cached = {"staff": [{"id": "abc", "name": "Player"}]}
         ttl = ranktracker.RANK_LIST_CACHE_TTL_SECONDS
         with (
@@ -257,15 +274,17 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await ranktracker.get_rank_lists(), {"staff": []})
             fetch.assert_awaited_once()
 
-    async def test_channel_counts_do_not_add_a_synthetic_player_rank(self):
-        data = {"innit": [{"id": "abc", "name": "Player"}]}
+    async def test_channel_counts_do_not_add_a_synthetic_player_rank(self) -> None:
+        data: ranktracker.RankLists = {"innit": [{"id": "abc", "name": "Player"}]}
         bot = Mock(get_channel=Mock(return_value=None))
         with self.assertLogs(ranktracker.logger, level="ERROR"):
             await ranktracker.edit_stat_channels(bot, data)
         self.assertEqual(set(data), {"innit"})
 
-    async def test_watchlist_can_remove_more_than_one_player(self):
-        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-test.json")
+    async def test_watchlist_can_remove_more_than_one_player(self) -> None:
+        state: JsonWrapper[ranktracker.WatchEntry] = JsonWrapper(
+            support.TEST_STORAGE.name + "/watch-test.json"
+        )
         state.data = {"a": "old", "b": "old"}
         state.remove_and_save = AsyncMock(wraps=state.remove_and_save)
         cog = ranktracker.RankTrackerCog(support.make_bot())
@@ -281,7 +300,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
 
 
 class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
-    async def test_failed_fire_sale_save_keeps_the_sale_for_retry(self):
+    async def test_failed_fire_sale_save_keeps_the_sale_for_retry(self) -> None:
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.data.data = {"OLD": {"amount": 1}}
         with (
@@ -299,10 +318,14 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             await cog.poll()
         self.assertIn("NEW", cog.data)
 
-    async def test_rank_change_retries_only_the_failed_notifications(self):
+    async def test_rank_change_retries_only_the_failed_notifications(self) -> None:
         cog = ranktracker.RankTrackerCog(support.make_bot())
-        before = {"player": {"name": "Before", "rank": "youtube"}}
-        after = {"player": {"name": "After", "rank": "staff"}}
+        before: dict[str, ranktracker.PlayerRank] = {
+            "player": {"name": "Before", "rank": "youtube"}
+        }
+        after: dict[str, ranktracker.PlayerRank] = {
+            "player": {"name": "After", "rank": "staff"}
+        }
         cog.data.data = before
         cog.data.replace = AsyncMock(wraps=cog.data.replace)
         with (
@@ -322,9 +345,11 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.data.to_dict(), after)
         self.assertEqual(cog.known_changes, set())
 
-    async def test_unchanged_rank_lists_do_not_rewrite_the_state_file(self):
+    async def test_unchanged_rank_lists_do_not_rewrite_the_state_file(self) -> None:
         cog = ranktracker.RankTrackerCog(support.make_bot())
-        ranks = {"player": {"name": "Name", "rank": "youtube"}}
+        ranks: dict[str, ranktracker.PlayerRank] = {
+            "player": {"name": "Name", "rank": "youtube"}
+        }
         cog.data.data = ranks
         cog.data.replace = AsyncMock(wraps=cog.data.replace)
         with (
@@ -341,7 +366,9 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         stats.assert_awaited_once()
         self.assertEqual(cog.data.to_dict(), ranks)
 
-    async def test_fire_sale_notification_failure_keeps_the_sale_for_retry(self):
+    async def test_fire_sale_notification_failure_keeps_the_sale_for_retry(
+        self,
+    ) -> None:
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.data.data = {"OLD": {"amount": 1}}
         cog.data.replace = AsyncMock(wraps=cog.data.replace)
@@ -359,7 +386,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(send.await_count, 2)
         self.assertEqual(cog.data["NEW"], sales["NEW"])
 
-    async def test_failed_active_upload_does_not_skip_ended_uploads(self):
+    async def test_failed_active_upload_does_not_skip_ended_uploads(self) -> None:
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with (
             patch.object(cog.active_uploads, "flush", side_effect=OSError),
@@ -369,7 +396,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
                 await cog.upload_queue()
         flush.assert_awaited_once()
 
-    async def test_failed_active_close_does_not_skip_the_ended_collection(self):
+    async def test_failed_active_close_does_not_skip_the_ended_collection(self) -> None:
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with (
             patch.object(cog.active_uploads, "close", side_effect=OSError),
@@ -379,13 +406,13 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
                 await cog.close_resources()
         close.assert_awaited_once()
 
-    async def test_auction_failure_waits_for_other_tasks(self):
+    async def test_auction_failure_waits_for_other_tasks(self) -> None:
         completed = False
 
-        async def fail():
+        async def fail() -> None:
             raise OSError("failed request")
 
-        async def complete():
+        async def complete() -> None:
             nonlocal completed
             await asyncio.sleep(0)
             await asyncio.sleep(0)
@@ -395,15 +422,17 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             await auctionhouse.finish_tasks(fail(), complete())
         self.assertTrue(completed)
 
-    async def test_auction_poll_uploads_the_successful_scanner_after_a_failure(self):
+    async def test_auction_poll_uploads_the_successful_scanner_after_a_failure(
+        self,
+    ) -> None:
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
 
-        async def scan_ended():
+        async def scan_ended() -> float:
             await asyncio.sleep(0)
             cog.ended_uploads.append({"_id": "ended"})
             return 30.0
 
-        async def upload():
+        async def upload() -> None:
             self.assertEqual(cog.ended_uploads.docs, [{"_id": "ended"}])
 
         with (
@@ -417,7 +446,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
                 await cog.poll()
         flush.assert_awaited_once()
 
-    async def test_first_fire_sale_poll_saves_without_notifications(self):
+    async def test_first_fire_sale_poll_saves_without_notifications(self) -> None:
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.initialized = False
         cog.data.data = {}
@@ -438,11 +467,11 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         cog.data.replace.assert_awaited_once()
         self.assertEqual(cog.data.to_dict(), sales)
 
-    async def test_queue_keeps_records_added_during_upload(self):
-        queue = [{"_id": "first"}]
-        uploaded = []
+    async def test_queue_keeps_records_added_during_upload(self) -> None:
+        queue: list[Document] = [{"_id": "first"}]
+        uploaded: list[Document] = []
 
-        async def update(docs):
+        async def update(docs: list[Document]) -> None:
             uploaded.extend(docs)
             if docs[0]["_id"] == "first":
                 queue.append({"_id": "second"})
@@ -451,13 +480,13 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(uploaded, [{"_id": "first"}, {"_id": "second"}])
         self.assertEqual(queue, [])
 
-    async def test_failed_upload_retains_the_queue(self):
+    async def test_failed_upload_retains_the_queue(self) -> None:
         queue = [{"_id": "first"}]
         with self.assertRaises(OSError):
             await flush_queue(Mock(update_many=AsyncMock(side_effect=OSError)), queue)
         self.assertEqual(queue, [{"_id": "first"}])
 
-    async def test_auction_fetch_rejects_a_malformed_response(self):
+    async def test_auction_fetch_rejects_a_malformed_response(self) -> None:
         with patch.object(
             auctionhouse.http,
             "get_json",
@@ -467,7 +496,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ValueError):
                 await auctionhouse.get_active_auctions()
 
-    async def test_bad_auction_does_not_stop_the_batch(self):
+    async def test_bad_auction_does_not_stop_the_batch(self) -> None:
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with (
             patch.object(
@@ -484,7 +513,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             )
         self.assertEqual(process.await_count, 2)
 
-    async def test_failed_alert_does_not_repeat_the_scanned_auctions(self):
+    async def test_failed_alert_does_not_repeat_the_scanned_auctions(self) -> None:
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         cog.last_scanned_active = 1000
         auctions = [
@@ -511,7 +540,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(process.await_count, 2)
         self.assertEqual(cog.last_scanned_active, 3000)
 
-    async def test_upload_failure_keeps_the_scanner_schedule(self):
+    async def test_upload_failure_keeps_the_scanner_schedule(self) -> None:
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with (
             patch.object(cog, "active_scanner", return_value=40.0),
@@ -521,7 +550,7 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         ):
             self.assertEqual(await cog.poll(), 30.0)
 
-    async def test_late_auction_api_backs_off_until_it_updates(self):
+    async def test_late_auction_api_backs_off_until_it_updates(self) -> None:
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with patch.object(auctionhouse.time, "time", return_value=1000.0):
             self.assertEqual(cog.next_delay("active", 950_000, False), 10.0)
@@ -530,10 +559,14 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(cog.next_delay("ended", 900_000, False), 1.0)
             self.assertEqual(cog.next_delay("active", 900_000, True), 1.0)
 
-    async def test_rank_list_that_shrinks_by_half_needs_confirmation(self):
+    async def test_rank_list_that_shrinks_by_half_needs_confirmation(self) -> None:
         cog = ranktracker.RankTrackerCog(support.make_bot())
-        before = {str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)}
-        after = {"0": {"name": "P0", "rank": "youtube"}}
+        before: dict[str, ranktracker.PlayerRank] = {
+            str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)
+        }
+        after: dict[str, ranktracker.PlayerRank] = {
+            "0": {"name": "P0", "rank": "youtube"}
+        }
         cog.data.data = before
         with (
             patch.object(ranktracker.RankTrackerCog, "do_watchlist", AsyncMock()),
@@ -552,8 +585,10 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.data.to_dict(), after)
         self.assertEqual(cog.shrunken_polls, 0)
 
-    async def test_small_rank_changes_do_not_need_confirmation(self):
-        before = {str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)}
+    async def test_small_rank_changes_do_not_need_confirmation(self) -> None:
+        before: dict[str, ranktracker.PlayerRank] = {
+            str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)
+        }
         after = {key: value for key, value in before.items() if key != "0"}
         self.assertEqual(ranktracker.shrunken_ranks(before, after), [])
         self.assertEqual(
@@ -562,10 +597,10 @@ class TrackerStateTests(unittest.IsolatedAsyncioTestCase):
 
 
 class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
-    def job(self, title):
+    def job(self, title: str) -> jobtracker.Job:
         return jobtracker.Job(title, 1, ["q"], None, ["o"])
 
-    async def test_empty_job_list_needs_confirmation(self):
+    async def test_empty_job_list_needs_confirmation(self) -> None:
         cog = jobtracker.JobTrackerCog(support.make_bot())
         cog.data.data = {"Dev": self.job("Dev").to_dict()}
         with (
@@ -581,7 +616,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         notify.assert_awaited_once()
         self.assertEqual(cog.data.to_dict(), {})
 
-    async def test_first_run_saves_jobs_without_notifications(self):
+    async def test_first_run_saves_jobs_without_notifications(self) -> None:
         cog = jobtracker.JobTrackerCog(support.make_bot())
         cog.data.data = {}
         cog.initialized = False
@@ -595,7 +630,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Dev", cog.data)
         self.assertTrue(cog.initialized)
 
-    async def test_new_job_after_an_empty_saved_list_is_announced(self):
+    async def test_new_job_after_an_empty_saved_list_is_announced(self) -> None:
         cog = jobtracker.JobTrackerCog(support.make_bot())
         cog.data.data = {}
         cog.initialized = True
@@ -607,15 +642,18 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
             await cog.poll()
         notify.assert_awaited_once()
 
-    async def test_invalid_rank_lookup_never_reaches_the_api(self):
+    async def test_invalid_rank_lookup_never_reaches_the_api(self) -> None:
         with patch.object(ranktracker.http, "get", new_callable=AsyncMock) as fetch:
             with self.assertRaises(ranktracker.mojang.PlayerNotFound):
                 await ranktracker.get_rankname("../ranks")
         fetch.assert_not_awaited()
 
-    async def test_full_watchlist_rejects_new_players(self):
-        state = JsonWrapper(support.TEST_STORAGE.name + "/watch-full.json")
-        state.data = {"a": None}
+    async def test_full_watchlist_rejects_new_players(self) -> None:
+        state: JsonWrapper[ranktracker.WatchEntry] = JsonWrapper(
+            support.TEST_STORAGE.name + "/watch-full.json"
+        )
+        # Only the entry count matters here, so the entry is a bare None.
+        state.data = cast("dict[str, ranktracker.WatchEntry]", {"a": None})
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.watch_list = state
         inter = support.make_inter()
@@ -632,12 +670,12 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state.to_dict(), {"a": None})
         self.assertEqual(support.error_title(inter), "Watchlist Full!")
 
-    async def test_auction_items_decode_off_the_event_loop(self):
+    async def test_auction_items_decode_off_the_event_loop(self) -> None:
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         loop_thread = threading.get_ident()
-        threads = []
+        threads: list[int] = []
 
-        def decode(item_bytes):
+        def decode(item_bytes: object) -> Document:
             threads.append(threading.get_ident())
             return {}
 
@@ -659,7 +697,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotEqual(threads[0], loop_thread)
         self.assertEqual([doc["_id"] for doc in cog.ended_uploads.docs], ["a", "b"])
 
-    async def test_malformed_auction_items_are_skipped(self):
+    async def test_malformed_auction_items_are_skipped(self) -> None:
         cog = auctionhouse.AuctionTrackerCog(support.make_bot())
         with self.assertLogs(auctionhouse.logger, level="WARNING"):
             await cog.process_auction(
@@ -667,15 +705,15 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
             )
         self.assertEqual(cog.active_uploads.docs, [])
 
-    async def test_leather_colors_use_the_low_24_bits(self):
-        auction = {
+    async def test_leather_colors_use_the_low_24_bits(self) -> None:
+        auction: auctionhouse.Auction = {
             "uuid": "a",
             "item_name": "Boots",
             "bin": True,
             "starting_bid": 1,
             "auctioneer": "b" * 32,
         }
-        item = {
+        item: auctionhouse.Item = {
             "tag": {
                 "display": {"color": 0x1123456},
                 "ExtraAttributes": {"id": "TEST_HELMET"},
@@ -684,10 +722,12 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
         player = Mock(name="Player", avatar="", id="b" * 32)
         with patch.object(auctionhouse.mojang, "get", return_value=player):
             embed = await auctionhouse.make_auction_embed(auction, item)
+        assert embed.color is not None
+        assert embed.thumbnail.url is not None
         self.assertEqual(embed.color.value, 0x123456)
         self.assertTrue(embed.thumbnail.url.endswith("/123456.png"))
 
-    async def test_ended_fire_sales_are_forgotten_and_can_repeat(self):
+    async def test_ended_fire_sales_are_forgotten_and_can_repeat(self) -> None:
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.initialized = False
         cog.data.data = {"OLD": {"end": 1_000}, "LIVE": {"end": 10**15}}
@@ -711,7 +751,7 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
 
 
 class RankChangeAlertTests(unittest.IsolatedAsyncioTestCase):
-    async def test_rank_change_sends_one_alert_to_both_ranks_channels(self):
+    async def test_rank_change_sends_one_alert_to_both_ranks_channels(self) -> None:
         cog = ranktracker.RankTrackerCog(support.make_bot())
         channels = {"youtube": {1: "a", 2: "b"}, "staff": {2: "c", 3: "d"}}
         with (
@@ -722,6 +762,7 @@ class RankChangeAlertTests(unittest.IsolatedAsyncioTestCase):
         ):
             await cog.on_rank_change("uuid", "Name", "youtube", "staff")
         broadcast.assert_awaited_once()
+        assert broadcast.await_args is not None
         self.assertEqual(broadcast.await_args.args[1], {1: "a", 2: "c", 3: "d"})
         self.assertEqual(
             broadcast.await_args.kwargs["embed"].title,
@@ -730,14 +771,15 @@ class RankChangeAlertTests(unittest.IsolatedAsyncioTestCase):
 
 
 class WatchlistCommandTests(unittest.IsolatedAsyncioTestCase):
-    def cog(self, name):
-        cog = ranktracker.RankTrackerCog(support.make_bot(is_owner=AsyncMock()))
-        cog.bot.is_owner.return_value = False
+    def cog(self, name: str) -> ranktracker.RankTrackerCog:
+        cog = ranktracker.RankTrackerCog(
+            support.make_bot(is_owner=AsyncMock(return_value=False))
+        )
         cog.watch_list = JsonWrapper(f"{support.TEST_STORAGE.name}/{name}.json")
         cog.watch_list.data = {"b": {"rankname": None, "name": "Player", "added_by": 1}}
         return cog
 
-    async def unwatch(self, cog, user_id):
+    async def unwatch(self, cog: ranktracker.RankTrackerCog, user_id: int) -> Mock:
         inter = support.make_inter(author=Mock(id=user_id))
         player = Mock(id="b")
         player.name = "Player"
@@ -747,7 +789,7 @@ class WatchlistCommandTests(unittest.IsolatedAsyncioTestCase):
             await cog.unwatch.callback(cog, inter, "Player")
         return inter
 
-    async def test_only_the_user_who_added_a_player_can_remove_them(self):
+    async def test_only_the_user_who_added_a_player_can_remove_them(self) -> None:
         cog = self.cog("unwatch-other")
         inter = await self.unwatch(cog, 2)
         self.assertEqual(support.error_title(inter), "Not Your Player!")
@@ -758,7 +800,7 @@ class WatchlistCommandTests(unittest.IsolatedAsyncioTestCase):
             inter.send.call_args.kwargs["embed"].title, "Removed From Watchlist"
         )
 
-    async def test_first_scan_keeps_who_added_the_player(self):
+    async def test_first_scan_keeps_who_added_the_player(self) -> None:
         cog = self.cog("watch-scan")
         with patch.object(ranktracker, "get_rankname", return_value="§7Player"):
             await cog.do_watchlist()
@@ -769,7 +811,7 @@ class WatchlistCommandTests(unittest.IsolatedAsyncioTestCase):
 
 
 class StatusCountTests(unittest.IsolatedAsyncioTestCase):
-    async def test_item_counts_are_reused_between_status_changes(self):
+    async def test_item_counts_are_reused_between_status_changes(self) -> None:
         item_db = Mock(count_documents=AsyncMock(return_value=1234))
         bot = Mock(
             change_presence=AsyncMock(),

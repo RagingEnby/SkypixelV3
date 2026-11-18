@@ -2,6 +2,7 @@ import asyncio
 import logging
 import textwrap
 import traceback
+from typing import Any
 
 import disnake
 from disnake.ext import commands
@@ -9,16 +10,19 @@ from disnake.ext import commands
 from skypixel import constants, embed_utils
 from skypixel.clients import http
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def register(bot: commands.InteractionBot) -> None:
     # The command runs any code the owner sends. Register it in the dev server
     # only, so no other server or user install lists it.
-    @bot.message_command(name="Execute", guild_ids=[constants.DEV_SERVER_ID])
+    # disnake types the callback interaction as MessageCommandInteraction with no
+    # client type, so pyright sees the decorator as partly unknown.
+    @bot.message_command(name="Execute", guild_ids=[constants.DEV_SERVER_ID])  # pyright: ignore[reportUnknownMemberType]
     async def execute(
-        inter: disnake.MessageCommandInteraction, message: disnake.Message
-    ):
+        inter: disnake.MessageCommandInteraction[disnake.Client],
+        message: disnake.Message,
+    ) -> None:
         if not await bot.is_owner(inter.author):
             return await inter.send(
                 embed=embed_utils.make_error(
@@ -35,7 +39,8 @@ def register(bot: commands.InteractionBot) -> None:
                 .replace("\u2018", "'")
             )
             code = "async def temp_func():\n" + textwrap.indent(source, "    ") + "\n"
-            namespace = {
+            # The owner's code can read and define values of any type here.
+            namespace: dict[str, Any] = {
                 **globals(),
                 **locals(),
                 "constants": constants,

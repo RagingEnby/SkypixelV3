@@ -4,18 +4,24 @@ import sys
 import tempfile
 import types
 from contextlib import nullcontext
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, Mock, patch
+
+if TYPE_CHECKING:
+    from disnake.types.interactions import EditApplicationCommand
+
+    from skypixel.clients.hypixel import SkyblockItem
 
 TEST_STORAGE = tempfile.TemporaryDirectory(prefix="skypixel-tests-")
 atexit.register(TEST_STORAGE.cleanup)
 os.environ["SKYPIXEL_STORAGE_DIR"] = TEST_STORAGE.name
 
 secrets = types.ModuleType("scrts")
-secrets.BOT_TOKEN = "test-token"
-secrets.MONGODB_URI = "mongodb://localhost:27017"
+setattr(secrets, "BOT_TOKEN", "test-token")  # noqa: B010
+setattr(secrets, "MONGODB_URI", "mongodb://localhost:27017")  # noqa: B010
 sys.modules["scrts"] = secrets
 
-ITEMS = [
+ITEMS: list[SkyblockItem] = [
     {
         "id": "TEST_MEMENTO",
         "name": "Test Memento",
@@ -38,24 +44,27 @@ from skypixel.settings import Settings  # noqa: E402
 SETTINGS = Settings.load()
 
 
-def make_bot(**kwargs) -> Mock:
+def make_bot(**kwargs: object) -> Mock:
     """Return a mock bot that carries the test settings."""
     kwargs.setdefault("notifications", Mock(event=Mock(return_value=nullcontext())))
     kwargs.setdefault("services", Services(SETTINGS))
-    return Mock(settings=SETTINGS, **kwargs)
+    bot = Mock(settings=SETTINGS)
+    bot.configure_mock(**kwargs)
+    return bot
 
 
-def make_inter(**kwargs) -> Mock:
+def make_inter(**kwargs: object) -> Mock:
     """Return a mock command interaction that has not been answered yet."""
-    return Mock(
+    inter = Mock(
         send=AsyncMock(),
         response=Mock(
             is_done=Mock(return_value=False),
             send_message=AsyncMock(),
             defer=AsyncMock(),
         ),
-        **kwargs,
     )
+    inter.configure_mock(**kwargs)
+    return inter
 
 
 def error_title(inter: Mock) -> str:
@@ -74,7 +83,7 @@ with patch(
     hypixel.initialize(ITEMS)
 
 
-def command_schema():
+def command_schema() -> list[EditApplicationCommand]:
     import asyncio
 
     import disnake

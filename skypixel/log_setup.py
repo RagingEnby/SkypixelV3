@@ -3,7 +3,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-HANDLER_NAME = "skypixel"
+HANDLER_NAME: str = "skypixel"
 
 
 def redact(text: str, secrets: tuple[str, ...]) -> str:
@@ -14,9 +14,9 @@ def redact(text: str, secrets: tuple[str, ...]) -> str:
 
 
 class RedactingFormatter(logging.Formatter):
-    def __init__(self, fmt: str, secrets: tuple[str, ...]):
+    def __init__(self, fmt: str, secrets: tuple[str, ...]) -> None:
         super().__init__(fmt)
-        self.secrets = secrets
+        self.secrets: tuple[str, ...] = secrets
 
     def format(self, record: logging.LogRecord) -> str:
         return redact(super().format(record), self.secrets)

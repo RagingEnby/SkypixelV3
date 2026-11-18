@@ -10,10 +10,10 @@ import disnake
 from skypixel import constants
 from skypixel.clients import hypixel
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-def make_error(title: str, *args) -> disnake.Embed:
+def make_error(title: str, *args: object) -> disnake.Embed:
     return fit_embed(
         add_footer(
             disnake.Embed(

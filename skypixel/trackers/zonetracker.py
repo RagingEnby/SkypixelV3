@@ -13,31 +13,34 @@ if TYPE_CHECKING:
 
 
 URL: str = "https://api.ragingenby.dev/hypixel/skyblock/zones"
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 async def get_zones() -> set[str]:
     data = await http.get_json(URL)
-    if not isinstance(data, dict) or not isinstance(data.get("zones"), list):
+    zones = data.get("zones") if isinstance(data, dict) else None
+    if not isinstance(zones, list) or not all(isinstance(zone, str) for zone in zones):
         raise ValueError("The zone API did not return a zones list.")
-    return set(data["zones"])
+    return {zone for zone in zones if isinstance(zone, str)}
 
 
-async def send(bot: SkypixelBot, embed: disnake.Embed):
+async def send(bot: SkypixelBot, embed: disnake.Embed) -> None:
     await alerts.broadcast(bot, constants.ZONE_TRACKER_CHANNELS, embed=embed)
 
 
 class ZoneTrackerCog(PollingCog):
-    interval = 12000
+    interval: float = 12000
 
-    def __init__(self, bot: SkypixelBot):
+    def __init__(self, bot: SkypixelBot) -> None:
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "zones.json")
+        self.data: JsonWrapper[list[str]] = JsonWrapper(
+            bot.settings.storage_dir / "zones.json"
+        )
         if not self.data.get("zones"):
             logger.warning("zones.json is empty")
             self.data["zones"] = []
 
-    async def on_new_zone(self, zones: set[str]):
+    async def on_new_zone(self, zones: set[str]) -> None:
         logger.debug("new zones detected: %s", zones)
         embed = embed_utils.add_footer(
             disnake.Embed(
@@ -50,7 +53,7 @@ class ZoneTrackerCog(PollingCog):
         )
         await send(self.bot, embed)
 
-    async def poll(self):
+    async def poll(self) -> None:
         zones = await get_zones()
         new = {zone for zone in zones if zone not in self.data["zones"]}
         if new:

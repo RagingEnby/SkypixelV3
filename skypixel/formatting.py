@@ -8,14 +8,14 @@ import disnake
 
 from skypixel import constants
 
-COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
+COLOR_CODE_PATTERN: re.Pattern[str] = re.compile(r"[§&][0-9a-fA-Fklmnor]")
 # Minecraft format codes and their ansi escapes: bold, strikethrough, underline,
 # italic, and reset. Obfuscated text (k) has no escape and becomes OBFUSCATED.
-ANSI_FORMATS = {"l": 1, "m": 9, "n": 4, "o": 3, "r": 0}
-OBFUSCATED = "\u2592"
+ANSI_FORMATS: dict[str, int] = {"l": 1, "m": 9, "n": 4, "o": 3, "r": 0}
+OBFUSCATED: str = "\u2592"
 # Old items carry their creation time as text in Hypixel's server time, which
 # is US Eastern.
-HYPIXEL_TIMEZONE = ZoneInfo("America/New_York")
+HYPIXEL_TIMEZONE: ZoneInfo = ZoneInfo("America/New_York")
 
 
 def remove_color_codes(string: str) -> str:
@@ -30,7 +30,7 @@ def to_ansi(string: str) -> str:
     """
     if not COLOR_CODE_PATTERN.search(string):
         return string
-    parts = []
+    parts: list[str] = []
     obfuscated = False
     position = 0
     for match in COLOR_CODE_PATTERN.finditer(string):

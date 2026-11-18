@@ -1,12 +1,12 @@
 """Send tracker alerts through the notification outbox."""
 
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Unpack
 
 import disnake
 
 from skypixel.embed_utils import fit_embed
-from skypixel.storage.notifications import notification_fingerprint
+from skypixel.storage.notifications import SubmitOptions, notification_fingerprint
 
 if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
@@ -20,11 +20,12 @@ async def broadcast(
     embeds: list[disnake.Embed] | None = None,
     ping: bool = True,
 ) -> None:
-    batches = []
+    batches: list[list[disnake.Embed] | None] = []
     if embeds is None:
         batches.append(None)
     else:
-        batch, length = [], 0
+        batch: list[disnake.Embed] = []
+        length = 0
         for candidate in embeds:
             fit_embed(candidate)
             if batch and (len(batch) == 10 or length + len(candidate) > 6000):
@@ -51,12 +52,17 @@ async def broadcast(
         }
     )
     async with bot.notifications.event("broadcast", version):
-        for batch in batches:
-            kwargs = {"embeds": batch} if batch is not None else {"embed": embed}
+        for embed_batch in batches:
+            # submit() uses embeds when it is set and embed otherwise.
+            batch_embed = embed if embed_batch is None else None
             results = await asyncio.gather(
                 *(
                     notify_to_channel(
-                        bot, channel_id, content if ping else "", **kwargs
+                        bot,
+                        channel_id,
+                        content if ping else "",
+                        embed=batch_embed,
+                        embeds=embed_batch,
                     )
                     for channel_id, content in channels.items()
                 ),
@@ -71,6 +77,6 @@ async def notify_to_channel(
     bot: SkypixelBot,
     channel_id: int,
     content: str | None = None,
-    **kwargs,
+    **kwargs: Unpack[SubmitOptions],
 ) -> disnake.Message | None:
     return await bot.notifications.submit(channel_id, content, **kwargs)

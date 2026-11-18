@@ -2,21 +2,23 @@
 
 import logging
 import re
+from collections.abc import Mapping
 from functools import lru_cache
 from typing import Literal
 
 from skypixel import constants
+from skypixel.clients.hypixel import SkyblockItem, item_id
 from skypixel.domain import colorcompare
 from skypixel.domain.types import ArmorType, ExoticType
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-DYE_PATTERN = re.compile(
+DYE_PATTERN: re.Pattern[str] = re.compile(
     r"Combinable in Anvil Changes the color of an armor piece to #([0-9A-Fa-f]{6})!"
 )
 CATEGORIES: dict[str, str] = {}
 DEFAULT_HEXES: dict[str, str] = {}
-MISC_HEXES = {
+MISC_HEXES: dict[str, str] = {
     "Bleached": "A06540",
     "Pure Red": "FF0000",
     "Pure Green": "00FF00",
@@ -27,7 +29,7 @@ MISC_HEXES = {
     "Pure Black": "000000",
     "Pure Blue": "0000FF",
 }
-CRYSTAL_COLORS = {
+CRYSTAL_COLORS: set[str] = {
     "1F0030",
     "46085E",
     "54146E",
@@ -45,7 +47,7 @@ CRYSTAL_COLORS = {
     "EFE1F5",
     "FCF3FF",
 }
-FAIRY_COLORS = {
+FAIRY_COLORS: set[str] = {
     "330066",
     "4C0099",
     "660033",
@@ -71,7 +73,7 @@ FAIRY_COLORS = {
     "FFCCE5",
     "FFCCFF",
 }
-OG_FAIRY_COLORS = {
+OG_FAIRY_COLORS: set[str] = {
     "FF99FF",
     "FFCCFF",
     "E5CCFF",
@@ -89,7 +91,7 @@ OG_FAIRY_COLORS = {
     "330066",
     "990099",
 }
-SPOOK_COLORS = {
+SPOOK_COLORS: set[str] = {
     "000000",
     "070008",
     "0E000F",
@@ -116,7 +118,7 @@ SPOOK_COLORS = {
     "993399",
     "9E00B2",
 }
-GLITCHED_COLORS = {
+GLITCHED_COLORS: dict[str, str] = {
     "SHARK_SCALE": "FFDC51",
     "FROZEN_BLAZE": "F7DA33",
     "BAT_PERSON": "606060",
@@ -136,7 +138,7 @@ GLITCHED_COLORS = {
     "WISE_WITHER_BOOTS": "1CD4E4",
     "WITHER_BOOTS": "000000",
 }
-VARIANT_COLORS = {
+VARIANT_COLORS: dict[str, set[str]] = {
     "RANCHERS_BOOTS": {"CC5500", "000000"},
     "REAPER_BOOTS": {"1B1B1B", "FF0000"},
     "REAPER_LEGGINGS": {"1B1B1B", "FF0000"},
@@ -204,13 +206,13 @@ for piece, hexes in OG_FAIRY.items():
         )
 
 
-def configure(items: list[dict]) -> None:
+def configure(items: list[SkyblockItem]) -> None:
     """Build color tables after the item catalog loads."""
     CATEGORIES.clear()
     CATEGORIES.update(
-        (item["id"], item["category"])
+        (item_id(item), category)
         for item in items
-        if isinstance(item.get("category"), str)
+        if isinstance(category := item.get("category"), str)
     )
     DEFAULT_HEXES.clear()
     for armor_type, candidates in ARMOR_COLORS.items():
@@ -234,23 +236,26 @@ def configure(items: list[dict]) -> None:
         )
         if armor_type in ARMOR_COLORS and item.get("color"):
             try:
-                rgb = tuple(map(int, item["color"].split(",")))
+                color = item["color"]
+                if not isinstance(color, str):
+                    # A color that is not text has no split(), as before.
+                    raise AttributeError("Invalid RGB color.")
+                rgb = tuple(map(int, color.split(",")))
                 if len(rgb) != 3 or any(value < 0 or value > 255 for value in rgb):
                     raise ValueError("Invalid RGB color.")
-                DEFAULT_HEXES[item["id"]] = colorcompare.rgb_to_hex(rgb)
-                ARMOR_COLORS[armor_type][item.get("name", item["id"])] = (
-                    colorcompare.rgb_to_lab(rgb)
-                )
+                DEFAULT_HEXES[item_id(item)] = colorcompare.rgb_to_hex(rgb)
+                name = item.get("name", item_id(item))
+                if isinstance(name, str):
+                    ARMOR_COLORS[armor_type][name] = colorcompare.rgb_to_lab(rgb)
             except (ValueError, TypeError, AttributeError):  # fmt: skip
                 logger.warning("Skipped an invalid default color for %s.", item["id"])
         description = item.get("description")
         dye = (
             DYE_PATTERN.fullmatch(description) if isinstance(description, str) else None
         )
-        if item["id"].startswith("DYE_") and dye:
-            ARMOR_COLORS["other"][item.get("name", item["id"])] = (
-                colorcompare.hex_to_lab(dye.group(1))
-            )
+        name = item.get("name", item_id(item))
+        if item_id(item).startswith("DYE_") and dye and isinstance(name, str):
+            ARMOR_COLORS["other"][name] = colorcompare.hex_to_lab(dye.group(1))
     find_closest_pieces.cache_clear()
     get_top_5.cache_clear()
 
@@ -313,7 +318,7 @@ def is_variant(item_id: str, hex_code: str) -> bool:
 
 
 def get_exotic_type(
-    item_id: str, hex_code: str, extra_attributes: dict | None = None
+    item_id: str, hex_code: str, extra_attributes: Mapping[str, object] | None = None
 ) -> ExoticType | None:
     hex_code = hex_code.upper()
     if (extra_attributes and extra_attributes.get("dye_item")) or is_variant(
@@ -343,7 +348,7 @@ def find_closest_pieces(armor_type: ArmorType, color: str | int) -> dict[str, fl
         else colorcompare.int_to_lab(color)
     )
     candidates = {**ARMOR_COLORS[armor_type], **ARMOR_COLORS["other"]}
-    matches = {}
+    matches: dict[str, float] = {}
     for name, candidate_lab in candidates.items():
         matches[name] = colorcompare.compare_delta_cie(lab, candidate_lab)
     return dict(sorted(matches.items(), key=lambda item: item[1]))
@@ -352,7 +357,7 @@ def find_closest_pieces(armor_type: ArmorType, color: str | int) -> dict[str, fl
 @lru_cache(maxsize=1024)
 def get_top_5(armor_type: ArmorType, color: str | int) -> dict[str, float]:
     top_5: dict[str, float] = {}
-    groups = set()
+    groups: set[str] = set()
     for name, distance in find_closest_pieces(armor_type, color).items():
         if len(top_5) >= 5:
             break

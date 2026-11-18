@@ -11,15 +11,15 @@ if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 JoinLeave = Literal["join", "leave"]
 
 
 class GuildCog(commands.Cog):
-    def __init__(self, bot: SkypixelBot):
-        self.bot = bot
+    def __init__(self, bot: SkypixelBot) -> None:
+        self.bot: SkypixelBot = bot
 
-    async def on_bot_joinleave(self, guild: disnake.Guild, action: JoinLeave):
+    async def on_bot_joinleave(self, guild: disnake.Guild, action: JoinLeave) -> None:
         if not guild.members:
             return
         verb = "joined" if action == "join" else "left"
@@ -44,7 +44,9 @@ class GuildCog(commands.Cog):
             self.bot, constants.INVITE_LOG_CHANNEL, embed=embed
         )
 
-    async def on_member_joinleave(self, member: disnake.Member, action: JoinLeave):
+    async def on_member_joinleave(
+        self, member: disnake.Member, action: JoinLeave
+    ) -> None:
         if member.guild.id != constants.DEV_SERVER_ID:
             return
         verb = "joined" if action == "join" else "left"
@@ -68,17 +70,17 @@ class GuildCog(commands.Cog):
         )
 
     @commands.Cog.listener()
-    async def on_member_join(self, member: disnake.Member):
+    async def on_member_join(self, member: disnake.Member) -> None:
         return await self.on_member_joinleave(member, "join")
 
     @commands.Cog.listener()
-    async def on_member_remove(self, member: disnake.Member):
+    async def on_member_remove(self, member: disnake.Member) -> None:
         return await self.on_member_joinleave(member, "leave")
 
     @commands.Cog.listener()
-    async def on_guild_join(self, guild: disnake.Guild):
+    async def on_guild_join(self, guild: disnake.Guild) -> None:
         return await self.on_bot_joinleave(guild, "join")
 
     @commands.Cog.listener()
-    async def on_guild_remove(self, guild: disnake.Guild):
+    async def on_guild_remove(self, guild: disnake.Guild) -> None:
         return await self.on_bot_joinleave(guild, "leave")

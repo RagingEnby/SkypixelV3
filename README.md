@@ -17,6 +17,7 @@ The channel and role IDs in `skypixel/constants.py` belong to the live bot's ser
 ```sh
 uv run ruff check .
 uv run ruff format --check .
+uv run pyright
 uv run python -W error::ResourceWarning -m unittest discover -s tests -t .
 ```
 

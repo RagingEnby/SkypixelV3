@@ -6,11 +6,15 @@ from skypixel import embed_utils
 
 
 class OwnedView(disnake.ui.View):
-    def __init__(self, inter: disnake.Interaction, *, timeout: float = 180):
+    def __init__(
+        self, inter: disnake.Interaction[disnake.Client], *, timeout: float = 180
+    ) -> None:
         super().__init__(timeout=timeout)
-        self.inter = inter
+        self.inter: disnake.Interaction[disnake.Client] = inter
 
-    async def interaction_check(self, interaction: disnake.Interaction) -> bool:
+    async def interaction_check(
+        self, interaction: disnake.MessageInteraction[disnake.Client]
+    ) -> bool:
         if interaction.user == self.inter.user:
             return True
         await interaction.response.send_message(

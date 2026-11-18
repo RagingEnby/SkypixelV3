@@ -2,7 +2,7 @@ import asyncio
 import logging
 from contextlib import suppress
 from functools import wraps
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeGuard
 
 from disnake.ext import commands
 
@@ -13,27 +13,32 @@ if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
 
+def _is_json_wrapper(value: object) -> TypeGuard[JsonWrapper[object]]:
+    """Check for tracker state. Only the values matter, so read them as object."""
+    return isinstance(value, JsonWrapper)
+
+
 class PollingCog(commands.Cog):
     """Run one polling task across Discord reconnects and await it on close."""
 
     interval: float = 60
 
-    def __init__(self, bot: SkypixelBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
-        self._close_lock = asyncio.Lock()
-        self._closed = False
-        self._logger = logging.getLogger(type(self).__module__)
+    def __init__(self, bot: SkypixelBot) -> None:
+        self.bot: SkypixelBot = bot
+        self.task: asyncio.Task[None] | None = None
+        self._close_lock: asyncio.Lock = asyncio.Lock()
+        self._closed: bool = False
+        self._logger: logging.Logger = logging.getLogger(type(self).__module__)
         if isinstance(getattr(bot, "notifications", None), NotificationOutbox):
             poll = self.poll
 
             @wraps(poll)
-            async def poll_with_notifications():
-                state = getattr(self, "data", None)
+            async def poll_with_notifications() -> float | None:
+                state: object = getattr(self, "data", None)
                 version = notification_fingerprint(
                     {
                         "state": state.to_dict()
-                        if isinstance(state, JsonWrapper)
+                        if _is_json_wrapper(state)
                         else {
                             "active": getattr(self, "last_scanned_active", None),
                             "ended": getattr(self, "last_scanned_ended", None),
@@ -50,6 +55,7 @@ class PollingCog(commands.Cog):
 
     async def main(self) -> None:
         while True:
+            delay: float | None
             try:
                 delay = await self.poll()
                 delay = self.interval if delay is None else max(float(delay), 1.0)

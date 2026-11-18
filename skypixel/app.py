@@ -2,7 +2,7 @@ import asyncio
 import logging
 import signal
 from contextlib import suppress
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 import disnake
 from disnake.ext import commands
@@ -26,7 +26,7 @@ from skypixel.trackers.status import StatusUpdaterCog
 from skypixel.trackers.versiontracker import VersionTrackerCog
 from skypixel.trackers.zonetracker import ZoneTrackerCog
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -37,18 +37,24 @@ class ClosableCog(Protocol):
 
 
 class SkypixelBot(commands.InteractionBot):
-    def __init__(self, settings: Settings, services: Services | None = None, **kwargs):
-        self.settings = settings
-        self.services = services or Services(settings)
+    # disnake takes the other options as **options: Any, so these match it.
+    def __init__(
+        self,
+        settings: Settings,
+        services: Services | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        self.settings: Settings = settings
+        self.services: Services = services or Services(settings)
         intents = disnake.Intents.default()
         intents.members = True
         super().__init__(intents=intents, owner_id=constants.OWNER_ID, **kwargs)
-        self._close_lock = asyncio.Lock()
-        self._resources_closed = False
-        self.notifications = NotificationOutbox(
+        self._close_lock: asyncio.Lock = asyncio.Lock()
+        self._resources_closed: bool = False
+        self.notifications: NotificationOutbox = NotificationOutbox(
             self, settings.storage_dir / "notifications.json"
         )
-        self._notification_task: asyncio.Task | None = None
+        self._notification_task: asyncio.Task[None] | None = None
 
     async def close(self) -> None:
         async with self._close_lock:
@@ -104,16 +110,20 @@ def load_cogs() -> list[type[commands.Cog]]:
     ]
 
 
+# The extra options go to SkypixelBot, which passes them to disnake.
 def create_bot(
-    settings: Settings, services: Services | None = None, **kwargs
+    settings: Settings,
+    services: Services | None = None,
+    **kwargs: Any,  # noqa: ANN401
 ) -> SkypixelBot:
     bot = SkypixelBot(settings, services, **kwargs)
     for cog in load_cogs():
         bot.add_cog(cog(bot))
     owner.register(bot)
 
-    @bot.application_command_check()
-    async def patron_only_check(inter: disnake.Interaction):
+    # disnake leaves the interaction type in this decorator's signature open.
+    @bot.application_command_check()  # pyright: ignore[reportUnknownMemberType]
+    async def patron_only_check(inter: disnake.Interaction[disnake.Client]) -> bool:
         return await checks.patron_only_check(bot, inter)
 
     return bot
@@ -127,9 +137,9 @@ async def run() -> None:
         secrets=(settings.bot_token, settings.mongodb_uri),
     )
     services = Services(settings)
-    bot = None
+    bot: SkypixelBot | None = None
     shutdown_task: asyncio.Task[None] | None = None
-    installed_signals = []
+    installed_signals: list[signal.Signals] = []
     loop = asyncio.get_running_loop()
     try:
         await services.load_catalog(settings.storage_dir)
