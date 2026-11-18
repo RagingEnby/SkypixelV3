@@ -15,8 +15,10 @@ class Outbox:
 
     A tracker poll saves its new state and its alerts in one transaction (see
     TrackerState.replace). run() then sends each saved alert and marks it
-    sent. Alerts for one channel or thread go out in the order they were
-    saved. Different channels are sent at the same time.
+    sent. Within one pass, alerts for one channel or thread go out in the
+    order they were saved, and different channels are sent at the same time.
+    An alert that is waiting to retry does not hold back later alerts for its
+    channel, so a retried alert can arrive after newer ones.
 
     Delivery is at least once. If the bot stops after Discord accepts a
     message but before the database marks it sent, the next start sends that
