@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import disnake
 from mcstatus import JavaServer
 
-from skypixel import constants, utils
+from skypixel import alerts, constants, embed_utils, formatting
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
@@ -23,7 +23,7 @@ async def get_motd() -> list[str]:
 
 
 async def send(bot: SkypixelBot, embed: disnake.Embed, ping: bool = True):
-    await utils.broadcast(bot, constants.MOTD_TRACKER_CHANNELS, embed=embed, ping=ping)
+    await alerts.broadcast(bot, constants.MOTD_TRACKER_CHANNELS, embed=embed, ping=ping)
 
 
 class MotdTrackerCog(PollingCog):
@@ -43,13 +43,15 @@ class MotdTrackerCog(PollingCog):
         )
 
     async def on_motd_update(self, before: list[str], after: list[str]):
-        embed = utils.add_footer(
+        embed = embed_utils.add_footer(
             disnake.Embed(
                 title="Hypixel MOTD update!", color=constants.DEFAULT_EMBED_COLOR
             )
         )
-        embed.add_field(name="Before", value=utils.ansi_block(before), inline=False)
-        embed.add_field(name="After", value=utils.ansi_block(after), inline=False)
+        embed.add_field(
+            name="Before", value=formatting.ansi_block(before), inline=False
+        )
+        embed.add_field(name="After", value=formatting.ansi_block(after), inline=False)
         should_ping = self.last_ping.total_seconds() / 60 > 10
         await send(self.bot, embed, ping=should_ping)
         if should_ping:

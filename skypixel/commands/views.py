@@ -2,7 +2,7 @@ from contextlib import suppress
 
 import disnake
 
-from skypixel import utils
+from skypixel import embed_utils
 
 
 class OwnedView(disnake.ui.View):
@@ -14,7 +14,7 @@ class OwnedView(disnake.ui.View):
         if interaction.user == self.inter.user:
             return True
         await interaction.response.send_message(
-            embed=utils.make_error(
+            embed=embed_utils.make_error(
                 "Not your interaction!",
                 "You cannot interact with another user's buttons.",
             ),

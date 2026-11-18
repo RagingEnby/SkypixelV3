@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 import disnake
 
-from skypixel import constants, utils
+from skypixel import alerts, constants, embed_utils
 from skypixel.clients import http
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
@@ -26,7 +26,7 @@ async def get_version() -> str:
 
 
 async def send(bot: SkypixelBot, embed: disnake.Embed):
-    await utils.broadcast(bot, constants.VERSION_TRACKER_CHANNELS, embed=embed)
+    await alerts.broadcast(bot, constants.VERSION_TRACKER_CHANNELS, embed=embed)
 
 
 class VersionTrackerCog(PollingCog):
@@ -39,7 +39,7 @@ class VersionTrackerCog(PollingCog):
             logger.warning("version.json is empty")
 
     async def on_version_change(self, before: str, after: str):
-        embed = utils.add_footer(
+        embed = embed_utils.add_footer(
             disnake.Embed(
                 title="SkyBlock has updated!",
                 description=f"`{before}` ➡ `{after}`",

@@ -2,7 +2,7 @@ import logging
 import re
 from typing import Any
 
-from skypixel import constants, utils
+from skypixel import constants, embed_utils
 from skypixel.domain.types import PrefixRank
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def get_item_image(item: dict[str, Any]) -> str:
-    return utils.get_item_image(
+    return embed_utils.get_item_image(
         item_id=item["itemId"],
         color=item.get("colour"),
         durability=item.get("extraAttributes", {}).get("soul_durability"),

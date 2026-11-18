@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import disnake
 
-from skypixel import constants
+from skypixel import constants, delivery, embed_utils
 from skypixel.storage.json_store import JsonWrapper
 
 logger = logging.getLogger(__name__)
@@ -126,8 +126,6 @@ class NotificationOutbox:
         embed: disnake.Embed | None = None,
         embeds: list[disnake.Embed] | None = None,
     ) -> disnake.Message | None:
-        from skypixel import utils
-
         messages = (
             embeds if embeds is not None else [embed] if embed is not None else []
         )
@@ -135,7 +133,9 @@ class NotificationOutbox:
             "channel_id": channel_id,
             "thread_id": thread_id,
             "content": content,
-            "embeds": [message.to_dict() for message in utils.fit_embeds(messages)],
+            "embeds": [
+                message.to_dict() for message in embed_utils.fit_embeds(messages)
+            ],
         }
         context = self._event.get()
         if context is None:
@@ -166,8 +166,6 @@ class NotificationOutbox:
     async def _deliver(
         self, key: str, event_id: str | None = None
     ) -> disnake.Message | None:
-        from skypixel import utils
-
         message = self.pending.get(key)
         event_id = event_id or (
             message.get("event_id") if message is not None else None
@@ -182,7 +180,7 @@ class NotificationOutbox:
             return None
         if message is None:
             return None
-        result = await utils.send_to_channel(
+        result = await delivery.send_to_channel(
             self.bot,
             message["channel_id"],
             message["content"],

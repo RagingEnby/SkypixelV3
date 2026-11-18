@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 import disnake
 from disnake.ext import commands
 
-from skypixel import checks, constants, utils
+from skypixel import checks, constants, delivery, embed_utils
 from skypixel.log_setup import redact
 from skypixel.storage.json_store import JsonWrapper
 
@@ -54,26 +54,28 @@ def make_command_log_embed(inter: disnake.AppCmdInter) -> disnake.Embed:
             text=f"{inter.guild.name} ({inter.guild.id})",
             icon_url=inter.guild.icon.url if inter.guild.icon else None,
         )
-    return utils.fit_embed(embed)
+    return embed_utils.fit_embed(embed)
 
 
 def check_error_embed(error: commands.CheckFailure) -> disnake.Embed:
     if isinstance(error, checks.DevServerUnavailable):
-        return utils.make_error(
+        return embed_utils.make_error(
             "Unable to Verify Patreon Membership",
             "I could not verify your Patreon membership. Please contact @ragingenby for support.",
         )
     if isinstance(error, checks.UserNotInDevServer):
-        return utils.make_error(
+        return embed_utils.make_error(
             "Not In Dev Server",
             f"Join [RagingEnby's Dev Server]({constants.DISCORD_INVITE}) to use user commands.",
         )
     if isinstance(error, checks.UserNotAPatron):
-        return utils.make_error(
+        return embed_utils.make_error(
             "Patron Only",
             f"User-installed commands require a [Patreon membership]({constants.PATREON_URL}). Membership costs $5/month.",
         )
-    return utils.make_error("Not Allowed", "You are not allowed to use this command.")
+    return embed_utils.make_error(
+        "Not Allowed", "You are not allowed to use this command."
+    )
 
 
 class LoggerCog(commands.Cog):
@@ -84,7 +86,7 @@ class LoggerCog(commands.Cog):
     @commands.Cog.listener()
     async def on_slash_command(self, inter: disnake.AppCmdInter):
         logger.info("%s used %s", inter.author.name, prettify_command(inter))
-        await utils.send_to_channel(
+        await delivery.send_to_channel(
             self.bot, constants.COMMAND_LOG_CHANNEL, embed=make_command_log_embed(inter)
         )
 
@@ -94,27 +96,27 @@ class LoggerCog(commands.Cog):
     ):
         original = getattr(error, "original", error)
         if isinstance(original, commands.CheckFailure):
-            await utils.respond(inter, embed=check_error_embed(original))
+            await delivery.respond(inter, embed=check_error_embed(original))
             return
         trace = "".join(traceback.format_exception(original))
         logger.error("Command %s failed.", inter.data.name, exc_info=original)
         secrets = (self.bot.settings.bot_token, self.bot.settings.mongodb_uri)
-        await utils.send_to_channel(
+        await delivery.send_to_channel(
             self.bot,
             constants.ERROR_LOG_CHANNEL,
             f"<@{constants.OWNER_ID}>",
             embeds=[
                 make_command_log_embed(inter),
-                utils.make_error(
+                embed_utils.make_error(
                     "Unknown Error",
                     redact(str(original), secrets),
                     f"\n```py\n{redact(trace, secrets)[-3500:]}```",
                 ),
             ],
         )
-        await utils.respond(
+        await delivery.respond(
             inter,
-            embed=utils.make_error(
+            embed=embed_utils.make_error(
                 "Unknown Error",
                 "An error occurred while processing your command. Please contact @ragingenby for support.",
             ),
@@ -150,7 +152,7 @@ class LoggerCog(commands.Cog):
                 value="\n".join(attachment.url for attachment in message.attachments),
                 inline=False,
             )
-        await utils.send_to_channel(self.bot, constants.DM_LOG_CHANNEL, embed=embed)
+        await delivery.send_to_channel(self.bot, constants.DM_LOG_CHANNEL, embed=embed)
         await self.send_dm_notice(message)
 
     async def send_dm_notice(self, message: disnake.Message) -> None:

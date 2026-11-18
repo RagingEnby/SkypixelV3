@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import disnake
 
-from skypixel import constants, utils
+from skypixel import alerts, constants, embed_utils
 from skypixel.clients import http
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
@@ -88,7 +88,7 @@ async def get_jobs() -> list[Job]:
 
 
 async def send(bot: SkypixelBot, embed: disnake.Embed):
-    await utils.broadcast(bot, constants.JOB_TRACKER_CHANNELS, embed=embed)
+    await alerts.broadcast(bot, constants.JOB_TRACKER_CHANNELS, embed=embed)
 
 
 class JobTrackerCog(PollingCog):
@@ -103,7 +103,7 @@ class JobTrackerCog(PollingCog):
         self.initialized = Path(self.data.file_path).exists()
 
     async def on_job_update(self, job: Job, added: bool):
-        embed = utils.add_footer(
+        embed = embed_utils.add_footer(
             disnake.Embed(
                 title="New Job Opening!" if added else "Job Opening Removed!",
                 description=job.to_markdown(),

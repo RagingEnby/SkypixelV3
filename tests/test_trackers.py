@@ -717,7 +717,7 @@ class RankChangeAlertTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(ranktracker.constants, "RANK_TRACKER_CHANNELS", channels),
             patch.object(
-                ranktracker.utils, "broadcast", new_callable=AsyncMock
+                ranktracker.alerts, "broadcast", new_callable=AsyncMock
             ) as broadcast,
         ):
             await cog.on_rank_change("uuid", "Name", "youtube", "staff")

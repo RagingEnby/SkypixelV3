@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import disnake
 
-from skypixel import utils
+from skypixel import formatting
 from skypixel.clients import hypixel
 from skypixel.trackers import ranktracker
 from skypixel.trackers.base import PollingCog
@@ -54,7 +54,7 @@ class StatusUpdaterCog(PollingCog):
     async def _rank_status(self, rank: str):
         rank_lists = await ranktracker.get_rank_lists()
         return await self.change_presence(
-            f"Tracking {utils.commaize(len(rank_lists.get(rank, [])))} "
+            f"Tracking {formatting.commaize(len(rank_lists.get(rank, [])))} "
             f"{ranktracker.format_rank(rank)} players"
         )
 
@@ -73,7 +73,7 @@ class StatusUpdaterCog(PollingCog):
             name = item_id
         count = await self._item_count(item_id)
         return await self.change_presence(
-            f"Tracking {utils.commaize(count)} {name} items"
+            f"Tracking {formatting.commaize(count)} {name} items"
         )
 
     async def change_status(self):

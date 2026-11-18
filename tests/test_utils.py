@@ -10,7 +10,7 @@ import disnake
 from disnake.ext import commands
 
 import tests.support as support
-from skypixel import checks, constants, utils
+from skypixel import alerts, checks, constants, delivery, embed_utils, formatting
 from skypixel.commands import owner
 from skypixel.commands.guild import GuildCog
 from skypixel.commands.logger import DM_NOTICE, LoggerCog
@@ -28,7 +28,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
             ("1700000000000L", 1700000000),
         ):
             with self.subTest(value=value):
-                self.assertEqual(utils.normalize_timestamp(value), expected)
+                self.assertEqual(formatting.normalize_timestamp(value), expected)
 
     async def test_response_uses_the_right_interaction_endpoint(self):
         embed = disnake.Embed(title="Error")
@@ -41,7 +41,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
                 followup=SimpleNamespace(send=AsyncMock()),
                 original_response=AsyncMock(return_value=placeholder),
             )
-            await utils.respond(inter, embed=embed)
+            await delivery.respond(inter, embed=embed)
             target = inter.followup.send if done else inter.response.send_message
             target.assert_awaited_once_with(embed=embed, ephemeral=True)
             # A private followup has to remove the public "thinking" message.
@@ -56,15 +56,15 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         )
         channel = Mock(spec=disnake.TextChannel, get_thread=Mock(return_value=thread))
         bot = Mock(get_channel=Mock(return_value=channel))
-        with self.assertLogs(utils.logger, level="ERROR"):
+        with self.assertLogs(delivery.logger, level="ERROR"):
             self.assertIsNone(
-                await utils.send_to_channel(bot, 1, thread_id=2, content="test")
+                await delivery.send_to_channel(bot, 1, thread_id=2, content="test")
             )
 
     async def test_broadcast_obeys_the_ten_embed_limit(self):
         embeds = [disnake.Embed(title=str(index)) for index in range(23)]
-        with patch.object(utils, "notify_to_channel", new_callable=AsyncMock) as send:
-            await utils.broadcast(support.make_bot(), {1: "ping"}, embeds=embeds)
+        with patch.object(alerts, "notify_to_channel", new_callable=AsyncMock) as send:
+            await alerts.broadcast(support.make_bot(), {1: "ping"}, embeds=embeds)
         self.assertEqual(
             [len(call.kwargs["embeds"]) for call in send.call_args_list], [10, 10, 3]
         )
@@ -73,7 +73,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         embed = disnake.Embed(title="t" * 300, description="d" * 5000)
         for _ in range(30):
             embed.add_field(name="n" * 300, value="v" * 2000)
-        utils.fit_embed(embed)
+        embed_utils.fit_embed(embed)
         self.assertLessEqual(len(embed), 6000)
         self.assertLessEqual(len(embed.title), 256)
         self.assertLessEqual(len(embed.description), 4096)
@@ -83,9 +83,9 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
     def test_cut_code_blocks_stay_closed(self):
         embed = disnake.Embed(description="```\n" + "d" * 5000 + "```")
         embed.add_field(name="Attributes", value="```\n" + "v" * 2000 + "```")
-        utils.fit_embed(embed)
+        embed_utils.fit_embed(embed)
         small = disnake.Embed(description="```\n" + "d" * 5000 + "```")
-        utils.fit_embed(small, max_length=3000)
+        embed_utils.fit_embed(small, max_length=3000)
         for text in (embed.description, embed.fields[0].value, small.description):
             self.assertTrue(text.endswith("```"))
             self.assertEqual(text.count("```") % 2, 0)
@@ -93,14 +93,14 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         self.assertLessEqual(len(small), 3000)
 
     def test_truncate_keeps_closed_code_blocks_and_plain_text(self):
-        self.assertEqual(utils.truncate("```a``` bcdef", 9), "```a``` b")
-        self.assertEqual(utils.truncate("abcdef", 3), "abc")
-        self.assertEqual(utils.truncate("abc", 3), "abc")
+        self.assertEqual(embed_utils.truncate("```a``` bcdef", 9), "```a``` b")
+        self.assertEqual(embed_utils.truncate("abcdef", 3), "abc")
+        self.assertEqual(embed_utils.truncate("abc", 3), "abc")
 
     async def test_broadcast_splits_large_embeds_without_cutting_text(self):
         embeds = [disnake.Embed(description="x" * 4000) for _ in range(3)]
-        with patch.object(utils, "notify_to_channel", new_callable=AsyncMock) as send:
-            await utils.broadcast(support.make_bot(), {1: "ping"}, embeds=embeds)
+        with patch.object(alerts, "notify_to_channel", new_callable=AsyncMock) as send:
+            await alerts.broadcast(support.make_bot(), {1: "ping"}, embeds=embeds)
         self.assertEqual(len(send.call_args_list), 3)
         self.assertEqual(
             [sum(map(len, call.kwargs["embeds"])) for call in send.call_args_list],
@@ -110,7 +110,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
     async def test_combined_embeds_fit_without_changing_cached_embeds(self):
         embeds = [disnake.Embed(description="x" * 4000) for _ in range(2)]
         embeds[0].add_field(name="Attributes", value="v" * 1000)
-        result = utils.fit_embeds(embeds)
+        result = embed_utils.fit_embeds(embeds)
         self.assertLessEqual(sum(map(len, result)), 6000)
         self.assertEqual(embeds[0].fields[0].value, "v" * 1000)
         self.assertEqual(embeds[0].description, "x" * 4000)
@@ -122,7 +122,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
             embed.set_author(name="a" * 256)
             embed.set_footer(text="f" * 2048)
             embeds.append(embed)
-        self.assertLessEqual(sum(map(len, utils.fit_embeds(embeds))), 6000)
+        self.assertLessEqual(sum(map(len, embed_utils.fit_embeds(embeds))), 6000)
 
     async def test_check_errors_use_a_private_followup(self):
         cog = LoggerCog(support.make_bot())
@@ -232,7 +232,7 @@ class DirectMessageLogTests(unittest.IsolatedAsyncioTestCase):
         cog = LoggerCog(support.make_bot())
         cog.dm_notices = Mock(__contains__=Mock(return_value=False))
         cog.dm_notices.set_and_save = AsyncMock()
-        with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
+        with patch.object(delivery, "send_to_channel", new_callable=AsyncMock) as send:
             await cog.on_message(message)
         attachment.to_file.assert_not_awaited()
         self.assertNotIn("files", send.await_args.kwargs)
@@ -240,7 +240,7 @@ class DirectMessageLogTests(unittest.IsolatedAsyncioTestCase):
         message.channel.send.assert_awaited_once_with(DM_NOTICE)
         cog.dm_notices.set_and_save.assert_awaited_once_with("1", True)
         cog.dm_notices.__contains__.return_value = True
-        with patch.object(utils, "send_to_channel", new_callable=AsyncMock):
+        with patch.object(delivery, "send_to_channel", new_callable=AsyncMock):
             await cog.on_message(message)
         message.channel.send.assert_awaited_once()
 
@@ -249,12 +249,12 @@ class OldDateTests(unittest.TestCase):
     def test_text_dates_are_read_as_us_eastern_time(self):
         # 4:14 PM Eastern standard time is 21:14 UTC.
         self.assertEqual(
-            utils.timestamp_to_unix("11/26/19 4:14 PM"),
+            formatting.timestamp_to_unix("11/26/19 4:14 PM"),
             int(datetime(2019, 11, 26, 21, 14, tzinfo=UTC).timestamp()),
         )
         # Daylight time is four hours behind UTC.
         self.assertEqual(
-            utils.timestamp_to_unix("7/1/19 4:14 PM"),
+            formatting.timestamp_to_unix("7/1/19 4:14 PM"),
             int(datetime(2019, 7, 1, 20, 14, tzinfo=UTC).timestamp()),
         )
 
@@ -272,7 +272,7 @@ class NumerizeTests(unittest.TestCase):
             (-5000, "-5K"),
         ):
             with self.subTest(value=value):
-                self.assertEqual(utils.numerize(value), expected)
+                self.assertEqual(formatting.numerize(value), expected)
 
 
 class MemberLogTests(unittest.IsolatedAsyncioTestCase):
@@ -287,7 +287,7 @@ class MemberLogTests(unittest.IsolatedAsyncioTestCase):
         )
         member.name = "user"
         member.guild.name = "Dev"
-        with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
+        with patch.object(delivery, "send_to_channel", new_callable=AsyncMock) as send:
             await GuildCog(support.make_bot()).on_member_remove(member)
         self.assertEqual(send.await_args.kwargs["embed"].timestamp, joined_at)
 
@@ -295,21 +295,21 @@ class MemberLogTests(unittest.IsolatedAsyncioTestCase):
 class AnsiTests(unittest.TestCase):
     def test_minecraft_codes_become_discord_ansi_escapes(self):
         self.assertEqual(
-            utils.to_ansi("§aHypixel §c§lSALE§r done"),
+            formatting.to_ansi("§aHypixel §c§lSALE§r done"),
             "\u001b[0;38;2;85;255;85mHypixel \u001b[0;38;2;255;85;85m\u001b[1mSALE"
             "\u001b[0m done\u001b[0m",
         )
         self.assertEqual(
-            utils.to_ansi("§o§mold§r"), "\u001b[3m\u001b[9mold\u001b[0m\u001b[0m"
+            formatting.to_ansi("§o§mold§r"), "\u001b[3m\u001b[9mold\u001b[0m\u001b[0m"
         )
-        self.assertEqual(utils.to_ansi("no codes"), "no codes")
+        self.assertEqual(formatting.to_ansi("no codes"), "no codes")
         self.assertEqual(
-            utils.ansi_block(["§6one", "two"]),
+            formatting.ansi_block(["§6one", "two"]),
             "```ansi\n\u001b[0;38;2;255;170;0mone\u001b[0m\ntwo```",
         )
 
     def test_obfuscated_text_shows_as_blocks_until_a_color_or_reset(self):
         self.assertEqual(
-            utils.to_ansi("§kab c§rd§ke§fx"),
+            formatting.to_ansi("§kab c§rd§ke§fx"),
             "\u2592\u2592 \u2592\u001b[0md\u2592\u001b[0;38;2;255;255;255mx\u001b[0m",
         )

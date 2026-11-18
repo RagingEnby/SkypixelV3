@@ -2,7 +2,7 @@ from contextlib import suppress
 
 import disnake
 
-from skypixel import utils
+from skypixel import embed_utils
 from skypixel.commands.views import OwnedView
 
 
@@ -29,12 +29,14 @@ class GotoPageModal(disnake.ui.Modal):
             page = int(page_str or "")
         except (TypeError, ValueError):  # fmt: skip
             return await inter.response.send_message(
-                embed=utils.make_error("Invalid Page", "Please enter a valid number"),
+                embed=embed_utils.make_error(
+                    "Invalid Page", "Please enter a valid number"
+                ),
                 ephemeral=True,
             )
         if page < 1 or page > len(self.view.embeds):
             return await inter.response.send_message(
-                embed=utils.make_error(
+                embed=embed_utils.make_error(
                     "Invalid Page",
                     f"Please choose a page between 1 and {len(self.view.embeds)}",
                 ),

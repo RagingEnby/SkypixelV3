@@ -6,7 +6,7 @@ import traceback
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants, utils
+from skypixel import constants, embed_utils
 from skypixel.clients import http
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def register(bot: commands.InteractionBot) -> None:
     ):
         if not await bot.is_owner(inter.author):
             return await inter.send(
-                embed=utils.make_error(
+                embed=embed_utils.make_error(
                     "Not Owner", "You must be the bot owner to use this command!"
                 )
             )

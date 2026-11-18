@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants, utils
+from skypixel import constants, delivery, embed_utils, formatting
 from skypixel.clients import hypixel
 from skypixel.commands.item_views import SoulSearchView, make_item_embed, make_item_view
 from skypixel.domain.items import PrefixRank, player_filter, search_souls_query
@@ -71,19 +71,19 @@ class ItemDBCog(commands.Cog):
         self, inter: disnake.AppCmdInter, query: dict[str, Any], limit: int = 1
     ):
         if not isinstance(query, dict):
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter, "Invalid Query", "Provide a JSON object or an item UUID."
             )
         query = {k: v for k, v in query.items() if v is not None}
         if len(query) == 1 and query.get("itemId"):
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter, "Invalid Query", "You must provide search arguments!"
             )
         logger.info("searching item db for: %s", json.dumps(query, indent=2))
         results = await self.item_db.search(query, limit=limit)
         if not results:
             return await inter.send(
-                embed=utils.make_error(
+                embed=embed_utils.make_error(
                     "No Results Found",
                     "Your search yielded no items. Try broadening your search.",
                 )
@@ -113,7 +113,7 @@ class ItemDBCog(commands.Cog):
         query: A JSON query or an item UUID
         """
         if not await self.bot.is_owner(inter.author):
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter, "Not Owner", "You must be the bot owner to use this command!"
             )
         try:
@@ -164,17 +164,17 @@ class ItemDBCog(commands.Cog):
         logger.info(json.dumps(results, indent=2))
         if not results:
             return await inter.send(
-                embed=utils.make_error(
+                embed=embed_utils.make_error(
                     "No Results Found",
                     "No Cake Souls were found with this description.",
                 )
             )
-        embed = utils.add_footer(
+        embed = embed_utils.add_footer(
             disnake.Embed(
                 title="Soul Search Output", color=constants.DEFAULT_EMBED_COLOR
             )
         )
-        embed.set_thumbnail(utils.get_item_image("CAKE_SOUL"))
+        embed.set_thumbnail(embed_utils.get_item_image("CAKE_SOUL"))
         # Show the most common rank first.
         for rank, count in sorted(
             results.items(), key=lambda result: result[1], reverse=True
@@ -191,7 +191,7 @@ class ItemDBCog(commands.Cog):
             )
             item_embed = await view.get_current_embed()
             await inter.send(
-                embeds=utils.fit_embeds(
+                embeds=embed_utils.fit_embeds(
                     [i for i in [embed, item_embed] if i is not None]
                 ),
                 view=view,
@@ -201,7 +201,7 @@ class ItemDBCog(commands.Cog):
             embeds = [embed]
             if result is not None:
                 embeds.append(await make_item_embed(result))
-            await inter.send(embeds=utils.fit_embeds(embeds))
+            await inter.send(embeds=embed_utils.fit_embeds(embeds))
 
     @itemdb.sub_command(
         name="clay-search", description="Search the itemdb for a Builder's Clay"
@@ -324,7 +324,7 @@ class ItemDBCog(commands.Cog):
         """
         item_id = find_memento(memento) if memento else None
         if memento and item_id is None:
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter, "Unknown Memento", "Pick a memento from the list."
             )
         return await self.do_search_command(
@@ -416,19 +416,19 @@ class ItemDBCog(commands.Cog):
         item = await self.item_db.get_item(uuid)
         if not item:
             return await inter.send(
-                embed=utils.make_error(
+                embed=embed_utils.make_error(
                     "Item Not Found",
                     "This item is no longer in the database.",
                 ),
                 ephemeral=True,
             )
         lore = "\n".join(
-            utils.remove_color_codes(line) for line in item.get("lore", [])
+            formatting.remove_color_codes(line) for line in item.get("lore", [])
         )
         return await inter.send(
-            embed=utils.fit_embed(
+            embed=embed_utils.fit_embed(
                 disnake.Embed(
-                    title=utils.remove_color_codes(
+                    title=formatting.remove_color_codes(
                         item.get("friendlyName", item["itemId"])
                     ),
                     description=f"```\n{lore}```",

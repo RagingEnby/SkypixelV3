@@ -5,7 +5,7 @@ from typing import Any
 import disnake
 import pymongo
 
-from skypixel import constants, utils
+from skypixel import constants, embed_utils, formatting
 from skypixel.clients import mojang
 from skypixel.commands.views import OwnedView
 from skypixel.domain.items import fix_item, get_item_color, get_item_image
@@ -34,9 +34,11 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         logger.exception("Cannot load the owners of item %s.", item.get("_id"))
         players = {}
 
-    embed = utils.add_footer(
+    embed = embed_utils.add_footer(
         disnake.Embed(
-            title=utils.remove_color_codes(item.get("friendlyName", item["itemId"])),
+            title=formatting.remove_color_codes(
+                item.get("friendlyName", item["itemId"])
+            ),
             color=get_item_color(item),
         )
     )
@@ -58,7 +60,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
 
     embed.add_field(
         name="Current Owner",
-        value=f"{utils.esc_mrkdwn(owner_name)} (since {discord_time(item.get('start'))})\n-# Item last seen {discord_time(item.get('lastChecked'))}",
+        value=f"{formatting.esc_mrkdwn(owner_name)} (since {discord_time(item.get('start'))})\n-# Item last seen {discord_time(item.get('lastChecked'))}",
         inline=False,
     )
 
@@ -67,7 +69,9 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
         for po in previous_owners:
             player = players.get(po["owner"]["playerUuid"])
             player_name = (
-                utils.esc_mrkdwn(player.name) if player else po["owner"]["playerUuid"]
+                formatting.esc_mrkdwn(player.name)
+                if player
+                else po["owner"]["playerUuid"]
             )
             lines.append(
                 f"{player_name} ({discord_time(po.get('start'))} - {discord_time(po.get('end'))})"
@@ -139,7 +143,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
 
     if item.get("location"):
         embed.add_field(name="Location", value=item["location"], inline=True)
-    return utils.fit_embed(embed)
+    return embed_utils.fit_embed(embed)
 
 
 def make_item_view(item: dict[str, Any]) -> disnake.ui.View:
@@ -236,7 +240,7 @@ class SoulSearchView(OwnedView):
                 [self.main_embed, embed] if embed is not None else [self.main_embed]
             )
             await interaction.edit_original_message(
-                embeds=utils.fit_embeds(embeds), view=self
+                embeds=embed_utils.fit_embeds(embeds), view=self
             )
 
     @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)

@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from skypixel import utils
+from skypixel import formatting
 from skypixel.domain import colors
 from skypixel.domain.items import (
     make_playername_regex,
@@ -40,15 +40,15 @@ class ContractTests(unittest.TestCase):
         )
 
     def test_display_helpers(self):
-        self.assertEqual(utils.numerize(1234567), "1.23M")
-        self.assertEqual(utils.commaize(1234567), "1,234,567")
+        self.assertEqual(formatting.numerize(1234567), "1.23M")
+        self.assertEqual(formatting.commaize(1234567), "1,234,567")
         self.assertEqual(
-            utils.remove_color_codes("§c[ADMIN] &aPlayer"), "[ADMIN] Player"
+            formatting.remove_color_codes("§c[ADMIN] &aPlayer"), "[ADMIN] Player"
         )
         self.assertEqual(ranktracker.format_rank("pig_plus_plus_plus"), "[PIG+++]")
         self.assertEqual(ranktracker.format_rank("staff"), "[STAFF]")
-        self.assertEqual(utils.normalize_timestamp(1700000000000), 1700000000)
-        self.assertEqual(utils.timestamp_to_unix("1700000000000L"), 1700000000000)
+        self.assertEqual(formatting.normalize_timestamp(1700000000000), 1700000000)
+        self.assertEqual(formatting.timestamp_to_unix("1700000000000L"), 1700000000000)
 
     def test_exotic_rules(self):
         examples = [

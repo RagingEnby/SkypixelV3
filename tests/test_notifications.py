@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import disnake
 
-from skypixel import constants, utils
+from skypixel import alerts, constants, delivery
 from skypixel.storage.notifications import NotificationOutbox, NotificationStorageError
 from skypixel.trackers import auctionhouse, versiontracker
 
@@ -35,12 +35,12 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             self.bot.notifications.pending, "set_and_save", side_effect=save
         ):
             with self.assertRaises(NotificationStorageError):
-                await utils.broadcast(self.bot, {1: "first", 2: "second"}, embed=embed)
+                await alerts.broadcast(self.bot, {1: "first", 2: "second"}, embed=embed)
         first.send.assert_awaited_once()
         second.send.assert_not_awaited()
         self.bot.notifications = NotificationOutbox(self.bot, self.path)
         embed.set_footer(text=footers[-1])
-        await utils.broadcast(self.bot, {1: "first", 2: "second"}, embed=embed)
+        await alerts.broadcast(self.bot, {1: "first", 2: "second"}, embed=embed)
         first.send.assert_awaited_once()
         second.send.assert_awaited_once()
         self.assertFalse(self.bot.notifications.pending)
@@ -49,11 +49,13 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
     async def test_failed_receipt_save_retries_the_save_without_sending_again(self):
         with patch.object(self.bot.notifications.events, "save", side_effect=OSError):
             with self.assertRaises(NotificationStorageError):
-                await utils.broadcast(
+                await alerts.broadcast(
                     self.bot, {1: "ping"}, embed=disnake.Embed(title="Alert")
                 )
         self.channel.send.assert_awaited_once()
-        await utils.broadcast(self.bot, {1: "ping"}, embed=disnake.Embed(title="Alert"))
+        await alerts.broadcast(
+            self.bot, {1: "ping"}, embed=disnake.Embed(title="Alert")
+        )
         self.channel.send.assert_awaited_once()
         self.assertFalse(self.bot.notifications.pending)
         self.assertFalse(self.bot.notifications.events)
@@ -104,8 +106,8 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_failed_alert_survives_restart_and_retries_with_its_thread(self):
         self.bot.get_channel.return_value = None
-        with self.assertLogs(utils.logger, level="WARNING"):
-            await utils.notify_to_channel(
+        with self.assertLogs(delivery.logger, level="WARNING"):
+            await alerts.notify_to_channel(
                 self.bot, 1, "ping", thread_id=2, embed=disnake.Embed(title="Alert")
             )
         self.assertEqual(len(self.bot.notifications.pending), 1)
@@ -126,8 +128,8 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         self.bot.get_channel.side_effect = lambda channel_id: (
             good if channel_id == 1 else bad
         )
-        with self.assertLogs(utils.logger, level="ERROR"):
-            await utils.broadcast(
+        with self.assertLogs(delivery.logger, level="ERROR"):
+            await alerts.broadcast(
                 self.bot, {1: "first", 2: "second"}, embed=disnake.Embed(title="Alert")
             )
         self.assertEqual(len(self.bot.notifications.pending), 1)
@@ -145,7 +147,7 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             patch.object(
                 versiontracker.constants, "VERSION_TRACKER_CHANNELS", {1: "ping"}
             ),
-            self.assertLogs(utils.logger, level="ERROR"),
+            self.assertLogs(delivery.logger, level="ERROR"),
         ):
             await cog.poll()
             await cog.poll()
@@ -183,7 +185,7 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             return Mock(spec=disnake.Message)
 
         self.channel.send.side_effect = send
-        submit = asyncio.create_task(utils.notify_to_channel(self.bot, 1, "ping"))
+        submit = asyncio.create_task(alerts.notify_to_channel(self.bot, 1, "ping"))
         await asyncio.wait_for(entered.wait(), 1)
         retry = asyncio.create_task(self.bot.notifications.flush())
         release.set()
@@ -225,8 +227,8 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_run_waits_before_it_retries_a_failed_alert(self):
         self.bot.get_channel.return_value = None
-        with self.assertLogs(utils.logger, level="WARNING"):
-            await utils.notify_to_channel(self.bot, 1, embed=disnake.Embed(title="A"))
+        with self.assertLogs(delivery.logger, level="WARNING"):
+            await alerts.notify_to_channel(self.bot, 1, embed=disnake.Embed(title="A"))
         self.bot.get_channel.return_value = self.channel
         await self.bot.notifications.flush(due_only=True)
         self.channel.send.assert_not_awaited()
@@ -238,8 +240,8 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
     async def test_alert_that_keeps_failing_is_dropped_after_the_age_limit(self):
         self.bot.get_channel.return_value = None
         outbox = self.bot.notifications
-        with self.assertLogs(utils.logger, level="WARNING"):
-            await utils.notify_to_channel(self.bot, 1, embed=disnake.Embed(title="A"))
+        with self.assertLogs(delivery.logger, level="WARNING"):
+            await alerts.notify_to_channel(self.bot, 1, embed=disnake.Embed(title="A"))
         self.assertEqual(len(outbox.pending), 1)
         with (
             patch.object(outbox, "max_age", -1),

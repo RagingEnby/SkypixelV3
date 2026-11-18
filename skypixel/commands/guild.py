@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Literal
 import disnake
 from disnake.ext import commands
 
-from skypixel import constants, utils
+from skypixel import constants, delivery
 
 if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
@@ -40,7 +40,9 @@ class GuildCog(commands.Cog):
             name="Member Info",
             value=f"**Members:** {guild.member_count}\n**Owner:** {guild.owner.mention if guild.owner else '`Unknown`'}",
         )
-        await utils.send_to_channel(self.bot, constants.INVITE_LOG_CHANNEL, embed=embed)
+        await delivery.send_to_channel(
+            self.bot, constants.INVITE_LOG_CHANNEL, embed=embed
+        )
 
     async def on_member_joinleave(self, member: disnake.Member, action: JoinLeave):
         if member.guild.id != constants.DEV_SERVER_ID:
@@ -61,7 +63,7 @@ class GuildCog(commands.Cog):
             text=member.guild.name,
             icon_url=member.guild.icon.url if member.guild.icon else None,
         )
-        await utils.send_to_channel(
+        await delivery.send_to_channel(
             self.bot, constants.JOIN_LOG_CHANNEL, member.mention, embed=embed
         )
 

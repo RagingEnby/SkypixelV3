@@ -9,7 +9,7 @@ import disnake
 from curl_cffi.requests.exceptions import HTTPError, RequestException
 from disnake.ext import commands
 
-from skypixel import constants, utils
+from skypixel import alerts, constants, delivery, embed_utils, formatting
 from skypixel.clients import http, mojang
 from skypixel.commands.rank_views import RankListView
 from skypixel.domain.types import SpecialRank
@@ -163,7 +163,7 @@ async def send(
 ):
     if rank not in constants.RANK_TRACKER_CHANNELS:
         rank = "special"
-    await utils.broadcast(
+    await alerts.broadcast(
         bot, constants.RANK_TRACKER_CHANNELS[rank], embed=embed, ping=ping
     )
 
@@ -186,7 +186,7 @@ def format_rank(rank: str) -> str:
 
 
 def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.Embed:
-    embed = utils.add_footer(
+    embed = embed_utils.add_footer(
         disnake.Embed(
             title=title,
             color=constants.RANK_COLORS.get(rank, constants.DEFAULT_EMBED_COLOR),
@@ -232,7 +232,7 @@ class RankTrackerCog(PollingCog):
             uuid,
             name,
             rank,
-            f"{utils.esc_mrkdwn(name)} now has {format_rank(rank)} rank!",
+            f"{formatting.esc_mrkdwn(name)} now has {format_rank(rank)} rank!",
         )
         logger.info("rank tracker alert: %s", embed.title)
         await send(self.bot, rank, embed)
@@ -245,7 +245,7 @@ class RankTrackerCog(PollingCog):
             uuid,
             name,
             after,
-            f"{utils.esc_mrkdwn(name)} went from {format_rank(before)} "
+            f"{formatting.esc_mrkdwn(name)} went from {format_rank(before)} "
             f"to {format_rank(after)} rank!",
         )
         logger.info("rank tracker alert: %s", embed.title)
@@ -253,14 +253,14 @@ class RankTrackerCog(PollingCog):
         for rank in (before, after):
             key = rank if rank in constants.RANK_TRACKER_CHANNELS else "special"
             channels.update(constants.RANK_TRACKER_CHANNELS[key])
-        await utils.broadcast(self.bot, channels, embed=embed)
+        await alerts.broadcast(self.bot, channels, embed=embed)
 
     async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
         embed = make_embed(
             uuid,
             name,
             rank,
-            f"{utils.esc_mrkdwn(name)} has lost {format_rank(rank)} rank",
+            f"{formatting.esc_mrkdwn(name)} has lost {format_rank(rank)} rank",
         )
         logger.info("rank tracker alert: %s", embed.title)
         await send(self.bot, rank, embed)
@@ -272,7 +272,7 @@ class RankTrackerCog(PollingCog):
             uuid,
             after,
             rank,
-            f"{utils.esc_mrkdwn(before)} changed their IGN to {utils.esc_mrkdwn(after)}",
+            f"{formatting.esc_mrkdwn(before)} changed their IGN to {formatting.esc_mrkdwn(after)}",
         )
         logger.info("rank tracker alert: %s", embed.title)
         await send(self.bot, rank, embed, ping=False)
@@ -327,22 +327,22 @@ class RankTrackerCog(PollingCog):
             invalidate_rank_lists()
         except mojang.PlayerNotFound:
             if not mojang.is_valid_identifier(player):
-                return await utils.send_error(
+                return await delivery.send_error(
                     inter, "Invalid player!", "Enter a Minecraft username or UUID."
                 )
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter,
                 "Player not found!",
                 f"No player named [{player}](https://namemc.com/search?q={player.lower()}) was found. Please check your spelling and try again.",
             )
-        unformatted = utils.remove_color_codes(rankname)
-        embed = utils.add_footer(
+        unformatted = formatting.remove_color_codes(rankname)
+        embed = embed_utils.add_footer(
             disnake.Embed(
                 description=f"Successfully updated `{unformatted}`",
                 color=constants.COLOR_CODES["a"],
             )
         )
-        embed.set_image(url=utils.to_mc_text(rankname))
+        embed.set_image(url=embed_utils.to_mc_text(rankname))
         return await inter.send(embed=embed)
 
     @ranks.sub_command(
@@ -357,13 +357,13 @@ class RankTrackerCog(PollingCog):
         try:
             player_obj = await mojang.get(player)
         except mojang.PlayerNotFound:
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter,
                 "Player not found!",
                 f"I couldn't find the player `{player.replace('`', '')}`!",
             )
         if len(self.watch_list) >= WATCH_LIST_LIMIT:
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter,
                 "Watchlist Full!",
                 f"The watchlist can hold {WATCH_LIST_LIMIT} players. "
@@ -371,7 +371,7 @@ class RankTrackerCog(PollingCog):
                 "or remove one with /ranks unwatch.",
             )
         if player_obj.id in self.watch_list:
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter,
                 "Already Watching!",
                 f"`{player_obj.name}` is already in the watchlist.",
@@ -381,7 +381,7 @@ class RankTrackerCog(PollingCog):
             {"rankname": None, "name": player_obj.name, "added_by": inter.author.id},
         )
         await inter.send(
-            embed=utils.add_footer(
+            embed=embed_utils.add_footer(
                 disnake.Embed(
                     title="Added To Watchlist",
                     description=f"Now tracking `{player_obj.name}` for rank changes!",
@@ -402,26 +402,26 @@ class RankTrackerCog(PollingCog):
         try:
             player_obj = await mojang.get(player)
         except mojang.PlayerNotFound:
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter,
                 "Player not found!",
                 f"I couldn't find the player `{player.replace('`', '')}`!",
             )
         if player_obj.id not in self.watch_list:
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter, "Not Watching!", f"`{player_obj.name}` is not in the watchlist."
             )
         entry = self.watch_list[player_obj.id]
         added_by = entry.get("added_by") if isinstance(entry, dict) else None
         if added_by != inter.author.id and not await self.bot.is_owner(inter.author):
-            return await utils.send_error(
+            return await delivery.send_error(
                 inter,
                 "Not Your Player!",
                 "Only the user who added this player can remove them.",
             )
         await self.watch_list.remove_and_save(player_obj.id)
         await inter.send(
-            embed=utils.add_footer(
+            embed=embed_utils.add_footer(
                 disnake.Embed(
                     title="Removed From Watchlist",
                     description=f"No longer tracking `{player_obj.name}`.",
@@ -441,7 +441,7 @@ class RankTrackerCog(PollingCog):
             else:
                 lines.append(f"`{uuid}`")
         await inter.send(
-            embed=utils.add_footer(
+            embed=embed_utils.add_footer(
                 disnake.Embed(
                     title=f"Watchlist ({len(lines)}/{WATCH_LIST_LIMIT})",
                     description="\n".join(lines) or "Nobody is being watched.",
@@ -456,12 +456,12 @@ class RankTrackerCog(PollingCog):
     async def counts(self, inter: disnake.AppCmdInter):
         counts = await get_rank_counts()
         counts.pop("normal", None)
-        embed = utils.add_footer(
+        embed = embed_utils.add_footer(
             disnake.Embed(
                 title="Rank Counts",
                 description="\n".join(
                     [
-                        f"**{format_rank(rank)}:** `{utils.commaize(count)}`"
+                        f"**{format_rank(rank)}:** `{formatting.commaize(count)}`"
                         for rank, count in counts.items()
                     ]
                 ),
@@ -504,12 +504,12 @@ class RankTrackerCog(PollingCog):
                 )
                 cur = embeds[index]
                 desc = cur.description or ""
-            desc += utils.esc_mrkdwn(player["name"]) + (
+            desc += formatting.esc_mrkdwn(player["name"]) + (
                 ", " if i < len(rank_list) - 1 else ""
             )
             cur.description = desc
         if len(embeds) == 1:
-            return await inter.send(embed=utils.add_footer(embeds[0]))
+            return await inter.send(embed=embed_utils.add_footer(embeds[0]))
         view = RankListView(embeds, inter)
         await inter.send(embed=view.embeds[view.page], view=view)
 
