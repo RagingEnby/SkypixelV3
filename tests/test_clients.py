@@ -275,6 +275,8 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             players = await mojang.bulk(["a" * 32, "PLAYER", "PLAYER"])
         self.assertEqual(set(players), {"a" * 32, "player"})
         fetch.assert_awaited_once()
+        # The player API takes a bare list and rejects an object with a 422.
+        self.assertEqual(fetch.await_args.kwargs["json"], ["a" * 32, "player"])
 
     async def test_empty_bulk_does_not_fetch(self):
         with patch.object(mojang.http, "post", new_callable=AsyncMock) as fetch:

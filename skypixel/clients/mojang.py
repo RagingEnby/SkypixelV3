@@ -7,8 +7,8 @@ from typing import ClassVar, TypedDict
 from skypixel import constants
 from skypixel.clients import http
 
-PLAYER_URL = "https://api.ragingenby.dev/player/{}"
-PLAYERS_URL = "https://api.ragingenby.dev/players"
+PLAYER_URL = "https://api.ragingenby.dev/mojang/player/{}"
+PLAYERS_URL = "https://api.ragingenby.dev/mojang/players"
 NAME_PATTERN = re.compile(r"[A-Za-z0-9_]{1,16}")
 UUID_PATTERN = re.compile(r"[0-9a-f]{32}")
 
@@ -180,7 +180,7 @@ async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
         else:
             missing[key] = None
     if missing:
-        response = await http.post(PLAYERS_URL, json={"identifiers": list(missing)})
+        response = await http.post(PLAYERS_URL, json=list(missing))
         response.raise_for_status()
         data = response.json()
         if not isinstance(data, dict) or not isinstance(data.get("players"), list):
