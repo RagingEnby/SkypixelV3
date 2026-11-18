@@ -74,13 +74,24 @@ class Outbox:
         from skypixel import utils
 
         alert = row.alert
-        result = await utils.send_to_channel(
-            self.bot,
-            alert.channel_id,
-            alert.content,
-            thread_id=alert.thread_id,
-            embeds=[disnake.Embed.from_dict(embed) for embed in alert.embeds],
-        )
+        # send_to_channel() handles Discord errors. Treat any other error, such
+        # as a dropped connection or a bad saved embed, as a failed send too,
+        # so the alert backs off and expires instead of blocking its channel.
+        try:
+            result = await utils.send_to_channel(
+                self.bot,
+                alert.channel_id,
+                alert.content,
+                thread_id=alert.thread_id,
+                embeds=[disnake.Embed.from_dict(embed) for embed in alert.embeds],
+            )
+        except Exception:
+            logger.exception(
+                "Cannot send an alert to channel %s or thread %s.",
+                alert.channel_id,
+                alert.thread_id,
+            )
+            result = None
         now = time.time()
         attempts = row.attempts + 1
         if result is not None:

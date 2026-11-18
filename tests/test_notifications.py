@@ -223,6 +223,17 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         await outbox.flush(due_only=False)
         self.channel.send.assert_not_awaited()
 
+    async def test_unexpected_send_error_backs_off_without_blocking_the_channel(self):
+        await self.bot.database.save(
+            "test", {}, [utils.make_alert(1, "first"), utils.make_alert(1, "second")]
+        )
+        self.channel.send.side_effect = [OSError("connection reset"), Mock()]
+        with self.assertLogs(notifications.logger, level="ERROR"):
+            await self.bot.notifications.flush()
+        self.assertEqual(self.rows(), [(1, None, 1, 0, 0), (1, None, 0, 1, 0)])
+        await self.bot.notifications.flush()
+        self.assertEqual(self.channel.send.await_count, 2)
+
     async def test_concurrent_flushes_do_not_send_a_message_twice(self):
         entered, release = asyncio.Event(), asyncio.Event()
 
