@@ -3,6 +3,7 @@ import inspect
 import json
 import os
 import unittest
+from collections.abc import Mapping
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -11,6 +12,8 @@ import disnake
 
 import tests.support as support
 from skypixel import alerts
+from skypixel.domain.nbt import NBTData
+from skypixel.domain.types import JSON
 from skypixel.trackers import auctionhouse, ranktracker
 
 FIXTURE = Path(__file__).parent / "fixtures" / "auction_alerts.json"
@@ -18,7 +21,7 @@ SELLER = "a" * 32
 POI = "b" * 32
 
 
-def auction(**fields):
+def auction(**fields: JSON) -> auctionhouse.Auction:
     return {
         "uuid": "auction-uuid",
         "auctioneer": SELLER,
@@ -31,8 +34,12 @@ def auction(**fields):
     }
 
 
-def item(extra=None, color=None, **fields):
-    tag = {
+def item(
+    extra: dict[str, NBTData] | None = None,
+    color: int | None = None,
+    **fields: NBTData,
+) -> auctionhouse.Item:
+    tag: auctionhouse.Item = {
         "ExtraAttributes": {"uuid": "item-uuid", "id": "TEST_HELMET", **(extra or {})}
     }
     if color is not None:
@@ -42,7 +49,7 @@ def item(extra=None, color=None, **fields):
 
 # One case per alert rule, plus cases that hit the branches inside a rule and
 # one auction that matches several rules at once.
-CASES = {
+CASES: dict[str, tuple[auctionhouse.Auction, auctionhouse.Item]] = {
     "admin_spawned": (auction(), item({"originTag": "ITEM_MENU"})),
     "og_reforge": (auction(), item({"modifier": "forceful"})),
     "semi_og_reforge": (
@@ -90,27 +97,30 @@ CASES = {
     ),
 }
 
-NOTIFY = inspect.signature(
+# One recorded alert send, as the fixture stores it.
+type SentAlert = dict[str, object]
+
+NOTIFY: inspect.Signature = inspect.signature(
     alerts.notify_to_channel, annotation_format=annotationlib.Format.FORWARDREF
 )
 
 
-def describe(call) -> dict:
+def describe(args: tuple[object, ...], kwargs: Mapping[str, object]) -> SentAlert:
     """Return the destination, content, and embeds of one alert send."""
-    bound = NOTIFY.bind(*call.args, **call.kwargs)
+    bound = NOTIFY.bind(*args, **kwargs)
     bound.apply_defaults()
-    kwargs = dict(bound.arguments["kwargs"])
-    for key, value in kwargs.items():
+    options: dict[str, object] = dict(bound.arguments["kwargs"])
+    for key, value in options.items():
         if isinstance(value, disnake.Embed):
-            kwargs[key] = value.to_dict()
+            options[key] = value.to_dict()
     return {
         "channel_id": bound.arguments["channel_id"],
         "content": bound.arguments["content"],
-        "kwargs": kwargs,
+        "kwargs": options,
     }
 
 
-async def run_case(name: str) -> list[dict]:
+async def run_case(name: str) -> list[SentAlert]:
     cog = auctionhouse.AuctionTrackerCog(support.make_bot())
     case_auction, case_item = CASES[name]
     with (
@@ -131,13 +141,13 @@ async def run_case(name: str) -> list[dict]:
     ):
         await cog.on_auction(case_auction, case_item)
     return sorted(
-        (describe(call) for call in notify.await_args_list),
+        (describe(call.args, call.kwargs) for call in notify.await_args_list),
         key=lambda sent: json.dumps(sent, sort_keys=True),
     )
 
 
 class AuctionAlertTests(unittest.IsolatedAsyncioTestCase):
-    async def test_each_alert_sends_the_recorded_embed_and_destination(self):
+    async def test_each_alert_sends_the_recorded_embed_and_destination(self) -> None:
         """Compare each alert with the output recorded before the rule table."""
         expected = json.loads(FIXTURE.read_text())
         self.assertEqual(set(expected), set(CASES))

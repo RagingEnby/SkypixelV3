@@ -56,7 +56,7 @@ def gift_query(
     sender_name: str | None,
     recipient_rank: PrefixRank | None,
     recipient_name: str | None,
-) -> dict[str, Any]:
+) -> Document:
     """Build the query for an edition item sent from one player to another."""
     return {
         "itemId": item_id,

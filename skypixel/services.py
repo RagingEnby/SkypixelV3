@@ -16,10 +16,10 @@ class Services:
     object loads the catalog and closes every client on shutdown.
     """
 
-    def __init__(self, settings: Settings):
-        self.settings = settings
-        self.item_db = ItemRepository(settings.mongodb_uri)
-        self._closed = False
+    def __init__(self, settings: Settings) -> None:
+        self.settings: Settings = settings
+        self.item_db: ItemRepository = ItemRepository(settings.mongodb_uri)
+        self._closed: bool = False
 
     async def load_catalog(self, storage_dir: Path) -> None:
         await hypixel.load_items(storage_dir)

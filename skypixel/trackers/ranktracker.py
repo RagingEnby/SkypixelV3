@@ -222,7 +222,7 @@ def format_rank(rank: str) -> str:
     return "[" + rank.replace("_plus", "+").replace("_", " ").upper() + "]"
 
 
-def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.Embed:
+def make_embed(uuid: str, name: str, rank: str, title: str) -> disnake.Embed:
     embed = embed_utils.add_footer(
         disnake.Embed(
             title=title,

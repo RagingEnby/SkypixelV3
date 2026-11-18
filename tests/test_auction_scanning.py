@@ -39,6 +39,7 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
             await cog.on_auction(auction, item)
             embed = await auctionhouse.make_auction_embed(auction, item)
         alert.assert_awaited_once()
+        assert alert.await_args is not None
         _bot, rule, info = alert.await_args.args
         self.assertEqual(rule.name, "exotic")
         self.assertIs(info.auction, auction)
