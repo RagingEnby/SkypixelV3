@@ -77,17 +77,17 @@ async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
 async def edit_stat_channels(
     bot: SkypixelBot, rank_data: dict[str, list[dict[str, str]]]
 ):
+    rank_channels = subscriptions.current().rank
     rank_data = rank_data.copy()
     rank_data["special"] = [
         player
         for key, players in rank_data.items()
-        if key not in subscriptions.current().rank
+        if key not in rank_channels
         for player in players
     ]
     tasks = []
-    for rank in subscriptions.current().rank:
+    for rank, channels in rank_channels.items():
         players = rank_data.get(rank, [])
-        channels = subscriptions.current().rank[rank]
         for channel_id in channels:
             channel = bot.get_channel(channel_id)
             name = f"{rank}-{len(players)}"
@@ -161,11 +161,10 @@ async def send(
     embed: disnake.Embed,
     ping: bool = True,
 ):
-    if rank not in subscriptions.current().rank:
+    rank_channels = subscriptions.current().rank
+    if rank not in rank_channels:
         rank = "special"
-    await utils.broadcast(
-        bot, subscriptions.current().rank[rank], embed=embed, ping=ping
-    )
+    await utils.broadcast(bot, rank_channels[rank], embed=embed, ping=ping)
 
 
 def shrunken_ranks(
@@ -249,10 +248,11 @@ class RankTrackerCog(PollingCog):
             f"to {format_rank(after)} rank!",
         )
         logger.info("rank tracker alert: %s", embed.title)
+        rank_channels = subscriptions.current().rank
         channels: dict[int, str] = {}
         for rank in (before, after):
-            key = rank if rank in subscriptions.current().rank else "special"
-            channels.update(subscriptions.current().rank[key])
+            key = rank if rank in rank_channels else "special"
+            channels.update(rank_channels[key])
         await utils.broadcast(self.bot, channels, embed=embed)
 
     async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
