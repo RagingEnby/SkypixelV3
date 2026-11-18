@@ -296,11 +296,20 @@ class AnsiTests(unittest.TestCase):
     def test_minecraft_codes_become_discord_ansi_escapes(self):
         self.assertEqual(
             utils.to_ansi("§aHypixel §c§lSALE§r done"),
-            "\u001b[0;32mHypixel \u001b[0;31m\u001b[1mSALE\u001b[0m done\u001b[0m",
+            "\u001b[0;38;2;85;255;85mHypixel \u001b[0;38;2;255;85;85m\u001b[1mSALE"
+            "\u001b[0m done\u001b[0m",
         )
-        self.assertEqual(utils.to_ansi("§kplain§o text"), "plain text\u001b[0m")
+        self.assertEqual(
+            utils.to_ansi("§o§mold§r"), "\u001b[3m\u001b[9mold\u001b[0m\u001b[0m"
+        )
         self.assertEqual(utils.to_ansi("no codes"), "no codes")
         self.assertEqual(
             utils.ansi_block(["§6one", "two"]),
-            "```ansi\n\u001b[0;33mone\u001b[0m\ntwo```",
+            "```ansi\n\u001b[0;38;2;255;170;0mone\u001b[0m\ntwo```",
+        )
+
+    def test_obfuscated_text_shows_as_blocks_until_a_color_or_reset(self):
+        self.assertEqual(
+            utils.to_ansi("§kab c§rd§ke§fx"),
+            "\u2592\u2592 \u2592\u001b[0md\u2592\u001b[0;38;2;255;255;255mx\u001b[0m",
         )

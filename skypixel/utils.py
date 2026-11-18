@@ -16,13 +16,10 @@ from skypixel.storage.notifications import notification_fingerprint
 
 logger = logging.getLogger(__name__)
 COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
-# Discord's ansi colors: 30 gray, 31 red, 32 green, 33 yellow, 34 blue, 35 pink,
-# 36 cyan, 37 white.
-ANSI_COLORS = {
-    "0": 30, "1": 34, "2": 32, "3": 36, "4": 31, "5": 35, "6": 33, "7": 37,
-    "8": 30, "9": 34, "a": 32, "b": 36, "c": 31, "d": 35, "e": 33, "f": 37,
-}  # fmt: skip
-ANSI_FORMATS = {"l": 1, "n": 4, "r": 0}
+# Minecraft format codes and their ansi escapes: bold, strikethrough, underline,
+# italic, and reset. Obfuscated text (k) has no escape and becomes OBFUSCATED.
+ANSI_FORMATS = {"l": 1, "m": 9, "n": 4, "o": 3, "r": 0}
+OBFUSCATED = "\u2592"
 # Old items carry their creation time as text in Hypixel's server time, which
 # is US Eastern.
 HYPIXEL_TIMEZONE = ZoneInfo("America/New_York")
@@ -165,23 +162,36 @@ def remove_color_codes(string: str) -> str:
 def to_ansi(string: str) -> str:
     """Turn Minecraft color codes into the escapes of a Discord ansi code block.
 
-    Discord has 8 text colors, so each of Minecraft's 16 maps to the nearest
-    one. It has bold and underline, and no italic, strikethrough, or obfuscated
-    text, so those codes are dropped.
+    Colors use 24-bit escapes with Minecraft's exact RGB values. Obfuscated
+    text shows as a block character in place of each letter.
     """
     if not COLOR_CODE_PATTERN.search(string):
         return string
-
-    def replace(match: re.Match) -> str:
+    parts = []
+    obfuscated = False
+    position = 0
+    for match in COLOR_CODE_PATTERN.finditer(string):
+        parts.append(_obfuscate(string[position : match.start()], obfuscated))
+        position = match.end()
         code = match.group()[1].lower()
-        if code in ANSI_COLORS:
-            # A Minecraft color code also clears bold and underline.
-            return f"\u001b[0;{ANSI_COLORS[code]}m"
-        if code in ANSI_FORMATS:
-            return f"\u001b[{ANSI_FORMATS[code]}m"
-        return ""
+        if code in constants.COLOR_CODES:
+            # A Minecraft color code also clears every format.
+            obfuscated = False
+            red, green, blue = constants.COLOR_CODES[code].to_bytes(3)
+            parts.append(f"\u001b[0;38;2;{red};{green};{blue}m")
+        elif code == "k":
+            obfuscated = True
+        else:
+            obfuscated = obfuscated and code != "r"
+            parts.append(f"\u001b[{ANSI_FORMATS[code]}m")
+    parts.append(_obfuscate(string[position:], obfuscated))
+    return "".join(parts) + "\u001b[0m"
 
-    return COLOR_CODE_PATTERN.sub(replace, string) + "\u001b[0m"
+
+def _obfuscate(text: str, obfuscated: bool) -> str:
+    if not obfuscated:
+        return text
+    return "".join(char if char.isspace() else OBFUSCATED for char in text)
 
 
 def ansi_block(lines: list[str]) -> str:
