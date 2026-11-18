@@ -22,7 +22,10 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["ruff>=0.14,<1"]
+dev = [
+    "pyright>=1.1.407,<2",
+    "ruff>=0.14,<1",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["skypixel", "nbt"]
@@ -39,3 +42,7 @@ ignore = ["SIM117"]
 
 [tool.ruff.lint.per-file-ignores]
 "skypixel/commands/owner.py" = ["S102"]
+
+[tool.pyright]
+include = ["skypixel"]
+pythonVersion = "3.14"

@@ -19,4 +19,5 @@ jobs:
       - run: uv sync --locked
       - run: uv run --locked ruff check .
       - run: uv run --locked ruff format --check .
+      - run: uv run --locked pyright
       - run: uv run --locked python -W error::ResourceWarning -m unittest discover -s tests -t .
