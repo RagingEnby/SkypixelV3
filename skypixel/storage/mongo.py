@@ -28,8 +28,28 @@ async def flush_queue(collection: Collection, queue: list[dict[str, Any]]) -> No
         del queue[: len(batch)]
 
 
+# One client per URI. Each client keeps its own connection pool and monitor
+# threads, so the collections share one instead of opening four.
+_clients: dict[str, AsyncMongoClient] = {}
+_users: dict[str, int] = {}
+
+
+def _acquire_client(uri: str) -> AsyncMongoClient:
+    if uri not in _clients:
+        _clients[uri] = AsyncMongoClient(uri, serverSelectionTimeoutMS=10000)
+    _users[uri] = _users.get(uri, 0) + 1
+    return _clients[uri]
+
+
+async def _release_client(uri: str) -> None:
+    _users[uri] -= 1
+    if _users[uri] == 0:
+        del _users[uri]
+        await _clients.pop(uri).close()
+
+
 class Collection:
-    """Open a MongoDB connection when the collection is first used."""
+    """Open the shared MongoDB connection when the collection is first used."""
 
     def __init__(self, uri: str, db: str, collection: str):
         self.uri = uri
@@ -45,7 +65,7 @@ class Collection:
         if self._client is None:
             if not self.uri:
                 raise ValueError("Set SKYPIXEL_MONGODB_URI or scrts.MONGODB_URI.")
-            self._client = AsyncMongoClient(self.uri, serverSelectionTimeoutMS=10000)
+            self._client = _acquire_client(self.uri)
         return self._client
 
     @property
@@ -87,7 +107,7 @@ class Collection:
         self._closed = True
         client, self._client = self._client, None
         if client is not None:
-            await client.close()
+            await _release_client(self.uri)
         logger.debug("Closed %s.%s", self.db_name, self.collection_name)
 
     async def search(

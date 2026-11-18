@@ -152,14 +152,29 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(operation._upsert)
 
     async def test_close_is_idempotent(self):
-        collection = Collection("mongodb://localhost", "test", "items")
         client = Mock(close=AsyncMock())
-        collection._client = client
-        await collection.close()
-        await collection.close()
+        with patch("skypixel.storage.mongo.AsyncMongoClient", return_value=client):
+            collection = Collection("mongodb://localhost", "test", "items")
+            _ = collection.client
+            await collection.close()
+            await collection.close()
         client.close.assert_awaited_once()
         with self.assertRaises(RuntimeError):
             _ = collection.client
+
+    async def test_collections_share_one_client_until_the_last_one_closes(self):
+        client = Mock(close=AsyncMock())
+        with patch(
+            "skypixel.storage.mongo.AsyncMongoClient", return_value=client
+        ) as factory:
+            first = Collection("mongodb://localhost", "test", "one")
+            second = Collection("mongodb://localhost", "test", "two")
+            self.assertIs(first.client, second.client)
+            factory.assert_called_once()
+            await first.close()
+            client.close.assert_not_awaited()
+            await second.close()
+        client.close.assert_awaited_once()
 
 
 class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
