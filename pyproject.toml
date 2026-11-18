@@ -31,7 +31,9 @@ line-length = 88
 extend-exclude = ["nbt"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "G", "I", "UP", "B", "RUF", "BLE", "ASYNC", "S102"]
+select = ["E4", "E7", "E9", "F", "G", "I", "UP", "B", "RUF", "BLE", "ASYNC", "S102", "PIE", "C4", "PERF", "SIM"]
+# Nested with blocks in the tests read better than one long with statement.
+ignore = ["SIM117"]
 
 [tool.ruff.lint.per-file-ignores]
 "skypixel/commands/owner.py" = ["S102"]

@@ -5,6 +5,7 @@ import os
 import stat
 import tempfile
 from collections.abc import Iterator, MutableMapping
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -47,10 +48,8 @@ def _write_atomic(path: Path, content: str) -> None:
             file.flush()
             os.fsync(file.fileno())
         # Temporary files are created with mode 0600. Keep the old file's mode.
-        try:
+        with suppress(FileNotFoundError):
             os.chmod(temporary, stat.S_IMODE(path.stat().st_mode))
-        except FileNotFoundError:
-            pass
         os.replace(temporary, path)
     finally:
         if temporary is not None:
