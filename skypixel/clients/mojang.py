@@ -94,10 +94,6 @@ class MojangPlayer:
         Cache.cache_player(self)
 
     @property
-    def uuid(self) -> str:
-        return self.id
-
-    @property
     def avatar(self) -> str:
         return constants.MC_HEAD_IMAGE.format(self.id)
 

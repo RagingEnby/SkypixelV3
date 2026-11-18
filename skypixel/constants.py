@@ -115,24 +115,6 @@ COLOR_CODES: dict[str, int] = {
     "e": 0xFFFF55,
     "f": 0xFFFFFF,
 }
-COLOR_CODE_NAMES: dict[str, str] = {
-    "black": "0",
-    "dark_blue": "1",
-    "dark_green": "2",
-    "cyan": "3",
-    "dark_red": "4",
-    "purple": "5",
-    "gold": "6",
-    "gray": "7",
-    "dark_gray": "8",
-    "blue": "9",
-    "green": "a",
-    "aqua": "b",
-    "red": "c",
-    "pink": "d",
-    "yellow": "e",
-    "white": "f",
-}
 DEFAULT_EMBED_COLOR: int = COLOR_CODES["2"]
 RARITY_COLORS: dict[str, int] = {
     "COMMON": COLOR_CODES["f"],

@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 DYE_PATTERN = re.compile(
     r"Combinable in Anvil Changes the color of an armor piece to #([0-9A-Fa-f]{6})!"
 )
-ITEMS: list[dict] = []
 CATEGORIES: dict[str, str] = {}
 DEFAULT_HEXES: dict[str, str] = {}
 MISC_HEXES = {
@@ -207,7 +206,6 @@ for piece, hexes in OG_FAIRY.items():
 
 def configure(items: list[dict]) -> None:
     """Build color tables after the item catalog loads."""
-    ITEMS[:] = items
     CATEGORIES.clear()
     CATEGORIES.update(
         (item["id"], item["category"])
