@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import time
-from collections.abc import Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import disnake
@@ -109,182 +110,245 @@ async def make_auction_embed(
     return embed
 
 
-class AHListener:
-    def __init__(self, bot: SkypixelBot):
-        self.bot = bot
+@dataclass(frozen=True)
+class AuctionInfo:
+    """The fields of an auction that the alert rules read."""
 
-    async def on_admin_spawned_auction(
-        self, auction: dict[str, Any], item: dict[str, Any]
+    auction: dict[str, Any]
+    item: dict[str, Any]
+    extra_attributes: dict[str, Any]
+    item_id: str | None
+    timestamp: int | None
+    hex_code: str | None
+    exotic_type: colors.ExoticType | None
+    edition: int | None
+    accessory: bool
+
+    @classmethod
+    def read(cls, auction: dict[str, Any], item: dict[str, Any]) -> AuctionInfo:
+        extra_attributes = item.get("tag", {}).get("ExtraAttributes", {})
+        item_id = extra_attributes.get("id")
+        color = item.get("tag", {}).get("display", {}).get("color")
+        hex_code = f"{color & 0xFFFFFF:06X}" if color is not None else None
+        return cls(
+            auction=auction,
+            item=item,
+            extra_attributes=extra_attributes,
+            item_id=item_id,
+            timestamp=formatting.normalize_timestamp(extra_attributes["timestamp"])
+            if extra_attributes.get("timestamp")
+            else None,
+            hex_code=hex_code,
+            exotic_type=colors.get_exotic_type(item_id, hex_code)
+            if item_id and hex_code and not extra_attributes.get("dye_item")
+            else None,
+            edition=extra_attributes.get(
+                "edition", extra_attributes.get("basket_edition")
+            ),
+            accessory=auction.get("category") == "accessories"
+            or "accessories" in auction.get("categories", []),
+        )
+
+
+async def add_origin_tag(embed: disnake.Embed, info: AuctionInfo) -> None:
+    embed.add_field(
+        name="Origin Tag", value=info.extra_attributes["originTag"], inline=True
+    )
+
+
+async def add_reforge(embed: disnake.Embed, info: AuctionInfo) -> None:
+    embed.add_field(
+        name="Reforge", value=info.extra_attributes["modifier"], inline=True
+    )
+
+
+async def show_rankname(embed: disnake.Embed, info: AuctionInfo) -> None:
+    rankname = formatting.remove_color_codes(
+        await ranktracker.get_rankname(info.auction["auctioneer"])
+    )
+    embed.set_author(
+        name=rankname,
+        icon_url=constants.MC_HEAD_IMAGE.format(info.auction["auctioneer"]),
+    )
+
+
+async def add_created_at(embed: disnake.Embed, info: AuctionInfo) -> None:
+    embed.add_field(
+        name="Created At",
+        value=f"<t:{info.timestamp}>\n-# <t:{info.timestamp}:R>",
+        inline=True,
+    )
+
+
+async def add_seymour_matches(embed: disnake.Embed, info: AuctionInfo) -> None:
+    assert info.hex_code is not None
+    embed.add_field(name="Hex Code", value=f"#{info.hex_code}", inline=True)
+    armor_type = constants.SEYMOUR_IDS[info.extra_attributes["id"]]
+    top_5 = colors.get_top_5(armor_type, info.hex_code)
+    embed.description = (
+        "```\n" + "\n".join([f"{k}: {round(v, 2)}" for k, v in top_5.items()]) + "```"
+    )
+
+
+async def add_exotic_type(embed: disnake.Embed, info: AuctionInfo) -> None:
+    assert info.exotic_type is not None
+    embed.add_field(name="Hex Code", value=f"#{info.hex_code}")
+    embed.add_field(
+        name="Exotic Type",
+        value=info.exotic_type.replace("_", " ").title(),
+        inline=True,
+    )
+
+
+async def describe_cake_soul(embed: disnake.Embed, info: AuctionInfo) -> str:
+    auction, item = info.auction, info.item
+    damage = item.get("Damage")
+    dye_data = constants.MINECRAFT_DYES.get(damage) if isinstance(damage, int) else None
+    if dye_data:
+        embed.title = dye_data["colorName"].title() + " Cake Soul"
+        embed.color = dye_data["hex"]
+    cake_owner = info.extra_attributes.get("cake_owner") or "None"
+    embed.add_field(
+        name="Cake Owner",
+        value=formatting.remove_color_codes(cake_owner),
+        inline=True,
+    )
+    pings = []
+    if (
+        auction["bin"]
+        and auction["starting_bid"] <= 7_500_000
+        and dye_data
+        and dye_data["colorName"] == "red"
     ):
-        embed = await make_auction_embed(auction, item)
+        pings.append(f"<@&{constants.CHEAP_RED_SOUL_ROLE}>")
+    if auction["bin"] and auction["starting_bid"] <= 5_000_000:
+        pings.append(f"<@&{constants.CHEAP_SOUL_ROLE}>")
+    return " ".join(pings)
+
+
+async def add_edition(embed: disnake.Embed, info: AuctionInfo) -> None:
+    assert info.edition is not None
+    embed.add_field(
+        name="Edition", value=f"#{formatting.commaize(info.edition)}", inline=True
+    )
+    recipient_name = info.extra_attributes.get("recipient_name")
+    if recipient_name:
         embed.add_field(
-            name="Origin Tag",
-            value=item["tag"]["ExtraAttributes"]["originTag"],
+            name="Recipient Name",
+            value=formatting.esc_mrkdwn(formatting.remove_color_codes(recipient_name)),
             inline=True,
         )
-        await alerts.notify_to_channel(
-            self.bot, constants.ADMIN_SPAWNED_ITEMS_CHANNEL, embed=embed
-        )
+    if info.timestamp:
+        await add_created_at(embed, info)
 
-    async def on_og_reforge_auction(
-        self, auction: dict[str, Any], item: dict[str, Any]
-    ):
-        embed = await make_auction_embed(auction, item)
-        embed.add_field(
-            name="Reforge",
-            value=item["tag"]["ExtraAttributes"]["modifier"],
-            inline=True,
-        )
-        await alerts.notify_to_channel(
-            self.bot, constants.OG_REFORGES_CHANNEL, embed=embed
-        )
 
-    async def on_semi_og_reforge_auction(
-        self, auction: dict[str, Any], item: dict[str, Any]
-    ):
-        embed = await make_auction_embed(auction, item)
-        embed.add_field(
-            name="Reforge",
-            value=item["tag"]["ExtraAttributes"]["modifier"],
-            inline=True,
-        )
-        await alerts.notify_to_channel(
-            self.bot, constants.SEMI_OG_REFORGES_CHANNEL, embed=embed
-        )
+def exotic_thread(info: AuctionInfo) -> tuple[int, int] | None:
+    assert info.exotic_type is not None
+    thread_id = constants.EXOTIC_AUCTIONS_THREADS.get(info.exotic_type)
+    if not thread_id:
+        return None
+    return constants.EXOTIC_AUCTIONS_THREADS_PARENT, thread_id
 
-    async def on_poi_auction(self, auction: dict[str, Any], item: dict[str, Any]):
-        rankname = formatting.remove_color_codes(
-            await ranktracker.get_rankname(auction["auctioneer"])
-        )
-        embed = await make_auction_embed(auction, item)
-        embed.set_author(
-            name=rankname,
-            icon_url=constants.MC_HEAD_IMAGE.format(auction["auctioneer"]),
-        )
-        await alerts.notify_to_channel(
-            self.bot, constants.POI_AUCTIONS_CHANNEL, embed=embed
-        )
 
-    async def on_old_item_auction(
-        self, auction: dict[str, Any], item: dict[str, Any], timestamp: int
-    ):
-        embed = await make_auction_embed(auction, item)
-        embed.add_field(
-            name="Created At",
-            value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
-            inline=True,
-        )
-        await alerts.notify_to_channel(
-            self.bot, constants.OLD_ITEM_AUCTIONS_CHANNEL, embed=embed
-        )
+@dataclass(frozen=True)
+class Rule:
+    """One auction alert: when it fires, where it goes, and what it adds.
 
-    async def on_seymour_auction(
-        self, auction: dict[str, Any], item: dict[str, Any], hex_code: str
-    ):
-        embed = await make_auction_embed(auction, item)
-        embed.add_field(name="Hex Code", value=f"#{hex_code}", inline=True)
-        armor_type = constants.SEYMOUR_IDS[item["tag"]["ExtraAttributes"]["id"]]
-        top_5 = colors.get_top_5(armor_type, hex_code)
-        embed.description = (
-            "```\n"
-            + "\n".join([f"{k}: {round(v, 2)}" for k, v in top_5.items()])
-            + "```"
-        )
-        await alerts.notify_to_channel(
-            self.bot, constants.SEYMOUR_AUCTIONS_CHANNEL, embed=embed
-        )
+    decorate changes the shared auction embed and may return the message
+    text, such as role pings. thread returns an extra (parent channel, thread)
+    destination for the same message.
+    """
 
-    async def on_exotic_auction(
-        self,
-        auction: dict[str, Any],
-        item: dict[str, Any],
-        exotic_type: colors.ExoticType,
-        hex_code: str,
-    ):
-        embed = await make_auction_embed(auction, item)
-        embed.add_field(name="Hex Code", value=f"#{hex_code}")
-        embed.add_field(
-            name="Exotic Type", value=exotic_type.replace("_", " ").title(), inline=True
-        )
-        send_tasks = [
+    name: str
+    matches: Callable[[AuctionInfo], Any]
+    channel: int
+    decorate: Callable[[disnake.Embed, AuctionInfo], Awaitable[str | None]]
+    thread: Callable[[AuctionInfo], tuple[int, int] | None] | None = None
+
+
+RULES: tuple[Rule, ...] = (
+    Rule(
+        "admin_spawned",
+        lambda info: (
+            info.extra_attributes.get("originTag") in constants.ADMIN_ORIGIN_TAGS
+        ),
+        constants.ADMIN_SPAWNED_ITEMS_CHANNEL,
+        add_origin_tag,
+    ),
+    Rule(
+        "og_reforge",
+        lambda info: (
+            not info.accessory
+            and info.extra_attributes.get("modifier") in constants.OG_REFORGES
+        ),
+        constants.OG_REFORGES_CHANNEL,
+        add_reforge,
+    ),
+    Rule(
+        "semi_og_reforge",
+        lambda info: (
+            info.accessory and info.extra_attributes.get("modifier", "none") != "none"
+        ),
+        constants.SEMI_OG_REFORGES_CHANNEL,
+        add_reforge,
+    ),
+    Rule(
+        "poi",
+        lambda info: info.auction["auctioneer"] in ranktracker.POI_UUIDS,
+        constants.POI_AUCTIONS_CHANNEL,
+        show_rankname,
+    ),
+    Rule(
+        "old_item",
+        lambda info: (
+            info.timestamp
+            and info.timestamp <= 1575910800
+            and info.auction["starting_bid"] <= 100_000_000
+        ),
+        constants.OLD_ITEM_AUCTIONS_CHANNEL,
+        add_created_at,
+    ),
+    Rule(
+        "seymour",
+        lambda info: info.item_id in constants.SEYMOUR_IDS and info.hex_code,
+        constants.SEYMOUR_AUCTIONS_CHANNEL,
+        add_seymour_matches,
+    ),
+    Rule(
+        "exotic",
+        lambda info: info.exotic_type and info.hex_code,
+        constants.EXOTIC_AUCTIONS_CHANNEL,
+        add_exotic_type,
+        thread=exotic_thread,
+    ),
+    Rule(
+        "cake_soul",
+        lambda info: info.item_id == "CAKE_SOUL",
+        constants.CAKE_SOUL_AUCTIONS_CHANNEL,
+        describe_cake_soul,
+    ),
+    Rule(
+        "editioned",
+        lambda info: info.edition and info.edition > 0,
+        constants.EDITIONED_AUCTIONS_CHANNEL,
+        add_edition,
+    ),
+)
+
+
+async def send_alert(bot: SkypixelBot, rule: Rule, info: AuctionInfo) -> None:
+    embed = await make_auction_embed(info.auction, info.item)
+    content = await rule.decorate(embed, info)
+    sends = [alerts.notify_to_channel(bot, rule.channel, content, embed=embed)]
+    thread = rule.thread(info) if rule.thread is not None else None
+    if thread is not None:
+        parent, thread_id = thread
+        sends.append(
             alerts.notify_to_channel(
-                self.bot, constants.EXOTIC_AUCTIONS_CHANNEL, embed=embed
+                bot, parent, content, thread_id=thread_id, embed=embed
             )
-        ]
-        thread_id = constants.EXOTIC_AUCTIONS_THREADS.get(exotic_type)
-        if thread_id:
-            send_tasks.append(
-                alerts.notify_to_channel(
-                    self.bot,
-                    constants.EXOTIC_AUCTIONS_THREADS_PARENT,
-                    thread_id=thread_id,
-                    embed=embed,
-                )
-            )
-        await finish_tasks(*send_tasks)
-
-    async def on_cake_soul_auction(self, auction: dict[str, Any], item: dict[str, Any]):
-        embed = await make_auction_embed(auction, item)
-        damage = item.get("Damage")
-        dye_data = (
-            constants.MINECRAFT_DYES.get(damage) if isinstance(damage, int) else None
         )
-        if dye_data:
-            embed.title = dye_data["colorName"].title() + " Cake Soul"
-            embed.color = dye_data["hex"]
-        cake_owner = (
-            item.get("tag", {}).get("ExtraAttributes", {}).get("cake_owner") or "None"
-        )
-        embed.add_field(
-            name="Cake Owner",
-            value=formatting.remove_color_codes(cake_owner),
-            inline=True,
-        )
-        pings = []
-        if (
-            auction["bin"]
-            and auction["starting_bid"] <= 7_500_000
-            and dye_data
-            and dye_data["colorName"] == "red"
-        ):
-            pings.append(f"<@&{constants.CHEAP_RED_SOUL_ROLE}>")
-        if auction["bin"] and auction["starting_bid"] <= 5_000_000:
-            pings.append(f"<@&{constants.CHEAP_SOUL_ROLE}>")
-        await alerts.notify_to_channel(
-            self.bot, constants.CAKE_SOUL_AUCTIONS_CHANNEL, " ".join(pings), embed=embed
-        )
-
-    async def on_editioned_auction(
-        self,
-        auction: dict[str, Any],
-        item: dict[str, Any],
-        edition: int,
-        timestamp: int | None,
-    ):
-        embed = await make_auction_embed(auction, item)
-        embed.add_field(
-            name="Edition", value=f"#{formatting.commaize(edition)}", inline=True
-        )
-        recipient_name = (
-            item.get("tag", {}).get("ExtraAttributes", {}).get("recipient_name")
-        )
-        if recipient_name:
-            embed.add_field(
-                name="Recipient Name",
-                value=formatting.esc_mrkdwn(
-                    formatting.remove_color_codes(recipient_name)
-                ),
-                inline=True,
-            )
-        if timestamp:
-            embed.add_field(
-                name="Created At",
-                value=f"<t:{timestamp}>\n-# <t:{timestamp}:R>",
-                inline=True,
-            )
-        await alerts.notify_to_channel(
-            self.bot, constants.EDITIONED_AUCTIONS_CHANNEL, embed=embed
-        )
+    await finish_tasks(*sends)
 
 
 class AuctionTrackerCog(PollingCog):
@@ -308,8 +372,6 @@ class AuctionTrackerCog(PollingCog):
         self.last_scanned_ended = self._load_cursor("ended", fresh)
         self._scan_semaphore = asyncio.Semaphore(20)
         self._late_polls = {"active": 0, "ended": 0}
-        # Not "listener", which would hide disnake's Cog.listener decorator.
-        self.alerts = AHListener(bot)
 
     def _load_cursor(self, name: str, fresh: float) -> int:
         cursor = self.cursors.get(name)
@@ -351,56 +413,12 @@ class AuctionTrackerCog(PollingCog):
         self.log_auction(auction, item, ended=False)
         if not new:
             return
-        extra_attributes = item.get("tag", {}).get("ExtraAttributes", {})
-        if not extra_attributes.get("uuid"):
+        if not item.get("tag", {}).get("ExtraAttributes", {}).get("uuid"):
             return
-        item_id = extra_attributes.get("id")
-        timestamp = (
-            formatting.normalize_timestamp(extra_attributes["timestamp"])
-            if extra_attributes.get("timestamp")
-            else None
-        )
-        color = item.get("tag", {}).get("display", {}).get("color")
-        hex_code = f"{color & 0xFFFFFF:06X}" if color is not None else None
-        exotic_type = (
-            colors.get_exotic_type(item_id, hex_code)
-            if item_id and hex_code and not extra_attributes.get("dye_item")
-            else None
-        )
-        edition = extra_attributes.get(
-            "edition", extra_attributes.get("basket_edition")
-        )
-        accessory = auction.get(
-            "category"
-        ) == "accessories" or "accessories" in auction.get("categories", [])
-        tasks: list[Coroutine] = []
-
-        if extra_attributes.get("originTag") in constants.ADMIN_ORIGIN_TAGS:
-            tasks.append(self.alerts.on_admin_spawned_auction(auction, item))
-        if not accessory and extra_attributes.get("modifier") in constants.OG_REFORGES:
-            tasks.append(self.alerts.on_og_reforge_auction(auction, item))
-        if accessory and extra_attributes.get("modifier", "none") != "none":
-            tasks.append(self.alerts.on_semi_og_reforge_auction(auction, item))
-        if auction["auctioneer"] in ranktracker.POI_UUIDS:
-            tasks.append(self.alerts.on_poi_auction(auction, item))
-        if (
-            timestamp
-            and timestamp <= 1575910800
-            and auction["starting_bid"] <= 100_000_000
-        ):
-            tasks.append(self.alerts.on_old_item_auction(auction, item, timestamp))
-        if item_id in constants.SEYMOUR_IDS and hex_code:
-            tasks.append(self.alerts.on_seymour_auction(auction, item, hex_code))
-        if exotic_type and hex_code:
-            tasks.append(
-                self.alerts.on_exotic_auction(auction, item, exotic_type, hex_code)
-            )
-        if item_id == "CAKE_SOUL":
-            tasks.append(self.alerts.on_cake_soul_auction(auction, item))
-        if edition and edition > 0:
-            tasks.append(
-                self.alerts.on_editioned_auction(auction, item, edition, timestamp)
-            )
+        info = AuctionInfo.read(auction, item)
+        tasks = [
+            send_alert(self.bot, rule, info) for rule in RULES if rule.matches(info)
+        ]
         if tasks:
             await finish_tasks(*tasks)
 

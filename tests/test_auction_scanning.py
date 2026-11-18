@@ -23,9 +23,7 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
             }
         }
         with (
-            patch.object(
-                cog.alerts, "on_exotic_auction", new_callable=AsyncMock
-            ) as alert,
+            patch.object(auctionhouse, "send_alert", new_callable=AsyncMock) as alert,
             patch.object(
                 auctionhouse.mojang,
                 "get",
@@ -34,7 +32,12 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
         ):
             await cog.on_auction(auction, item)
             embed = await auctionhouse.make_auction_embed(auction, item)
-        alert.assert_awaited_once_with(auction, item, "spook", "000000")
+        alert.assert_awaited_once()
+        _bot, rule, info = alert.await_args.args
+        self.assertEqual(rule.name, "exotic")
+        self.assertIs(info.auction, auction)
+        self.assertIs(info.item, item)
+        self.assertEqual((info.exotic_type, info.hex_code), ("spook", "000000"))
         self.assertEqual(embed.color.value, 0)
         self.assertTrue(embed.thumbnail.url.endswith("/000000.png"))
 
@@ -57,19 +60,16 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
                         }
                     }
                 }
-                with (
-                    patch.object(
-                        cog.alerts, "on_og_reforge_auction", new_callable=AsyncMock
-                    ) as og,
-                    patch.object(
-                        cog.alerts,
-                        "on_semi_og_reforge_auction",
-                        new_callable=AsyncMock,
-                    ) as semi,
-                ):
+                with patch.object(
+                    auctionhouse, "send_alert", new_callable=AsyncMock
+                ) as alert:
                     await cog.on_auction(auction, item)
-                og.assert_not_awaited()
-                semi.assert_awaited_once_with(auction, item)
+                fired = [call.args[1].name for call in alert.await_args_list]
+                self.assertNotIn("og_reforge", fired)
+                self.assertEqual(fired.count("semi_og_reforge"), 1)
+                info = alert.await_args_list[fired.index("semi_og_reforge")].args[2]
+                self.assertIs(info.auction, auction)
+                self.assertIs(info.item, item)
 
     def page(self, number, starts, updated=200_000):
         return {
