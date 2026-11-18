@@ -5,9 +5,10 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import tests.support as support
 from skypixel.clients import http, hypixel, mojang
+from skypixel.domain.types import JSON
 
 
-def response(status=200, data=None):
+def response(status: int = 200, data: JSON = None) -> Mock:
     return Mock(
         status_code=status,
         url="https://example.com/resource?key=secret",
@@ -16,13 +17,13 @@ def response(status=200, data=None):
 
 
 class HttpTests(unittest.IsolatedAsyncioTestCase):
-    async def test_invalid_attempt_count_does_not_open_a_session(self):
+    async def test_invalid_attempt_count_does_not_open_a_session(self) -> None:
         with patch.object(http, "get_session", new_callable=AsyncMock) as session:
             with self.assertRaises(ValueError):
                 await http.get("https://example.com/resource", attempts=0)
         session.assert_not_awaited()
 
-    async def test_get_retries_transient_statuses(self):
+    async def test_get_retries_transient_statuses(self) -> None:
         session = Mock(
             request=AsyncMock(side_effect=[response(503), response(429), response(200)])
         )
@@ -35,7 +36,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(session.request.await_count, 3)
 
-    async def test_retry_waits_for_the_retry_after_header(self):
+    async def test_retry_waits_for_the_retry_after_header(self) -> None:
         limited = response(429)
         limited.headers = {"Retry-After": "12"}
         flooded = response(429)
@@ -52,7 +53,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
             [12, http.MAX_RETRY_AFTER],
         )
 
-    async def test_zero_retry_after_keeps_the_retry_delay(self):
+    async def test_zero_retry_after_keeps_the_retry_delay(self) -> None:
         limited = response(429)
         limited.headers = {"Retry-After": "0"}
         session = Mock(request=AsyncMock(side_effect=[limited, limited, response()]))
@@ -64,7 +65,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
             await http.get("https://example.com/resource")
         self.assertEqual([call.args[0] for call in sleep.await_args_list], [1, 2])
 
-    async def test_retry_warning_names_the_url_and_the_error(self):
+    async def test_retry_warning_names_the_url_and_the_error(self) -> None:
         error = http.RequestException("timed out")
         session = Mock(request=AsyncMock(side_effect=[error, response()]))
         with (
@@ -78,7 +79,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("timed out", logs.output[0])
         self.assertNotIn("secret", logs.output[0])
 
-    async def test_get_retry_count_is_bounded(self):
+    async def test_get_retry_count_is_bounded(self) -> None:
         session = Mock(request=AsyncMock(return_value=response(503)))
         with (
             patch.object(http, "SESSION", session),
@@ -89,7 +90,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status_code, 503)
         self.assertEqual(session.request.await_count, 3)
 
-    async def test_post_does_not_retry(self):
+    async def test_post_does_not_retry(self) -> None:
         session = Mock(request=AsyncMock(return_value=response(503)))
         with (
             patch.object(http, "SESSION", session),
@@ -98,7 +99,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
             await http.post("https://example.com/resource", json={"value": 1})
         session.request.assert_awaited_once()
 
-    async def test_not_found_response_reaches_the_caller(self):
+    async def test_not_found_response_reaches_the_caller(self) -> None:
         session = Mock(request=AsyncMock(return_value=response(404)))
         with (
             patch.object(http, "SESSION", session),
@@ -108,7 +109,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status_code, 404)
         session.request.assert_awaited_once()
 
-    async def test_request_cancellation_propagates(self):
+    async def test_request_cancellation_propagates(self) -> None:
         session = Mock(request=AsyncMock(side_effect=asyncio.CancelledError))
         with (
             patch.object(http, "SESSION", session),
@@ -118,7 +119,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
                 await http.get("https://example.com/resource")
         session.request.assert_awaited_once()
 
-    async def test_close_is_idempotent(self):
+    async def test_close_is_idempotent(self) -> None:
         session = Mock(close=AsyncMock())
         with (
             patch.object(http, "SESSION", session),
@@ -131,7 +132,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
                 await http.get_session()
         session.close.assert_awaited_once()
 
-    def test_log_urls_hide_credentials_and_queries(self):
+    def test_log_urls_hide_credentials_and_queries(self) -> None:
         self.assertEqual(
             http.safe_url("https://user:password@example.com/path?api_key=secret"),
             "https://example.com/path",
@@ -139,7 +140,7 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
 
 
 class HypixelTests(unittest.IsolatedAsyncioTestCase):
-    async def test_failed_cache_write_keeps_the_loaded_items(self):
+    async def test_failed_cache_write_keeps_the_loaded_items(self) -> None:
         with (
             patch.object(
                 hypixel.http,
@@ -155,37 +156,39 @@ class HypixelTests(unittest.IsolatedAsyncioTestCase):
 
 
 class MojangTests(unittest.IsolatedAsyncioTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         mojang.Cache.CACHE.clear()
         self.addCleanup(mojang.Cache.CACHE.clear)
 
-    async def test_cache_normalizes_names_and_uuids(self):
+    async def test_cache_normalizes_names_and_uuids(self) -> None:
         player = mojang.MojangPlayer("Player", "a" * 32)
         self.assertIs(await mojang.get("PLAYER"), player)
         self.assertIs(await mojang.get("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), player)
 
-    async def test_cache_removes_the_previous_name_after_a_rename(self):
+    async def test_cache_removes_the_previous_name_after_a_rename(self) -> None:
         mojang.MojangPlayer("Before", "a" * 32)
         current = mojang.MojangPlayer("After", "a" * 32)
         self.assertIsNone(mojang.Cache.get("Before"))
         self.assertIs(mojang.Cache.get("After"), current)
         self.assertIs(mojang.Cache.get("a" * 32), current)
 
-    async def test_cache_evicts_old_entries_at_its_size_limit(self):
+    async def test_cache_evicts_old_entries_at_its_size_limit(self) -> None:
         with patch.object(mojang.Cache, "MAX_ENTRIES", 4):
             for index in range(3):
                 mojang.MojangPlayer(f"Player{index}", f"{index:032x}")
         self.assertLessEqual(len(mojang.Cache.CACHE), 4)
         self.assertIsNone(mojang.Cache.get("Player0"))
-        self.assertEqual(mojang.Cache.get("Player2").name, "Player2")
+        newest = mojang.Cache.get("Player2")
+        assert newest is not None
+        self.assertEqual(newest.name, "Player2")
 
-    async def test_cached_lookup_does_not_scan_other_players(self):
+    async def test_cached_lookup_does_not_scan_other_players(self) -> None:
         player = mojang.MojangPlayer("Player", "a" * 32)
         with patch.object(mojang.Cache, "cleanup") as cleanup:
             self.assertIs(await mojang.get("Player"), player)
         cleanup.assert_not_called()
 
-    async def test_concurrent_requests_share_the_fetch(self):
+    async def test_concurrent_requests_share_the_fetch(self) -> None:
         with patch.object(
             mojang.http,
             "get",
@@ -196,10 +199,12 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
         self.assertIs(players[0], players[1])
         fetch.assert_awaited_once()
 
-    async def test_cancelling_one_caller_keeps_the_fetch_for_another_caller(self):
+    async def test_cancelling_one_caller_keeps_the_fetch_for_another_caller(
+        self,
+    ) -> None:
         started, release = asyncio.Event(), asyncio.Event()
 
-        async def fetch_player(url):
+        async def fetch_player(url: str) -> Mock:
             started.set()
             await release.wait()
             return response(data={"id": "a" * 32, "name": "Player"})
@@ -215,10 +220,10 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await second).name, "Player")
         fetch.assert_awaited_once()
 
-    async def test_close_waits_for_a_fetch_after_its_caller_is_cancelled(self):
+    async def test_close_waits_for_a_fetch_after_its_caller_is_cancelled(self) -> None:
         started, stopped = asyncio.Event(), asyncio.Event()
 
-        async def fetch_player(url):
+        async def fetch_player(url: str) -> None:
             started.set()
             try:
                 await asyncio.Future()
@@ -234,9 +239,9 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             await mojang.close()
             await mojang.close()
         self.assertTrue(stopped.is_set())
-        self.assertEqual(mojang._inflight, {})
+        self.assertEqual(mojang._inflight, {})  # pyright: ignore[reportPrivateUsage]
 
-    async def test_old_api_timestamp_does_not_expire_the_cache(self):
+    async def test_old_api_timestamp_does_not_expire_the_cache(self) -> None:
         player = mojang.MojangPlayer(
             "Player", "a" * 32, datetime.now(UTC) - timedelta(days=30)
         )
@@ -244,7 +249,7 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             self.assertIs(await mojang.get("Player"), player)
         fetch.assert_not_awaited()
 
-    async def test_expired_cache_fetches_again(self):
+    async def test_expired_cache_fetches_again(self) -> None:
         player = mojang.MojangPlayer("Player", "a" * 32)
         player.cached_at -= mojang.Cache.TTL.total_seconds()
         with patch.object(
@@ -256,14 +261,14 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             await mojang.get("Player")
         fetch.assert_awaited_once()
 
-    async def test_missing_player_keeps_the_public_exception(self):
+    async def test_missing_player_keeps_the_public_exception(self) -> None:
         with patch.object(
             mojang.http, "get", new_callable=AsyncMock, return_value=response(404)
         ):
             with self.assertRaises(mojang.PlayerNotFound):
                 await mojang.get("missing")
 
-    async def test_bulk_uses_both_uuid_and_name_keys(self):
+    async def test_bulk_uses_both_uuid_and_name_keys(self) -> None:
         with patch.object(
             mojang.http,
             "post",
@@ -276,14 +281,15 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(set(players), {"a" * 32, "player"})
         fetch.assert_awaited_once()
         # The player API takes a bare list and rejects an object with a 422.
+        assert fetch.await_args is not None
         self.assertEqual(fetch.await_args.kwargs["json"], ["a" * 32, "player"])
 
-    async def test_empty_bulk_does_not_fetch(self):
+    async def test_empty_bulk_does_not_fetch(self) -> None:
         with patch.object(mojang.http, "post", new_callable=AsyncMock) as fetch:
             self.assertEqual(await mojang.bulk([]), {})
         fetch.assert_not_awaited()
 
-    async def test_invalid_identifiers_never_reach_the_api(self):
+    async def test_invalid_identifiers_never_reach_the_api(self) -> None:
         with patch.object(mojang.http, "get", new_callable=AsyncMock) as fetch:
             for identifier in ("../ranks/counts", "a?b", "a" * 17, ""):
                 with self.assertRaises(mojang.PlayerNotFound):
@@ -296,7 +302,7 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PlayerApiFaultTests(unittest.IsolatedAsyncioTestCase):
-    async def test_unreadable_answer_is_not_reported_as_a_missing_player(self):
+    async def test_unreadable_answer_is_not_reported_as_a_missing_player(self) -> None:
         mojang.Cache.CACHE.clear()
         with patch.object(
             mojang.http,

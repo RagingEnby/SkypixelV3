@@ -8,9 +8,11 @@ from skypixel.trackers import firesaletracker, ranktracker
 class RankValidationTests(unittest.IsolatedAsyncioTestCase):
     async def test_different_partial_lists_reset_confirmation_and_keep_channel_counts(
         self,
-    ):
+    ) -> None:
         cog = ranktracker.RankTrackerCog(support.make_bot())
-        before = {str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)}
+        before: dict[str, ranktracker.PlayerRank] = {
+            str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)
+        }
         cog.data.data = before
         snapshots = [{str(i): before[str(i)]} for i in range(3)]
         with (
@@ -45,9 +47,11 @@ class RankValidationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.shrunken_polls, 0)
         self.assertIsNone(cog.shrunken_changes)
 
-    async def test_healthy_response_resets_pending_rank_removals(self):
+    async def test_healthy_response_resets_pending_rank_removals(self) -> None:
         cog = ranktracker.RankTrackerCog(support.make_bot())
-        before = {str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)}
+        before: dict[str, ranktracker.PlayerRank] = {
+            str(i): {"name": f"P{i}", "rank": "youtube"} for i in range(6)
+        }
         after = {"0": before["0"]}
         cog.data.data = before
         with (
@@ -72,7 +76,9 @@ class RankValidationTests(unittest.IsolatedAsyncioTestCase):
 
 
 class FireSaleInitializationTests(unittest.IsolatedAsyncioTestCase):
-    async def test_empty_first_poll_is_saved_and_a_later_sale_is_announced(self):
+    async def test_empty_first_poll_is_saved_and_a_later_sale_is_announced(
+        self,
+    ) -> None:
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.initialized = False
         cog.data.data = {}
@@ -95,7 +101,7 @@ class FireSaleInitializationTests(unittest.IsolatedAsyncioTestCase):
         notify.assert_awaited_once()
         self.assertIn("NEW", cog.data)
 
-    async def test_failed_empty_first_save_keeps_initialization_pending(self):
+    async def test_failed_empty_first_save_keeps_initialization_pending(self) -> None:
         cog = firesaletracker.FireSaleTrackerCog(support.make_bot())
         cog.initialized = False
         cog.data.data = {}
