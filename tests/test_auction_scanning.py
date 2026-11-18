@@ -1,3 +1,4 @@
+import time
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -255,3 +256,15 @@ class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
         ):
             embed = await auctionhouse.make_auction_embed(auction, {})
         self.assertEqual(embed.author.name, "a" * 32)
+
+    async def test_recent_scan_cursors_survive_a_restart(self):
+        recent = int(time.time() * 1000) - 60_000
+        old = int(time.time() * 1000) - 3_600_000
+        cog = auctionhouse.AuctionTrackerCog(support.make_bot())
+        cog.last_scanned_active, cog.last_scanned_ended = recent, old
+        await cog.save_cursors()
+        restarted = auctionhouse.AuctionTrackerCog(support.make_bot())
+        self.assertEqual(restarted.last_scanned_active, recent)
+        # A cursor from before a long outage would alert on every auction.
+        self.assertEqual(restarted.last_scanned_ended, 0)
+        await cog.cursors.replace({})

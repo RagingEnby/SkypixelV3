@@ -11,6 +11,7 @@ from skypixel import constants, utils
 from skypixel.clients import http, mojang
 from skypixel.domain import colors
 from skypixel.domain.nbt import ItemDecodeError, decode_single
+from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import UploadQueue
 from skypixel.storage.notifications import NotificationStorageError
 from skypixel.trackers import ranktracker
@@ -278,6 +279,7 @@ class AHListener:
 
 class AuctionTrackerCog(PollingCog):
     interval = 15
+    max_cursor_age = 10 * 60
 
     def __init__(self, bot: commands.InteractionBot):
         super().__init__(bot)
@@ -287,11 +289,25 @@ class AuctionTrackerCog(PollingCog):
         self.ended_uploads = UploadQueue(
             bot.settings.mongodb_uri, "SkyBlock", "ended_auctions"
         )
-        self.last_scanned_active = 0
-        self.last_scanned_ended = 0
+        # Save the scan cursors so a quick restart picks up where it stopped.
+        # After a long outage, start fresh instead of alerting on every
+        # auction made while the bot was down.
+        self.cursors = JsonWrapper(bot.settings.storage_dir / "auctions.json")
+        fresh = time.time() * 1000 - self.max_cursor_age * 1000
+        self.last_scanned_active = self._load_cursor("active", fresh)
+        self.last_scanned_ended = self._load_cursor("ended", fresh)
         self._scan_semaphore = asyncio.Semaphore(20)
         self._late_polls = {"active": 0, "ended": 0}
         self.listener = AHListener(bot)
+
+    def _load_cursor(self, name: str, fresh: float) -> int:
+        cursor = self.cursors.get(name)
+        return cursor if isinstance(cursor, int) and cursor >= fresh else 0
+
+    async def save_cursors(self) -> None:
+        cursors = {"active": self.last_scanned_active, "ended": self.last_scanned_ended}
+        if cursors != self.cursors.to_dict():
+            await self.cursors.replace(cursors)
 
     def next_delay(self, scanner: str, last_updated: int, changed: bool) -> float:
         """Wait for the next API update, backing off while the API is late."""
@@ -483,6 +499,10 @@ class AuctionTrackerCog(PollingCog):
             # The queues keep failed batches, so the next poll retries them.
             # Scanning should keep its own schedule while MongoDB is down.
             logger.exception("Cannot upload auction records.")
+        try:
+            await self.save_cursors()
+        except OSError:
+            logger.exception("Cannot save the auction scan cursors.")
         for delay in delays:
             if isinstance(delay, BaseException):
                 raise delay
