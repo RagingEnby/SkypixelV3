@@ -44,7 +44,10 @@ class Cache:
 
     @staticmethod
     def cache_player(player: MojangPlayer) -> None:
-        Cache.cleanup()
+        # get() drops expired entries when it reads them. Scan the whole cache
+        # only when it is full, not on every insert.
+        if len(Cache.CACHE) >= Cache.MAX_ENTRIES:
+            Cache.cleanup()
         uuid = normalize_identifier(player.id)
         previous = Cache.CACHE.get(uuid)
         if previous is not None and Cache.CACHE.get(previous.name.lower()) is previous:
