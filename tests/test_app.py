@@ -124,6 +124,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(bot.notifications, "run", side_effect=run),
             patch.object(app.http, "close", new_callable=AsyncMock),
+            patch.object(app.subscriptions, "check_channels"),
         ):
             await bot.on_ready()
             await started.wait()

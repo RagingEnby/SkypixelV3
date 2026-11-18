@@ -3,9 +3,13 @@ import tempfile
 import tomllib
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, patch
 
-from skypixel import subscriptions
+import disnake
+from disnake.ext import commands
+
+import tests.support as support
+from skypixel import app, subscriptions
 from skypixel.settings import ConfigurationError
 
 VALID = """
@@ -139,3 +143,55 @@ class ValidationTests(unittest.TestCase):
             '[[job]]\nchannel = 1\nping = "a"\n[[job]]\nchannel = 1\nping = "b"\n',
             "job[1]: channel 1 is listed twice",
         )
+
+
+def channel(*, view=True, send=True, embed=True) -> Mock:
+    result = Mock(spec=disnake.TextChannel)
+    result.guild = Mock(me=Mock(), __str__=Mock(return_value="Guild"))
+    result.permissions_for.return_value = Mock(
+        view_channel=view, send_messages=send, embed_links=embed
+    )
+    return result
+
+
+class ChannelCheckTests(unittest.IsolatedAsyncioTestCase):
+    def test_problem_channels_are_logged_and_good_ones_are_not(self):
+        channels = {
+            1: channel(),
+            2: None,
+            3: channel(view=False),
+            4: channel(send=False, embed=False),
+            5: Mock(spec=disnake.DMChannel),
+        }
+        bot = Mock(get_channel=Mock(side_effect=channels.get))
+        config = subscriptions.Subscriptions(
+            version={1: "", 2: ""},
+            alpha={2: "", 3: ""},
+            rank={"special": {4: "", 5: ""}},
+        )
+        with self.assertLogs(subscriptions.logger, level="WARNING") as logs:
+            subscriptions.check_channels(bot, config)
+        self.assertEqual(len(logs.output), 4)
+        text = "\n".join(logs.output)
+        self.assertNotIn("channel 1 ", text)
+        self.assertIn("channel 2 (version, alpha): the bot cannot find it", text)
+        self.assertIn("channel 3 (alpha) in Guild: missing View Channel", text)
+        self.assertIn("missing Send Messages, Embed Links", text)
+        self.assertIn("channel 5 (rank.special): it is not a server channel", text)
+        bot.get_channel.assert_any_call(2)
+        self.assertEqual(bot.get_channel.call_count, 5)
+
+    async def test_on_ready_checks_the_channels_once(self):
+        bot = app.SkypixelBot(
+            support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
+        )
+        with (
+            patch.object(bot.notifications, "run", new_callable=AsyncMock),
+            patch.object(subscriptions, "check_channels") as check,
+            patch.object(app.http, "close", new_callable=AsyncMock),
+            patch.object(app.mojang, "close", new_callable=AsyncMock),
+        ):
+            await bot.on_ready()
+            await bot.on_ready()
+            check.assert_called_once_with(bot)
+            await bot.close()

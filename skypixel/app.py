@@ -36,6 +36,7 @@ class SkypixelBot(commands.InteractionBot):
             self, settings.storage_dir / "notifications.json"
         )
         self._notification_task: asyncio.Task | None = None
+        self._subscriptions_checked = False
 
     async def close(self) -> None:
         async with self._close_lock:
@@ -76,6 +77,9 @@ class SkypixelBot(commands.InteractionBot):
             self._notification_task = asyncio.create_task(
                 self.notifications.run(), name="skypixel-notifications"
             )
+        if not self._subscriptions_checked:
+            self._subscriptions_checked = True
+            subscriptions.check_channels(self)
 
 
 def load_cogs() -> list[type[commands.Cog]]:

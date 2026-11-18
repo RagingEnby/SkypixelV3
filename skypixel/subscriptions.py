@@ -4,15 +4,23 @@ The list lives in a TOML file so that adding or removing a subscriber server
 does not need a code change. See config/subscriptions.toml for the format.
 """
 
+import logging
 import os
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any, get_args
+from typing import TYPE_CHECKING, Any, get_args
+
+import disnake
 
 from skypixel.domain.types import SpecialRank
 from skypixel.settings import ConfigurationError
+
+if TYPE_CHECKING:
+    from skypixel.app import SkypixelBot
+
+logger = logging.getLogger(__name__)
 
 ENVIRONMENT_VARIABLE = "SKYPIXEL_SUBSCRIPTIONS"
 DEFAULT_PATH = Path("config/subscriptions.toml")
@@ -148,3 +156,40 @@ def current() -> Subscriptions:
     if _current is None:
         return install(load())
     return _current
+
+
+def channel_problems(bot: SkypixelBot, subscriptions: Subscriptions) -> list[str]:
+    """Describe each subscribed channel the bot cannot find, view, or post to."""
+    sections: dict[int, list[str]] = {}
+    for section, channels in subscriptions.sections().items():
+        for channel_id in channels:
+            sections.setdefault(channel_id, []).append(section)
+    problems = []
+    for channel_id, names in sections.items():
+        where = f"channel {channel_id} ({', '.join(names)})"
+        channel = bot.get_channel(channel_id)
+        if channel is None:
+            problems.append(f"{where}: the bot cannot find it")
+            continue
+        if not isinstance(channel, disnake.abc.GuildChannel | disnake.Thread):
+            problems.append(f"{where}: it is not a server channel")
+            continue
+        permissions = channel.permissions_for(channel.guild.me)
+        missing = [
+            label
+            for label, allowed in (
+                ("View Channel", permissions.view_channel),
+                ("Send Messages", permissions.send_messages),
+                ("Embed Links", permissions.embed_links),
+            )
+            if not allowed
+        ]
+        if missing:
+            problems.append(f"{where} in {channel.guild}: missing {', '.join(missing)}")
+    return problems
+
+
+def check_channels(bot: SkypixelBot, subscriptions: Subscriptions | None = None):
+    """Log a warning for each subscribed channel the bot cannot use."""
+    for problem in channel_problems(bot, subscriptions or current()):
+        logger.warning("Alert subscription problem: %s.", problem)
