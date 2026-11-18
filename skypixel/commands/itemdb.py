@@ -9,7 +9,7 @@ from disnake.ext import commands
 from skypixel import constants, utils
 from skypixel.clients import hypixel
 from skypixel.commands.item_views import SoulSearchView, make_item_embed, make_item_view
-from skypixel.domain.items import PrefixRank, make_player_regex, search_souls_query
+from skypixel.domain.items import PrefixRank, player_filter, search_souls_query
 from skypixel.storage.items import ItemRepository
 
 if TYPE_CHECKING:
@@ -43,6 +43,24 @@ def find_memento(text: str) -> str | None:
         if text.lower() in (item_id.lower(), memento_name(item_id).lower()):
             return item_id
     return None
+
+
+def gift_query(
+    item_id: str,
+    sender_field: str,
+    edition: int | None,
+    sender_rank: PrefixRank | None,
+    sender_name: str | None,
+    recipient_rank: PrefixRank | None,
+    recipient_name: str | None,
+) -> dict[str, Any]:
+    """Build the query for an edition item sent from one player to another."""
+    return {
+        "itemId": item_id,
+        "extraAttributes.edition": edition,
+        sender_field: player_filter(sender_rank, sender_name),
+        "extraAttributes.recipient_name": player_filter(recipient_rank, recipient_name),
+    }
 
 
 class ItemDBCog(commands.Cog):
@@ -132,21 +150,15 @@ class ItemDBCog(commands.Cog):
         query = search_souls_query(
             {
                 "itemId": "CAKE_SOUL",
-                "extraAttributes.captured_player": make_player_regex(
+                "extraAttributes.captured_player": player_filter(
                     captured_rank, captured_player
-                )
-                if captured_player or captured_rank
-                else None,
-                "extraAttributes.initiator_player": make_player_regex(
+                ),
+                "extraAttributes.initiator_player": player_filter(
                     captured_by_rank, captured_by_name
-                )
-                if captured_by_name or captured_by_rank
-                else None,
-                "extraAttributes.cake_owner": make_player_regex(
+                ),
+                "extraAttributes.cake_owner": player_filter(
                     cake_owner_rank, cake_owner_name
-                )
-                if cake_owner_name or cake_owner_rank
-                else None,
+                ),
             }
         )
         results = await self.item_db.search_souls(query)
@@ -215,18 +227,15 @@ class ItemDBCog(commands.Cog):
         """
         return await self.do_search_command(
             inter,
-            {
-                "itemId": "DUECES_BUILDER_CLAY",
-                "extraAttributes.edition": edition,
-                "extraAttributes.sender": make_player_regex(sender_rank, sender_name)
-                if sender_name or sender_rank
-                else None,
-                "extraAttributes.recipient_name": make_player_regex(
-                    recipient_rank, recipient_name
-                )
-                if recipient_name or recipient_rank
-                else None,
-            },
+            gift_query(
+                "DUECES_BUILDER_CLAY",
+                "extraAttributes.sender",
+                edition,
+                sender_rank,
+                sender_name,
+                recipient_rank,
+                recipient_name,
+            ),
         )
 
     @itemdb.sub_command(
@@ -251,11 +260,9 @@ class ItemDBCog(commands.Cog):
             {
                 "itemId": "POTATO_BASKET",
                 "extraAttributes.basket_edition": edition,
-                "extraAttributes.basket_player_name": make_player_regex(
+                "extraAttributes.basket_player_name": player_filter(
                     basket_player_rank, basket_player_name
-                )
-                if basket_player_name or basket_player_rank
-                else None,
+                ),
             },
         )
 
@@ -282,18 +289,15 @@ class ItemDBCog(commands.Cog):
         """
         return await self.do_search_command(
             inter,
-            {
-                "itemId": "ANCIENT_ELEVATOR",
-                "extraAttributes.edition": edition,
-                "extraAttributes.sender": make_player_regex(sender_rank, sender_name)
-                if sender_name or sender_rank
-                else None,
-                "extraAttributes.recipient_name": make_player_regex(
-                    recipient_rank, recipient_name
-                )
-                if recipient_name or recipient_rank
-                else None,
-            },
+            gift_query(
+                "ANCIENT_ELEVATOR",
+                "extraAttributes.sender",
+                edition,
+                sender_rank,
+                sender_name,
+                recipient_rank,
+                recipient_name,
+            ),
         )
 
     @itemdb.sub_command(
@@ -329,11 +333,9 @@ class ItemDBCog(commands.Cog):
             {
                 "itemId": item_id or {"$in": hypixel.MEMENTOS},
                 "extraAttributes.edition": edition,
-                "extraAttributes.recipient_name": make_player_regex(
+                "extraAttributes.recipient_name": player_filter(
                     recipient_rank, recipient_name
-                )
-                if recipient_name or recipient_rank
-                else None,
+                ),
                 "extraAttributes.recipient_id": recipient_id,
             },
         )
@@ -366,9 +368,7 @@ class ItemDBCog(commands.Cog):
                 "extraAttributes.auction": auction,
                 "extraAttributes.bid": bid,
                 "extraAttributes.price": price,
-                "extraAttributes.player": make_player_regex(buyer_rank, buyer_name)
-                if buyer_name or buyer_rank
-                else None,
+                "extraAttributes.player": player_filter(buyer_rank, buyer_name),
             },
         )
 
@@ -396,20 +396,15 @@ class ItemDBCog(commands.Cog):
         """
         return await self.do_search_command(
             inter,
-            {
-                "itemId": "DCTR_SPACE_HELM",
-                "extraAttributes.edition": edition,
-                "extraAttributes.sender_name": make_player_regex(
-                    sender_rank, sender_name
-                )
-                if sender_name or sender_rank
-                else None,
-                "extraAttributes.recipient_name": make_player_regex(
-                    recipient_rank, recipient_name
-                )
-                if recipient_name or recipient_rank
-                else None,
-            },
+            gift_query(
+                "DCTR_SPACE_HELM",
+                "extraAttributes.sender_name",
+                edition,
+                sender_rank,
+                sender_name,
+                recipient_rank,
+                recipient_name,
+            ),
         )
 
     @commands.Cog.listener()

@@ -11,7 +11,12 @@ from skypixel.commands.item_views import SoulSearchView, make_item_embed
 from skypixel.commands.itemdb import ItemDBCog
 from skypixel.commands.rank_views import RankListView
 from skypixel.commands.views import OwnedView
-from skypixel.domain.items import fix_item, make_player_regex, make_playername_regex
+from skypixel.domain.items import (
+    fix_item,
+    make_player_regex,
+    make_playername_regex,
+    player_filter,
+)
 from skypixel.storage.items import ItemRepository, soul_rank_pipeline
 
 
@@ -81,6 +86,14 @@ class ItemTests(unittest.IsolatedAsyncioTestCase):
                 )
         self.assertEqual(
             make_player_regex(None, "Player"), make_playername_regex("Player")
+        )
+
+    def test_player_filter_is_none_without_a_rank_or_name(self):
+        self.assertIsNone(player_filter(None, None))
+        self.assertIsNone(player_filter(None, ""))
+        self.assertEqual(player_filter("NON", None), make_player_regex("NON", None))
+        self.assertEqual(
+            player_filter("[VIP]", "Player"), make_player_regex("[VIP]", "Player")
         )
 
     async def test_non_object_query_gets_an_error_without_a_database_call(self):

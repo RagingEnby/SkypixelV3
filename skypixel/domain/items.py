@@ -82,6 +82,15 @@ def make_player_regex(
     raise ValueError("Provide a player name or a rank.")
 
 
+def player_filter(
+    rank: PrefixRank | None = None, playername: str | None = None
+) -> dict[str, Any] | None:
+    """Match a player by rank, name, or both. Return None when both are empty."""
+    if playername or rank:
+        return make_player_regex(rank, playername)
+    return None
+
+
 def search_souls_query(query: dict) -> dict:
     query = {k: v for k, v in query.items() if v is not None}
     query["itemId"] = "CAKE_SOUL"
