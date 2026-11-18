@@ -14,18 +14,19 @@ class PollingCog(commands.Cog):
 
     interval: float = 60
 
-    def __init__(self, bot: SkypixelBot):
-        self.bot = bot
-        self.task: asyncio.Task | None = None
-        self._close_lock = asyncio.Lock()
-        self._closed = False
-        self._logger = logging.getLogger(type(self).__module__)
+    def __init__(self, bot: SkypixelBot) -> None:
+        self.bot: SkypixelBot = bot
+        self.task: asyncio.Task[None] | None = None
+        self._close_lock: asyncio.Lock = asyncio.Lock()
+        self._closed: bool = False
+        self._logger: logging.Logger = logging.getLogger(type(self).__module__)
 
     async def poll(self) -> float | None:
         raise NotImplementedError
 
     async def main(self) -> None:
         while True:
+            delay: float | None
             try:
                 delay = await self.poll()
                 delay = self.interval if delay is None else max(float(delay), 1.0)

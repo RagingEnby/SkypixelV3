@@ -12,13 +12,13 @@ if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 URL: str = "https://api.hypixel.net/v2/resources/skyblock/skills"
 
 
 async def get_version() -> str:
     data = await http.get_json(URL)
-    version = data.get("version")
+    version = data.get("version") if isinstance(data, dict) else None
     if not isinstance(version, str) or not version:
         raise ValueError("The skills API did not return a version.")
     logger.debug("got version: %s", version)
@@ -30,11 +30,11 @@ def send(embed: disnake.Embed) -> list[Alert]:
 
 
 class VersionTrackerCog(PollingCog):
-    interval = 120
+    interval: float = 120
 
-    def __init__(self, bot: SkypixelBot):
+    def __init__(self, bot: SkypixelBot) -> None:
         super().__init__(bot)
-        self.data = TrackerState(bot.database, "version")
+        self.data: TrackerState[str] = TrackerState(bot.database, "version")
         if not self.data.get("version"):
             logger.warning("The saved SkyBlock version is empty.")
 
@@ -48,7 +48,7 @@ class VersionTrackerCog(PollingCog):
         )
         return send(embed)
 
-    async def poll(self):
+    async def poll(self) -> None:
         version = await get_version()
         if version != self.data.get("version"):
             logger.debug("version update: %s => %s", self.data.get("version"), version)

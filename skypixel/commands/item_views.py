@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from typing import Any
 
 import disnake
 import pymongo
@@ -9,19 +8,20 @@ from skypixel import constants, utils
 from skypixel.clients import mojang
 from skypixel.commands.views import OwnedView
 from skypixel.domain.items import fix_item, get_item_color, get_item_image
+from skypixel.domain.types import Document
 from skypixel.storage.mongo import Collection
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-def discord_time(milliseconds: Any, style: str = "d") -> str:
+def discord_time(milliseconds: object, style: str = "d") -> str:
     """Format a millisecond timestamp, or show that it is unknown."""
     if isinstance(milliseconds, int) and milliseconds > 0:
         return f"<t:{milliseconds // 1000}:{style}>"
     return "unknown"
 
 
-async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
+async def make_item_embed(item: Document) -> disnake.Embed:
     item = fix_item(item)
     previous_owners = list(reversed(item["previousOwners"]))[:5]
     try:
@@ -63,7 +63,7 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     )
 
     if previous_owners:
-        lines = []
+        lines: list[str] = []
         for po in previous_owners:
             player = players.get(po["owner"]["playerUuid"])
             player_name = (
@@ -142,9 +142,11 @@ async def make_item_embed(item: dict[str, Any]) -> disnake.Embed:
     return utils.fit_embed(embed)
 
 
-def make_item_view(item: dict[str, Any]) -> disnake.ui.View:
+def make_item_view(item: Document) -> disnake.ui.View:
     view = disnake.ui.View()
-    view.add_item(
+    # disnake types add_item as taking an Item with no view type, so pyright
+    # sees the method as partly unknown.
+    view.add_item(  # pyright: ignore[reportUnknownMemberType]
         disnake.ui.Button(
             label="View Raw Data",
             url="https://api.ragingenby.dev/items/" + item["_id"],
@@ -152,7 +154,7 @@ def make_item_view(item: dict[str, Any]) -> disnake.ui.View:
         )
     )
     if item.get("lore"):
-        view.add_item(
+        view.add_item(  # pyright: ignore[reportUnknownMemberType]
             disnake.ui.Button(
                 label="View Lore",
                 style=disnake.ButtonStyle.primary,
@@ -163,28 +165,28 @@ def make_item_view(item: dict[str, Any]) -> disnake.ui.View:
 
 
 class SoulSearchView(OwnedView):
-    cache_limit = 128
+    cache_limit: int = 128
 
     def __init__(
         self,
-        query: dict,
+        query: Document,
         count: int,
         main_embed: disnake.Embed,
         item_db: Collection,
-        inter: disnake.Interaction,
-    ):
+        inter: disnake.Interaction[disnake.Client],
+    ) -> None:
         super().__init__(inter)
-        self.query = query
-        self.count = count
-        self.main_embed = main_embed
-        self.item_db = item_db
-        self.index = 0
-        self.item_cache: dict[int, dict] = {}
+        self.query: Document = query
+        self.count: int = count
+        self.main_embed: disnake.Embed = main_embed
+        self.item_db: Collection = item_db
+        self.index: int = 0
+        self.item_cache: dict[int, Document] = {}
         self.embed_cache: dict[int, disnake.Embed] = {}
-        self._page_lock = asyncio.Lock()
+        self._page_lock: asyncio.Lock = asyncio.Lock()
         self.update_buttons()
 
-    async def get_current_item(self) -> dict | None:
+    async def get_current_item(self) -> Document | None:
         index = self.index
         if index in self.item_cache:
             return self.item_cache[index]
@@ -222,11 +224,13 @@ class SoulSearchView(OwnedView):
         self.embed_cache[index] = embed
         return embed
 
-    def update_buttons(self):
+    def update_buttons(self) -> None:
         self.previous.disabled = self.index <= 0
         self.next.disabled = self.index >= self.count - 1
 
-    async def change_item(self, interaction: disnake.Interaction, offset: int) -> None:
+    async def change_item(
+        self, interaction: disnake.Interaction[disnake.Client], offset: int
+    ) -> None:
         await interaction.response.defer()
         async with self._page_lock:
             self.index = max(0, min(self.index + offset, self.count - 1))
@@ -239,12 +243,20 @@ class SoulSearchView(OwnedView):
                 embeds=utils.fit_embeds(embeds), view=self
             )
 
-    @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)
+    # disnake types the button callback's interaction as MessageInteraction
+    # with no client type, so pyright sees the decorator as partly unknown.
+    @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="⬅️", row=0)  # pyright: ignore[reportUnknownMemberType]
     async def previous(
-        self, button: disnake.ui.Button, interaction: disnake.Interaction
-    ):
+        self,
+        button: disnake.ui.Button[SoulSearchView],
+        interaction: disnake.MessageInteraction[disnake.Client],
+    ) -> None:
         await self.change_item(interaction, -1)
 
-    @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)
-    async def next(self, button: disnake.ui.Button, interaction: disnake.Interaction):
+    @disnake.ui.button(style=disnake.ButtonStyle.blurple, emoji="➡️", row=0)  # pyright: ignore[reportUnknownMemberType]
+    async def next(
+        self,
+        button: disnake.ui.Button[SoulSearchView],
+        interaction: disnake.MessageInteraction[disnake.Client],
+    ) -> None:
         await self.change_item(interaction, 1)

@@ -13,14 +13,15 @@ if TYPE_CHECKING:
 
 
 URL: str = "https://api.ragingenby.dev/hypixel/skyblock/zones"
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 async def get_zones() -> set[str]:
     data = await http.get_json(URL)
-    if not isinstance(data, dict) or not isinstance(data.get("zones"), list):
+    zones = data.get("zones") if isinstance(data, dict) else None
+    if not isinstance(zones, list) or not all(isinstance(zone, str) for zone in zones):
         raise ValueError("The zone API did not return a zones list.")
-    return set(data["zones"])
+    return {zone for zone in zones if isinstance(zone, str)}
 
 
 def send(embed: disnake.Embed) -> list[Alert]:
@@ -28,11 +29,11 @@ def send(embed: disnake.Embed) -> list[Alert]:
 
 
 class ZoneTrackerCog(PollingCog):
-    interval = 12000
+    interval: float = 12000
 
-    def __init__(self, bot: SkypixelBot):
+    def __init__(self, bot: SkypixelBot) -> None:
         super().__init__(bot)
-        self.data = TrackerState(bot.database, "zones")
+        self.data: TrackerState[list[str]] = TrackerState(bot.database, "zones")
         if not self.data.get("zones"):
             logger.warning("The saved zone list is empty.")
             self.data["zones"] = []
@@ -50,7 +51,7 @@ class ZoneTrackerCog(PollingCog):
         )
         return send(embed)
 
-    async def poll(self):
+    async def poll(self) -> None:
         zones = await get_zones()
         new = {zone for zone in zones if zone not in self.data["zones"]}
         if new:

@@ -2,15 +2,16 @@ import asyncio
 import re
 import time
 from datetime import UTC, datetime, timedelta
-from typing import ClassVar, TypedDict
+from typing import ClassVar, Self, TypedDict
 
 from skypixel import constants
 from skypixel.clients import http
+from skypixel.domain.types import JSON, JSONInput
 
-PLAYER_URL = "https://api.ragingenby.dev/mojang/player/{}"
-PLAYERS_URL = "https://api.ragingenby.dev/mojang/players"
-NAME_PATTERN = re.compile(r"[A-Za-z0-9_]{1,16}")
-UUID_PATTERN = re.compile(r"[0-9a-f]{32}")
+PLAYER_URL: str = "https://api.ragingenby.dev/mojang/player/{}"
+PLAYERS_URL: str = "https://api.ragingenby.dev/mojang/players"
+NAME_PATTERN: re.Pattern[str] = re.compile(r"[A-Za-z0-9_]{1,16}")
+UUID_PATTERN: re.Pattern[str] = re.compile(r"[0-9a-f]{32}")
 
 
 def normalize_identifier(identifier: str) -> str:
@@ -26,8 +27,8 @@ def is_valid_identifier(identifier: str) -> bool:
 
 
 class Cache:
-    TTL = timedelta(minutes=30)
-    MAX_ENTRIES = 2048
+    TTL: ClassVar[timedelta] = timedelta(minutes=30)
+    MAX_ENTRIES: ClassVar[int] = 2048
     CACHE: ClassVar[dict[str, MojangPlayer]] = {}
 
     @staticmethod
@@ -86,11 +87,15 @@ class MojangPlayerDict(RawMojangPlayerDict):
 
 
 class MojangPlayer:
-    def __init__(self, name: str, uuid: str, last_updated: datetime | None = None):
-        self.name = name
-        self.id = uuid
-        self.last_updated = (last_updated or datetime.now(UTC)).astimezone(UTC)
-        self.cached_at = time.monotonic()
+    def __init__(
+        self, name: str, uuid: str, last_updated: datetime | None = None
+    ) -> None:
+        self.name: str = name
+        self.id: str = uuid
+        self.last_updated: datetime = (last_updated or datetime.now(UTC)).astimezone(
+            UTC
+        )
+        self.cached_at: float = time.monotonic()
         Cache.cache_player(self)
 
     @property
@@ -105,7 +110,7 @@ class MojangPlayer:
         }
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, data: JSONInput) -> Self:
         if not isinstance(data, dict):
             raise ValueError("Expected a player object.")
         uuid = data.get("id", data.get("uuid"))
@@ -118,9 +123,13 @@ class MojangPlayer:
         ):
             raise ValueError("The player object needs an id and a name.")
         updated = data.get("lastUpdated")
-        last_updated = (
-            datetime.fromtimestamp(updated, UTC) if updated else datetime.now(UTC)
-        )
+        if not updated:
+            last_updated = datetime.now(UTC)
+        elif isinstance(updated, int | float):
+            last_updated = datetime.fromtimestamp(updated, UTC)
+        else:
+            # datetime.fromtimestamp raises the same error type for these.
+            raise TypeError("lastUpdated must be a number.")
         return cls(uuid=uuid, name=name, last_updated=last_updated)
 
 
@@ -148,7 +157,7 @@ async def _fetch(identifier: str) -> MojangPlayer:
         raise PlayerNotFound(identifier)
     response.raise_for_status()
     try:
-        return MojangPlayer.from_dict(response.json())
+        return MojangPlayer.from_dict(http.read_json(response))
     except (ValueError, TypeError, OverflowError, OSError) as error:
         # The API answered, but not with a player. That is an API fault, so do
         # not tell the user that the player does not exist.
@@ -171,8 +180,8 @@ async def get(identifier: str) -> MojangPlayer:
 
 
 async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
-    players = {}
-    missing = {}
+    players: dict[str, MojangPlayer] = {}
+    missing: dict[str, None] = {}
     for key in dict.fromkeys(map(normalize_identifier, identifiers)):
         if cached := Cache.get(key):
             players[key] = cached
@@ -181,10 +190,11 @@ async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:
     if missing:
         response = await http.post(PLAYERS_URL, json=list(missing))
         response.raise_for_status()
-        data = response.json()
-        if not isinstance(data, dict) or not isinstance(data.get("players"), list):
+        data: JSON = http.read_json(response)
+        raw_players = data.get("players") if isinstance(data, dict) else None
+        if not isinstance(raw_players, list):
             raise ValueError("The player API did not return a players list.")
-        for raw in data["players"]:
+        for raw in raw_players:
             player = MojangPlayer.from_dict(raw)
             for key in (normalize_identifier(player.id), player.name.lower()):
                 if key in missing:

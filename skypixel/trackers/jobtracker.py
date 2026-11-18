@@ -1,10 +1,12 @@
 import logging
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import disnake
 
 from skypixel import constants, utils
 from skypixel.clients import http
+from skypixel.domain.types import JSONInput
 from skypixel.storage.database import Alert, TrackerState
 from skypixel.trackers.base import PollingCog
 
@@ -12,9 +14,32 @@ if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 URL: str = "https://api.ragingenby.dev/forums/jobs?cache=false"
+
+# A job as the API returns it and as jobs.json stores it.
+type JobData = dict[str, JSONInput]
+
+
+def _job_text(data: Mapping[str, JSONInput], key: str) -> str:
+    value = data[key]
+    if not isinstance(value, str):
+        raise ValueError(f"The job {key} is not text.")
+    return value
+
+
+def _job_number(data: Mapping[str, JSONInput], key: str) -> int:
+    value = data[key]
+    if not isinstance(value, int):
+        raise ValueError(f"The job {key} is not a number.")
+    return value
+
+
+def _job_lines(value: JSONInput, key: str) -> list[str]:
+    if not isinstance(value, list) or not all(isinstance(line, str) for line in value):
+        raise ValueError(f"The job {key} is not a list of text.")
+    return [line for line in value if isinstance(line, str)]
 
 
 class Job:
@@ -25,12 +50,12 @@ class Job:
         qualifications: list[str],
         responsibilities: list[str] | None,
         we_can_offer: list[str],
-    ):
-        self.title = title
-        self.listing_id = listing_id
-        self.qualifications = qualifications
-        self.responsibilities = responsibilities
-        self.we_can_offer = we_can_offer
+    ) -> None:
+        self.title: str = title
+        self.listing_id: int = listing_id
+        self.qualifications: list[str] = qualifications
+        self.responsibilities: list[str] | None = responsibilities
+        self.we_can_offer: list[str] = we_can_offer
 
     @property
     def clean_title(self) -> str:
@@ -59,16 +84,19 @@ class Job:
         return "\n".join(lines)
 
     @classmethod
-    def from_dict(cls, data: dict) -> Job:
+    def from_dict(cls, data: Mapping[str, JSONInput]) -> Job:
+        responsibilities = data.get("responsibilities")
         return cls(
-            title=data["title"],
-            listing_id=data["listingId"],
-            qualifications=data["qualifications"],
-            responsibilities=data.get("responsibilities"),
-            we_can_offer=data["weCanOffer"],
+            title=_job_text(data, "title"),
+            listing_id=_job_number(data, "listingId"),
+            qualifications=_job_lines(data["qualifications"], "qualifications"),
+            responsibilities=None
+            if responsibilities is None
+            else _job_lines(responsibilities, "responsibilities"),
+            we_can_offer=_job_lines(data["weCanOffer"], "weCanOffer"),
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> JobData:
         return {
             "title": self.title,
             "listingId": self.listing_id,
@@ -81,9 +109,10 @@ class Job:
 async def get_jobs() -> list[Job]:
     logger.debug("getting job openings from api.ragingenby.dev")
     data = await http.get_json(URL)
-    if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
+    jobs = data.get("jobs") if isinstance(data, dict) else None
+    if not isinstance(jobs, list) or not all(isinstance(job, dict) for job in jobs):
         raise ValueError("The job API did not return a jobs list.")
-    return [Job.from_dict(job) for job in data["jobs"]]
+    return [Job.from_dict(job) for job in jobs if isinstance(job, dict)]
 
 
 def send(embed: disnake.Embed) -> list[Alert]:
@@ -91,15 +120,15 @@ def send(embed: disnake.Embed) -> list[Alert]:
 
 
 class JobTrackerCog(PollingCog):
-    interval = 1800
-    confirm_polls = 3
+    interval: float = 1800
+    confirm_polls: int = 3
 
-    def __init__(self, bot: SkypixelBot):
+    def __init__(self, bot: SkypixelBot) -> None:
         super().__init__(bot)
-        self.data = TrackerState(bot.database, "jobs")
-        self.empty_polls = 0
+        self.data: TrackerState[JobData] = TrackerState(bot.database, "jobs")
+        self.empty_polls: int = 0
         # Saved empty state means no open jobs. No saved state means the first run.
-        self.initialized = self.data.exists
+        self.initialized: bool = self.data.exists
 
     def on_job_update(self, job: Job, added: bool) -> list[Alert]:
         embed = utils.add_footer(
@@ -113,7 +142,7 @@ class JobTrackerCog(PollingCog):
         )
         return send(embed)
 
-    async def poll(self):
+    async def poll(self) -> None:
         jobs = await get_jobs()
         if not jobs and self.data:
             self.empty_polls += 1

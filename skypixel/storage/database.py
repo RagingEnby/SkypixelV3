@@ -18,21 +18,22 @@ import logging
 import sqlite3
 import threading
 import time
-from collections.abc import Iterator, MutableMapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, MutableMapping, Sequence
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypedDict, TypeGuard, cast
 
+from skypixel.domain.types import JSON
 from skypixel.storage.json_store import read_json
 
 if TYPE_CHECKING:
     from disnake.types.embed import Embed as EmbedData
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 1
-SCHEMA = """
+SCHEMA_VERSION: int = 1
+SCHEMA: str = """
 CREATE TABLE state (
     tracker TEXT PRIMARY KEY,
     json TEXT NOT NULL
@@ -54,7 +55,7 @@ CREATE INDEX outbox_due ON outbox (next_try) WHERE sent_at IS NULL AND dead = 0;
 
 # State files that the bot kept before it used SQLite. Each one becomes the
 # state row with the file's name. items.json stays a file.
-LEGACY_STATE_FILES = (
+LEGACY_STATE_FILES: tuple[str, ...] = (
     "alpha",
     "auctions",
     "dmnotices",
@@ -66,9 +67,27 @@ LEGACY_STATE_FILES = (
     "version",
     "zones",
 )
-LEGACY_TRACKER = "migrated"
+LEGACY_TRACKER: str = "migrated"
 # Added to an imported file's name, as in ranks.json.migrated.
-LEGACY_SUFFIX = ".migrated"
+LEGACY_SUFFIX: str = ".migrated"
+
+# The SQL parameters that the outbox updates pass. int values fit float.
+type Parameters = tuple[float, ...]
+# One row of _due_alerts(): id, channel_id, thread_id, payload, attempts, and
+# created_at.
+type OutboxRow = tuple[int, int, int | None, str, int, float]
+
+
+class AlertPayload(TypedDict):
+    """The message that Alert.payload() saves in the outbox payload column."""
+
+    content: str | None
+    embeds: list[EmbedData]
+
+
+def _is_embed_list(value: object) -> TypeGuard[list[EmbedData]]:
+    # The JSON outbox saved the output of Embed.to_dict() under "embeds".
+    return isinstance(value, list)
 
 
 @dataclass(frozen=True)
@@ -81,7 +100,8 @@ class Alert:
     thread_id: int | None = None
 
     def payload(self) -> str:
-        return json.dumps({"content": self.content, "embeds": list(self.embeds)})
+        message: AlertPayload = {"content": self.content, "embeds": list(self.embeds)}
+        return json.dumps(message)
 
 
 @dataclass(frozen=True)
@@ -93,15 +113,17 @@ class PendingAlert:
 
 
 class Database:
-    def __init__(self, path: str | Path, *, legacy_dir: str | Path | None = None):
-        self.path = Path(path)
-        self._write_lock = threading.Lock()
+    def __init__(
+        self, path: str | Path, *, legacy_dir: str | Path | None = None
+    ) -> None:
+        self.path: Path = Path(path)
+        self._write_lock: threading.Lock = threading.Lock()
         # Set when a transaction saves alerts, so the sender can wake early.
-        self.alerts_saved = asyncio.Event()
+        self.alerts_saved: asyncio.Event = asyncio.Event()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as connection:
             connection.execute("PRAGMA journal_mode=WAL")
-            if connection.execute("PRAGMA user_version").fetchone()[0] == 0:
+            if _user_version(connection) == 0:
                 self._create(connection, Path(legacy_dir) if legacy_dir else None)
 
     def _connect(self) -> sqlite3.Connection:
@@ -120,17 +142,19 @@ class Database:
                 raise
             connection.execute("COMMIT")
 
-    def _create(self, connection: sqlite3.Connection, legacy_dir: Path | None):
+    def _create(self, connection: sqlite3.Connection, legacy_dir: Path | None) -> None:
         """Create the tables and import the JSON files in one transaction."""
         connection.execute("BEGIN IMMEDIATE")
         try:
-            if connection.execute("PRAGMA user_version").fetchone()[0] != 0:
+            if _user_version(connection) != 0:
                 connection.execute("ROLLBACK")
                 return
             # executescript() would commit the open transaction first.
             for statement in SCHEMA.split(";"):
                 if statement.strip():
                     connection.execute(statement)
+            imported: list[str]
+            files: list[Path]
             imported, files = (
                 _import_legacy(connection, legacy_dir)
                 if legacy_dir is not None
@@ -146,15 +170,21 @@ class Database:
             logger.info(line)
         _retire_legacy(files)
 
-    def load_state(self, tracker: str) -> tuple[bool, dict[str, Any]]:
+    def load_state(self, tracker: str) -> tuple[bool, dict[str, JSON]]:
         """Return whether the tracker has saved state, and the state."""
         with closing(self._connect()) as connection:
-            row = connection.execute(
+            row: tuple[str] | None = connection.execute(
                 "SELECT json FROM state WHERE tracker = ?", (tracker,)
             ).fetchone()
-        return (False, {}) if row is None else (True, json.loads(row[0]))
+        if row is None:
+            return False, {}
+        # save() wrote this text from a dict with str keys.
+        data: dict[str, JSON] = json.loads(row[0])
+        return True, data
 
-    def _save(self, tracker: str, data: dict[str, Any], alerts: Sequence[Alert]):
+    def _save(
+        self, tracker: str, data: Mapping[str, object], alerts: Sequence[Alert]
+    ) -> None:
         now = time.time()
         with self._transaction() as connection:
             connection.execute(
@@ -179,7 +209,7 @@ class Database:
             )
 
     async def save(
-        self, tracker: str, data: dict[str, Any], alerts: Sequence[Alert] = ()
+        self, tracker: str, data: Mapping[str, object], alerts: Sequence[Alert] = ()
     ) -> None:
         """Save a tracker's state and its new alerts in one transaction."""
         await _run_to_completion(self._save, tracker, data, list(alerts))
@@ -188,15 +218,16 @@ class Database:
 
     def _due_alerts(self, now: float) -> list[PendingAlert]:
         with closing(self._connect()) as connection:
-            rows = connection.execute(
+            rows: list[OutboxRow] = connection.execute(
                 "SELECT id, channel_id, thread_id, payload, attempts, created_at "
                 "FROM outbox WHERE sent_at IS NULL AND dead = 0 AND next_try <= ? "
                 "ORDER BY id",
                 (now,),
             ).fetchall()
-        alerts = []
+        alerts: list[PendingAlert] = []
         for row_id, channel_id, thread_id, payload, attempts, created_at in rows:
-            message = json.loads(payload)
+            # Alert.payload() wrote this text.
+            message: AlertPayload = json.loads(payload)
             alert = Alert(
                 channel_id,
                 message["content"],
@@ -210,7 +241,7 @@ class Database:
         """Return unsent alerts whose next try is at or before now, oldest first."""
         return await asyncio.to_thread(self._due_alerts, now)
 
-    def _update(self, sql: str, parameters: tuple) -> None:
+    def _update(self, sql: str, parameters: Parameters) -> None:
         with self._transaction() as connection:
             connection.execute(sql, parameters)
 
@@ -243,13 +274,20 @@ class Database:
         )
 
 
-async def _run_to_completion(function, *args) -> Any:
+def _user_version(connection: sqlite3.Connection) -> int:
+    row: tuple[int] = connection.execute("PRAGMA user_version").fetchone()
+    return row[0]
+
+
+async def _run_to_completion[**P, R](
+    function: Callable[P, R], *args: P.args, **kwargs: P.kwargs
+) -> R:
     """Run a write in a thread and wait for it even if the caller is cancelled.
 
     A cancelled caller must not release its state lock while the transaction
     may still commit.
     """
-    task = asyncio.create_task(asyncio.to_thread(function, *args))
+    task = asyncio.create_task(asyncio.to_thread(function, *args, **kwargs))
     try:
         return await asyncio.shield(task)
     except asyncio.CancelledError:
@@ -278,8 +316,8 @@ def _import_legacy(
     Return the log lines and the files that were read. The caller renames the
     files after the transaction commits.
     """
-    imported = []
-    files = []
+    imported: list[str] = []
+    files: list[Path] = []
     for name in LEGACY_STATE_FILES:
         path = directory / f"{name}.json"
         if not path.exists():
@@ -300,32 +338,35 @@ def _import_legacy(
         files.append(path)
         if events_path.exists():
             files.append(events_path)
-        delivered = {
-            key
-            for event in events.values()
-            if isinstance(event, dict)
-            for key in event.get("delivered", [])
-        }
-        rows, skipped = [], 0
+        delivered: set[str] = set()
+        for event in events.values():
+            if isinstance(event, dict):
+                keys = event.get("delivered", [])
+                if isinstance(keys, list):
+                    delivered.update(key for key in keys if isinstance(key, str))
+        rows: list[tuple[str, int, int | None, str, float, float]] = []
+        skipped = 0
         for key, message in pending.items():
+            if key in delivered or not isinstance(message, dict):
+                skipped += 1
+                continue
+            channel_id = message.get("channel_id")
+            content = message.get("content")
+            thread_id = message.get("thread_id")
+            embeds = message.get("embeds") or []
+            # A message saved before messages recorded their age starts its
+            # clock now, so it still gets the full retry window.
+            created_at = message.get("created_at", time.time())
             if (
-                key in delivered
-                or not isinstance(message, dict)
-                or not isinstance(message.get("channel_id"), int)
-                or not isinstance(message.get("created_at", 0), int | float)
-                or not isinstance(message.get("embeds") or [], list)
+                not isinstance(channel_id, int)
+                or not isinstance(content, str | None)
+                or not isinstance(thread_id, int | None)
+                or not isinstance(created_at, int | float)
+                or not _is_embed_list(embeds)
             ):
                 skipped += 1
                 continue
-            alert = Alert(
-                message["channel_id"],
-                message.get("content"),
-                tuple(message.get("embeds") or ()),
-                message.get("thread_id"),
-            )
-            # A message saved before messages recorded their age starts its
-            # clock now, so it still gets the full retry window.
-            created_at = float(message.get("created_at", time.time()))
+            alert = Alert(channel_id, content, tuple(embeds), thread_id)
             rows.append(
                 (
                     LEGACY_TRACKER,
@@ -333,7 +374,7 @@ def _import_legacy(
                     alert.thread_id,
                     alert.payload(),
                     0.0,
-                    created_at,
+                    float(created_at),
                 )
             )
         connection.executemany(
@@ -350,23 +391,30 @@ def _import_legacy(
     return imported, files
 
 
-class TrackerState(MutableMapping[str, Any]):
+class TrackerState[V = JSON](MutableMapping[str, V]):
     """One tracker's state, kept in memory and saved to the database.
 
     The in-memory copy changes only after a save commits, so a failed save
     leaves the tracker on its old state and the next poll tries again.
+
+    V is the type of each value. It defaults to any JSON value. A tracker that
+    stores one shape, such as a TypedDict, can name it as V.
     """
 
-    def __init__(self, database: Database, tracker: str):
-        self.database = database
-        self.tracker = tracker
-        self.exists, self.data = database.load_state(tracker)
-        self._save_lock = asyncio.Lock()
+    def __init__(self, database: Database, tracker: str) -> None:
+        self.database: Database = database
+        self.tracker: str = tracker
+        exists, data = database.load_state(tracker)
+        self.exists: bool = exists
+        # The row holds what this tracker saved, so its values have type V.
+        # The checker cannot see that through json.loads.
+        self.data: dict[str, V] = cast("dict[str, V]", data)
+        self._save_lock: asyncio.Lock = asyncio.Lock()
 
-    def __getitem__(self, key: str) -> Any:
+    def __getitem__(self, key: str) -> V:
         return self.data[key]
 
-    def __setitem__(self, key: str, value: Any) -> None:
+    def __setitem__(self, key: str, value: V) -> None:
         self.data[key] = value
 
     def __delitem__(self, key: str) -> None:
@@ -378,15 +426,15 @@ class TrackerState(MutableMapping[str, Any]):
     def __len__(self) -> int:
         return len(self.data)
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, V]:
         return self.data
 
-    async def replace(self, data: dict[str, Any], alerts: Sequence[Alert] = ()) -> None:
+    async def replace(self, data: dict[str, V], alerts: Sequence[Alert] = ()) -> None:
         """Save new state and the alerts it caused in one transaction."""
         async with self._save_lock:
             await self._replace(data, alerts)
 
-    async def set_and_save(self, key: str, value: Any) -> None:
+    async def set_and_save(self, key: str, value: V) -> None:
         async with self._save_lock:
             await self._replace({**self.data, key: value})
 
@@ -396,7 +444,7 @@ class TrackerState(MutableMapping[str, Any]):
                 {name: value for name, value in self.data.items() if name != key}
             )
 
-    async def _replace(self, data: dict[str, Any], alerts: Sequence[Alert] = ()):
+    async def _replace(self, data: dict[str, V], alerts: Sequence[Alert] = ()) -> None:
         await self.database.save(self.tracker, data, alerts)
         self.data = data
         self.exists = True

@@ -1,6 +1,5 @@
 import logging
-from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import disnake
 from mcstatus import JavaServer
@@ -10,13 +9,18 @@ from skypixel.storage.database import Alert, TrackerState
 from skypixel.trackers.base import PollingCog
 
 if TYPE_CHECKING:
+    from mcstatus.responses._raw import RawJavaResponse, RawJavaResponseMotd
+
     from skypixel.app import SkypixelBot
 
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
+
+# One value of the flattened status: a name, a number, or the raw MOTD.
+type AlphaValue = str | int | RawJavaResponseMotd
 
 
-def flatten_status(status: Mapping[str, Any]) -> dict[str, Any]:
+def flatten_status(status: RawJavaResponse) -> dict[str, AlphaValue]:
     return {
         "MC Version": status["version"]["name"],
         "Version Protocol": status["version"]["protocol"],
@@ -25,7 +29,7 @@ def flatten_status(status: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-async def get_alpha_data() -> dict[str, Any]:
+async def get_alpha_data() -> dict[str, AlphaValue]:
     status = await (await JavaServer.async_lookup("alpha.hypixel.net")).async_status()
     return flatten_status(status.raw)
 
@@ -35,14 +39,14 @@ def send(embed: disnake.Embed) -> list[Alert]:
 
 
 class AlphaTrackerCog(PollingCog):
-    interval = 240
+    interval: float = 240
 
-    def __init__(self, bot: SkypixelBot):
+    def __init__(self, bot: SkypixelBot) -> None:
         super().__init__(bot)
-        self.data = TrackerState(bot.database, "alpha")
+        self.data: TrackerState[AlphaValue] = TrackerState(bot.database, "alpha")
 
     def on_status_update(
-        self, before: dict[str, Any], after: dict[str, Any]
+        self, before: dict[str, AlphaValue], after: dict[str, AlphaValue]
     ) -> list[Alert]:
         diff = [k for k, v in after.items() if v != before.get(k)]
         if not diff:
@@ -64,10 +68,10 @@ class AlphaTrackerCog(PollingCog):
             embed.add_field(name=key, value=value, inline=False)
         return send(embed)
 
-    async def poll(self):
+    async def poll(self) -> None:
         status = await get_alpha_data()
         if status != self.data.to_dict():
-            alerts = []
+            alerts: list[Alert] = []
             if self.data.to_dict():
                 logger.info("%s != %s", status, self.data.to_dict())
                 alerts = self.on_status_update(self.data.to_dict(), status)

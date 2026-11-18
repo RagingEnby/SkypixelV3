@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 async def get_motd() -> list[str]:
@@ -27,11 +27,11 @@ def send(embed: disnake.Embed, ping: bool = True) -> list[Alert]:
 
 
 class MotdTrackerCog(PollingCog):
-    interval = 240
+    interval: float = 240
 
-    def __init__(self, bot: SkypixelBot):
+    def __init__(self, bot: SkypixelBot) -> None:
         super().__init__(bot)
-        self.data = TrackerState(bot.database, "motd")
+        self.data: TrackerState[list[str]] = TrackerState(bot.database, "motd")
         self._last_ping: datetime | None = None
 
     @property
@@ -55,7 +55,7 @@ class MotdTrackerCog(PollingCog):
     def should_ping(self) -> bool:
         return self.last_ping.total_seconds() / 60 > 10
 
-    async def poll(self):
+    async def poll(self) -> None:
         motd = await get_motd()
         if motd != self.data.get("motd"):
             logger.info("MOTD changed from %s to %s.", self.data.get("motd"), motd)

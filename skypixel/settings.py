@@ -2,6 +2,8 @@ import os
 from dataclasses import dataclass, field
 from importlib import import_module
 from pathlib import Path
+from types import ModuleType
+from typing import Self
 
 
 class ConfigurationError(ValueError):
@@ -15,9 +17,9 @@ class Settings:
     storage_dir: Path = Path("storage")
 
     @classmethod
-    def load(cls):
+    def load(cls) -> Self:
         try:
-            legacy = import_module("scrts")
+            legacy: ModuleType | None = import_module("scrts")
         except ModuleNotFoundError as error:
             if error.name != "scrts":
                 raise
@@ -32,8 +34,8 @@ class Settings:
             storage_dir=Path(os.environ.get("SKYPIXEL_STORAGE_DIR", "storage")),
         )
 
-    def validate(self):
-        missing = []
+    def validate(self) -> None:
+        missing: list[str] = []
         if not self.bot_token:
             missing.append("SKYPIXEL_BOT_TOKEN or scrts.BOT_TOKEN")
         if not self.mongodb_uri:

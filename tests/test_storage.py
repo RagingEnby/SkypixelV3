@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 import asyncio
 import json
 import tempfile
@@ -8,6 +9,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from pymongo.errors import BulkWriteError
 
+from skypixel.domain.types import Document
 from skypixel.storage import json_store as storage
 from skypixel.storage.json_store import StorageError
 from skypixel.storage.mongo import Collection, UploadQueue
@@ -26,7 +28,7 @@ class JsonFileTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(storage.read_json(self.path), {"value": 1})
         self.assertEqual(storage.read_json(self.path.with_name("missing.json")), {})
 
-    async def test_save_keeps_the_existing_file_mode(self):
+    async def test_save_keeps_the_existing_file_mode(self) -> None:
         self.path.write_text("{}")
         self.path.chmod(0o640)
         await storage.write_json(self.path, {"value": 1})
@@ -77,20 +79,20 @@ class JsonFileTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(StorageError):
             storage.read_json(self.path)
 
-    async def test_file_without_directory_component(self):
+    async def test_file_without_directory_component(self) -> None:
         with patch("skypixel.storage.json_store._write_atomic") as write:
             await storage.write_json("missing-test-state.json", {"value": 1})
         write.assert_called_once()
 
 
 class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
-    async def test_empty_batch_does_not_open_a_client(self):
+    async def test_empty_batch_does_not_open_a_client(self) -> None:
         collection = Collection("mongodb://localhost", "test", "items")
         with patch("skypixel.storage.mongo.AsyncMongoClient") as factory:
             self.assertIsNone(await collection.update_many([]))
             factory.assert_not_called()
 
-    async def test_upsert_keeps_id_out_of_set(self):
+    async def test_upsert_keeps_id_out_of_set(self) -> None:
         collection = Collection("mongodb://localhost", "test", "items")
         with patch.object(collection, "bulk_write", new_callable=AsyncMock) as write:
             await collection.update_many([{"_id": "item", "value": 1}])
@@ -99,7 +101,7 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(operation._doc, {"$set": {"value": 1}})
         self.assertTrue(operation._upsert)
 
-    async def test_close_is_idempotent(self):
+    async def test_close_is_idempotent(self) -> None:
         client = Mock(close=AsyncMock())
         with patch("skypixel.storage.mongo.AsyncMongoClient", return_value=client):
             collection = Collection("mongodb://localhost", "test", "items")
@@ -110,7 +112,7 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(RuntimeError):
             _ = collection.client
 
-    async def test_reads_stop_after_the_time_limit(self):
+    async def test_reads_stop_after_the_time_limit(self) -> None:
         collection = Collection("mongodb://localhost", "test", "items")
         inner = Mock(count_documents=AsyncMock(), find=Mock())
         with patch.object(Collection, "collection", inner):
@@ -119,7 +121,7 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(inner.find.call_args.kwargs["max_time_ms"], 30_000)
         self.assertEqual(inner.count_documents.await_args.kwargs["maxTimeMS"], 30_000)
 
-    async def test_collections_share_one_client_until_the_last_one_closes(self):
+    async def test_collections_share_one_client_until_the_last_one_closes(self) -> None:
         client = Mock(close=AsyncMock())
         with patch(
             "skypixel.storage.mongo.AsyncMongoClient", return_value=client
@@ -135,13 +137,13 @@ class MongoStorageTests(unittest.IsolatedAsyncioTestCase):
 
 
 class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
-    async def test_concurrent_flushes_do_not_remove_new_records(self):
+    async def test_concurrent_flushes_do_not_remove_new_records(self) -> None:
         queue = UploadQueue("mongodb://localhost", "test", "items")
         queue.append({"_id": "first"})
         started, release = asyncio.Event(), asyncio.Event()
-        uploaded = []
+        uploaded: list[Document] = []
 
-        async def update(docs):
+        async def update(docs: list[Document]) -> None:
             if docs[0]["_id"] == "first":
                 started.set()
                 await release.wait()
@@ -158,15 +160,17 @@ class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(uploaded, [{"_id": "first"}, {"_id": "second"}])
         self.assertEqual(queue.docs, [])
 
-    async def test_close_uploads_pending_records_before_closing_the_client(self):
+    async def test_close_uploads_pending_records_before_closing_the_client(
+        self,
+    ) -> None:
         queue = UploadQueue("mongodb://localhost", "test", "items")
         queue.append({"_id": "pending"})
-        events = []
+        events: list[list[Document] | str] = []
 
-        async def update(docs):
+        async def update(docs: list[Document]) -> None:
             events.append(docs)
 
-        async def close():
+        async def close() -> None:
             events.append("closed")
 
         with (
@@ -179,7 +183,7 @@ class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(RuntimeError):
             queue.append({"_id": "late"})
 
-    async def test_failed_close_keeps_records_and_closes_the_client(self):
+    async def test_failed_close_keeps_records_and_closes_the_client(self) -> None:
         queue = UploadQueue("mongodb://localhost", "test", "items")
         queue.append({"_id": "pending"})
         with (
@@ -191,7 +195,7 @@ class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
         close.assert_awaited_once()
         self.assertEqual(queue.docs, [{"_id": "pending"}])
 
-    async def test_flush_sends_queued_documents_in_batches_of_1000(self):
+    async def test_flush_sends_queued_documents_in_batches_of_1000(self) -> None:
         queue = UploadQueue("mongodb://localhost", "test", "items")
         for index in range(1500):
             queue.append({"_id": index})
@@ -204,14 +208,14 @@ class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(queue.docs, [])
 
-    async def test_empty_flush_does_not_open_a_client(self):
+    async def test_empty_flush_does_not_open_a_client(self) -> None:
         queue = UploadQueue("mongodb://localhost", "test", "items")
         with patch("skypixel.storage.mongo.AsyncMongoClient") as factory:
             await queue.flush()
             await queue.close()
         factory.assert_not_called()
 
-    async def test_rejected_documents_do_not_block_the_queue(self):
+    async def test_rejected_documents_do_not_block_the_queue(self) -> None:
         queue = UploadQueue("mongodb://localhost", "test", "items")
         for index in range(3):
             queue.append({"_id": index})
@@ -226,7 +230,7 @@ class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(queue.docs, [])
         self.assertIn("[1]", logs.output[0])
 
-    async def test_write_concern_errors_keep_the_batch_for_retry(self):
+    async def test_write_concern_errors_keep_the_batch_for_retry(self) -> None:
         queue = UploadQueue("mongodb://localhost", "test", "items")
         queue.append({"_id": "pending"})
         error = BulkWriteError({"writeErrors": [], "writeConcernErrors": [{}]})
@@ -235,7 +239,7 @@ class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
                 await queue.flush()
         self.assertEqual(queue.docs, [{"_id": "pending"}])
 
-    async def test_full_queue_drops_new_documents(self):
+    async def test_full_queue_drops_new_documents(self) -> None:
         queue = UploadQueue("mongodb://localhost", "test", "items")
         queue.max_docs = 2
         with self.assertLogs("skypixel.storage.mongo", level="WARNING"):
@@ -250,7 +254,7 @@ class UploadQueueTests(unittest.IsolatedAsyncioTestCase):
             await queue.flush()
         self.assertEqual(queue.dropped, 0)
 
-    async def test_bulk_writes_are_unordered(self):
+    async def test_bulk_writes_are_unordered(self) -> None:
         collection = Collection("mongodb://localhost", "test", "items")
         with patch.object(collection, "bulk_write", new_callable=AsyncMock) as write:
             await collection.update_many([{"_id": "item"}])

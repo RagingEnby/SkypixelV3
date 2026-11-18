@@ -7,7 +7,7 @@ import disnake
 
 from skypixel.storage.database import Database, PendingAlert
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class Outbox:
@@ -32,16 +32,16 @@ class Outbox:
     message forever. Sent and dead messages are deleted after a week.
     """
 
-    max_age = 6 * 60 * 60
-    retry_delay = 15
-    max_retry_delay = 15 * 60
-    poll_interval = 15
-    keep_finished = 7 * 24 * 60 * 60
+    max_age: int = 6 * 60 * 60
+    retry_delay: int = 15
+    max_retry_delay: int = 15 * 60
+    poll_interval: int = 15
+    keep_finished: int = 7 * 24 * 60 * 60
 
-    def __init__(self, bot: disnake.Client, database: Database):
-        self.bot = bot
-        self.database = database
-        self._lock = asyncio.Lock()
+    def __init__(self, bot: disnake.Client, database: Database) -> None:
+        self.bot: disnake.Client = bot
+        self.database: Database = database
+        self._lock: asyncio.Lock = asyncio.Lock()
         # Messages Discord accepted whose sent mark failed to save.
         self._sent: dict[int, float] = {}
 

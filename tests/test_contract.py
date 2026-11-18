@@ -1,6 +1,7 @@
 import json
 import unittest
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from skypixel import utils
 from skypixel.domain import colors
@@ -14,15 +15,18 @@ from skypixel.trackers.alphatracker import flatten_status
 from skypixel.trackers.jobtracker import Job
 from tests.support import command_schema
 
+if TYPE_CHECKING:
+    from mcstatus.responses._raw import RawJavaResponse
+
 
 class ContractTests(unittest.TestCase):
-    def test_discord_command_schema(self):
+    def test_discord_command_schema(self) -> None:
         expected = json.loads(
             (Path(__file__).parent / "fixtures" / "commands.json").read_text()
         )
         self.assertEqual(command_schema(), expected)
 
-    def test_item_queries(self):
+    def test_item_queries(self) -> None:
         self.assertEqual(
             search_souls_query({"owner": None}),
             {
@@ -39,7 +43,7 @@ class ContractTests(unittest.TestCase):
             },
         )
 
-    def test_display_helpers(self):
+    def test_display_helpers(self) -> None:
         self.assertEqual(utils.numerize(1234567), "1.23M")
         self.assertEqual(utils.commaize(1234567), "1,234,567")
         self.assertEqual(
@@ -50,7 +54,7 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(utils.normalize_timestamp(1700000000000), 1700000000)
         self.assertEqual(utils.timestamp_to_unix("1700000000000L"), 1700000000000)
 
-    def test_exotic_rules(self):
+    def test_exotic_rules(self) -> None:
         examples = [
             ("TEST_HELMET", "010203", None),
             ("TEST_HELMET", "a06540", "bleached"),
@@ -69,12 +73,16 @@ class ContractTests(unittest.TestCase):
             colors.get_exotic_type("TEST_HELMET", "123456", {"dye_item": "DYE"})
         )
 
-    def test_alpha_status_format(self):
-        status = {
-            "version": {"name": "1.8", "protocol": 47},
-            "players": {"max": 100},
-            "description": "Alpha",
-        }
+    def test_alpha_status_format(self) -> None:
+        # The status leaves out player fields that flatten_status does not read.
+        status = cast(
+            "RawJavaResponse",
+            {
+                "version": {"name": "1.8", "protocol": 47},
+                "players": {"max": 100},
+                "description": "Alpha",
+            },
+        )
         self.assertEqual(
             flatten_status(status),
             {
@@ -85,7 +93,7 @@ class ContractTests(unittest.TestCase):
             },
         )
 
-    def test_job_data_and_markdown(self):
+    def test_job_data_and_markdown(self) -> None:
         data = {
             "title": "Developer - Minecraft Project",
             "listingId": 42,

@@ -4,6 +4,7 @@ import random
 import re
 from contextlib import suppress
 from copy import deepcopy
+from typing import TypedDict, Unpack
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
@@ -13,18 +14,18 @@ from skypixel import constants
 from skypixel.clients import hypixel
 from skypixel.storage.database import Alert
 
-logger = logging.getLogger(__name__)
-COLOR_CODE_PATTERN = re.compile(r"[§&][0-9a-fA-Fklmnor]")
+logger: logging.Logger = logging.getLogger(__name__)
+COLOR_CODE_PATTERN: re.Pattern[str] = re.compile(r"[§&][0-9a-fA-Fklmnor]")
 # Minecraft format codes and their ansi escapes: bold, strikethrough, underline,
 # italic, and reset. Obfuscated text (k) has no escape and becomes OBFUSCATED.
-ANSI_FORMATS = {"l": 1, "m": 9, "n": 4, "o": 3, "r": 0}
-OBFUSCATED = "\u2592"
+ANSI_FORMATS: dict[str, int] = {"l": 1, "m": 9, "n": 4, "o": 3, "r": 0}
+OBFUSCATED: str = "\u2592"
 # Old items carry their creation time as text in Hypixel's server time, which
 # is US Eastern.
-HYPIXEL_TIMEZONE = ZoneInfo("America/New_York")
+HYPIXEL_TIMEZONE: ZoneInfo = ZoneInfo("America/New_York")
 
 
-def make_error(title: str, *args) -> disnake.Embed:
+def make_error(title: str, *args: object) -> disnake.Embed:
     return fit_embed(
         add_footer(
             disnake.Embed(
@@ -134,7 +135,10 @@ def fit_embeds(embeds: list[disnake.Embed]) -> list[disnake.Embed]:
 
 
 async def respond(
-    inter: disnake.Interaction, *, embed: disnake.Embed, ephemeral: bool = True
+    inter: disnake.Interaction[disnake.Client],
+    *,
+    embed: disnake.Embed,
+    ephemeral: bool = True,
 ) -> None:
     embed = fit_embed(embed)
     if not inter.response.is_done():
@@ -150,7 +154,9 @@ async def respond(
     await inter.followup.send(embed=embed, ephemeral=ephemeral)
 
 
-async def send_error(inter: disnake.Interaction, title: str, *args) -> None:
+async def send_error(
+    inter: disnake.Interaction[disnake.Client], title: str, *args: object
+) -> None:
     """Show an error to the user who ran the command, and to nobody else."""
     await respond(inter, embed=make_error(title, *args))
 
@@ -167,7 +173,7 @@ def to_ansi(string: str) -> str:
     """
     if not COLOR_CODE_PATTERN.search(string):
         return string
-    parts = []
+    parts: list[str] = []
     obfuscated = False
     position = 0
     for match in COLOR_CODE_PATTERN.finditer(string):
@@ -210,12 +216,19 @@ def add_footer(embed: disnake.Embed) -> disnake.Embed:
     )
 
 
+class SendOptions(TypedDict, total=False):
+    """Keyword arguments that send_to_channel() passes on to Discord."""
+
+    embed: disnake.Embed
+    embeds: list[disnake.Embed]
+
+
 async def send_to_channel(
     bot: disnake.Client,
     channel_id: int,
-    *args,
+    *args: str | None,
     thread_id: int | None = None,
-    **kwargs,
+    **kwargs: Unpack[SendOptions],
 ) -> disnake.Message | None:
     channel = bot.get_channel(channel_id)
     if thread_id is not None:
@@ -233,7 +246,9 @@ async def send_to_channel(
     if "embeds" in kwargs:
         kwargs["embeds"] = fit_embeds(kwargs["embeds"])
     try:
-        return await target.send(*args, **kwargs)
+        # disnake's overloads take embed or embeds, not a dict that may hold
+        # either. The method itself accepts both forms.
+        return await target.send(*args, **kwargs)  # pyright: ignore[reportCallIssue, reportUnknownVariableType]
     except disnake.HTTPException:
         logger.exception(
             "Cannot send to channel %s or thread %s.", channel_id, thread_id
@@ -257,7 +272,8 @@ def broadcast(
     if embeds is None:
         batches.append([embed] if embed is not None else [])
     else:
-        batch, length = [], 0
+        batch: list[disnake.Embed] = []
+        length = 0
         for candidate in embeds:
             fit_embed(candidate)
             if batch and (len(batch) == 10 or length + len(candidate) > 6000):

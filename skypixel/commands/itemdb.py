@@ -1,7 +1,7 @@
 import json
 import logging
 from itertools import islice
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import disnake
 from disnake.ext import commands
@@ -10,13 +10,14 @@ from skypixel import constants, utils
 from skypixel.clients import hypixel
 from skypixel.commands.item_views import SoulSearchView, make_item_embed, make_item_view
 from skypixel.domain.items import PrefixRank, make_player_regex, search_souls_query
+from skypixel.domain.types import JSON, Document
 from skypixel.storage.items import ItemRepository
 
 if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def memento_name(item_id: str) -> str:
@@ -26,7 +27,9 @@ def memento_name(item_id: str) -> str:
         return item_id
 
 
-async def autocomplete_memento(_inter, text: str) -> dict[str, str]:
+async def autocomplete_memento(
+    _inter: disnake.AppCmdInter[disnake.Client], text: str
+) -> dict[str, str]:
     """Offer up to 25 mementos whose name or ID contains the typed text."""
     text = text.lower()
     matches = (
@@ -46,24 +49,28 @@ def find_memento(text: str) -> str | None:
 
 
 class ItemDBCog(commands.Cog):
-    def __init__(self, bot: SkypixelBot):
-        self.item_db = ItemRepository(bot.settings.mongodb_uri)
-        self.bot = bot
+    def __init__(self, bot: SkypixelBot) -> None:
+        self.item_db: ItemRepository = ItemRepository(bot.settings.mongodb_uri)
+        self.bot: SkypixelBot = bot
 
     async def do_search_command(
-        self, inter: disnake.AppCmdInter, query: dict[str, Any], limit: int = 1
-    ):
+        self,
+        inter: disnake.AppCmdInter[disnake.Client],
+        query: JSON | Document,
+        limit: int = 1,
+    ) -> None:
+        # The owner's search command passes parsed JSON, which can be any type.
         if not isinstance(query, dict):
             return await utils.send_error(
                 inter, "Invalid Query", "Provide a JSON object or an item UUID."
             )
-        query = {k: v for k, v in query.items() if v is not None}
-        if len(query) == 1 and query.get("itemId"):
+        search_query: Document = {k: v for k, v in query.items() if v is not None}
+        if len(search_query) == 1 and search_query.get("itemId"):
             return await utils.send_error(
                 inter, "Invalid Query", "You must provide search arguments!"
             )
-        logger.info("searching item db for: %s", json.dumps(query, indent=2))
-        results = await self.item_db.search(query, limit=limit)
+        logger.info("searching item db for: %s", json.dumps(search_query, indent=2))
+        results = await self.item_db.search(search_query, limit=limit)
         if not results:
             return await inter.send(
                 embed=utils.make_error(
@@ -82,14 +89,16 @@ class ItemDBCog(commands.Cog):
         install_types=disnake.ApplicationInstallTypes.all(),
         contexts=disnake.InteractionContextTypes.all(),
     )
-    async def itemdb(self, inter: disnake.AppCmdInter):
+    async def itemdb(self, inter: disnake.AppCmdInter[disnake.Client]) -> None:
         await inter.response.defer()
 
     @itemdb.sub_command(
         name="search",
         description="Owner only. Search the item database with a JSON query",
     )
-    async def search(self, inter: disnake.AppCmdInter, query: str):
+    async def search(
+        self, inter: disnake.AppCmdInter[disnake.Client], query: str
+    ) -> None:
         """
         Parameters
         ----------
@@ -100,7 +109,7 @@ class ItemDBCog(commands.Cog):
                 inter, "Not Owner", "You must be the bot owner to use this command!"
             )
         try:
-            parsed_query = json.loads(query)
+            parsed_query: JSON = json.loads(query)
         except json.JSONDecodeError:
             parsed_query = {"_id": query}
         return await self.do_search_command(inter, parsed_query)
@@ -111,14 +120,14 @@ class ItemDBCog(commands.Cog):
     )
     async def soul_search_cmd(
         self,
-        inter: disnake.AppCmdInter,
+        inter: disnake.AppCmdInter[disnake.Client],
         captured_rank: PrefixRank | None = None,
         captured_player: str | None = None,
         captured_by_rank: PrefixRank | None = None,
         captured_by_name: str | None = None,
         cake_owner_rank: PrefixRank | None = None,
         cake_owner_name: str | None = None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -197,13 +206,13 @@ class ItemDBCog(commands.Cog):
     )
     async def clay_search_cmd(
         self,
-        inter: disnake.AppCmdInter,
+        inter: disnake.AppCmdInter[disnake.Client],
         edition: int | None = None,
         sender_rank: PrefixRank | None = None,
         sender_name: str | None = None,
         recipient_rank: PrefixRank | None = None,
         recipient_name: str | None = None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -234,11 +243,11 @@ class ItemDBCog(commands.Cog):
     )
     async def basket_search_cmd(
         self,
-        inter: disnake.AppCmdInter,
+        inter: disnake.AppCmdInter[disnake.Client],
         edition: int | None = None,
         basket_player_rank: PrefixRank | None = None,
         basket_player_name: str | None = None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -264,13 +273,13 @@ class ItemDBCog(commands.Cog):
     )
     async def elevator_search_cmd(
         self,
-        inter: disnake.AppCmdInter,
+        inter: disnake.AppCmdInter[disnake.Client],
         edition: int | None = None,
         sender_rank: PrefixRank | None = None,
         sender_name: str | None = None,
         recipient_rank: PrefixRank | None = None,
         recipient_name: str | None = None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -301,15 +310,16 @@ class ItemDBCog(commands.Cog):
     )
     async def memento_search_cmd(
         self,
-        inter: disnake.AppCmdInter,
-        memento: str | None = commands.Param(
+        inter: disnake.AppCmdInter[disnake.Client],
+        # disnake types the autocomplete callback with no client type.
+        memento: str | None = commands.Param(  # pyright: ignore[reportUnknownMemberType]
             default=None, autocomplete=autocomplete_memento
         ),
         edition: int | None = None,
         recipient_rank: PrefixRank | None = None,
         recipient_name: str | None = None,
         recipient_id: str | None = None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -343,13 +353,13 @@ class ItemDBCog(commands.Cog):
     )
     async def racinghelm_search_cmd(
         self,
-        inter: disnake.AppCmdInter,
+        inter: disnake.AppCmdInter[disnake.Client],
         auction: int | None = None,
         bid: int | None = None,
         price: int | None = None,
         buyer_rank: PrefixRank | None = None,
         buyer_name: str | None = None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -378,13 +388,13 @@ class ItemDBCog(commands.Cog):
     )
     async def spacehelm_search_cmd(
         self,
-        inter: disnake.AppCmdInter,
+        inter: disnake.AppCmdInter[disnake.Client],
         edition: int | None = None,
         sender_rank: PrefixRank | None = None,
         sender_name: str | None = None,
         recipient_rank: PrefixRank | None = None,
         recipient_name: str | None = None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -413,7 +423,9 @@ class ItemDBCog(commands.Cog):
         )
 
     @commands.Cog.listener()
-    async def on_button_click(self, inter: disnake.MessageInteraction):
+    async def on_button_click(
+        self, inter: disnake.MessageInteraction[disnake.Client]
+    ) -> None:
         button_id = inter.component.custom_id
         if not button_id or not button_id.startswith("view_lore|"):
             return
@@ -444,5 +456,5 @@ class ItemDBCog(commands.Cog):
             ephemeral=True,
         )
 
-    async def close(self):
+    async def close(self) -> None:
         await self.item_db.close()

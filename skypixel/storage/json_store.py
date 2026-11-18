@@ -4,22 +4,24 @@ import logging
 import os
 import stat
 import tempfile
+from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
 
-logger = logging.getLogger(__name__)
+from skypixel.domain.types import JSON
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class StorageError(ValueError):
     pass
 
 
-def read_json(file_path: str | Path) -> dict[str, Any]:
+def read_json(file_path: str | Path) -> dict[str, JSON]:
     path = Path(file_path)
     try:
         with path.open(encoding="utf-8") as file:
-            data = json.load(file)
+            data: JSON = json.load(file)
     except FileNotFoundError:
         return {}
     except (json.JSONDecodeError, UnicodeDecodeError) as error:
@@ -33,7 +35,7 @@ def read_json(file_path: str | Path) -> dict[str, Any]:
 
 def _write_atomic(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = None
+    temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
             mode="w",
@@ -55,7 +57,9 @@ def _write_atomic(path: Path, content: str) -> None:
             temporary.unlink(missing_ok=True)
 
 
-async def write_json(file_path: str | Path, data: dict, indent: int = 2) -> None:
+async def write_json(
+    file_path: str | Path, data: Mapping[str, object], indent: int = 2
+) -> None:
     content = json.dumps(data, indent=indent)
     task = asyncio.create_task(
         asyncio.to_thread(_write_atomic, Path(file_path), content)
