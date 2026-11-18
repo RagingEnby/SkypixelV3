@@ -293,8 +293,9 @@ def _import_legacy(connection: sqlite3.Connection, directory: Path) -> list[str]
                 tuple(message.get("embeds") or ()),
                 message.get("thread_id"),
             )
-            # Old messages without created_at count as expired, as before.
-            created_at = float(message.get("created_at", 0))
+            # A message saved before messages recorded their age starts its
+            # clock now, so it still gets the full retry window.
+            created_at = float(message.get("created_at", time.time()))
             rows.append(
                 (
                     LEGACY_TRACKER,

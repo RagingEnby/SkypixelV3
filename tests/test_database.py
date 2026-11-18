@@ -3,6 +3,7 @@ import json
 import sqlite3
 import tempfile
 import threading
+import time
 import unittest
 from contextlib import closing
 from pathlib import Path
@@ -198,6 +199,7 @@ class MigrationTests(unittest.TestCase):
                     "event_id": "event",
                     "created_at": 1234.5,
                 },
+                "event:no-age": {"channel_id": 6, "content": "old", "embeds": []},
                 "broken": {"content": "no channel"},
                 "bad-time": {"channel_id": 4, "created_at": "yesterday"},
                 "bad-embeds": {"channel_id": 5, "embeds": {"title": "Alert"}},
@@ -210,10 +212,13 @@ class MigrationTests(unittest.TestCase):
         with self.assertLogs(database_module.logger, level="INFO") as logs:
             database = self.open()
         pending = asyncio.run(database.due_alerts(0))
-        self.assertEqual(len(pending), 1)
+        self.assertEqual(len(pending), 2)
         self.assertEqual(pending[0].alert, Alert(2, "ping", ({"title": "Alert"},), 3))
         self.assertEqual(pending[0].created_at, 1234.5)
-        self.assertIn("Imported 1 pending alerts", "\n".join(logs.output))
+        # A message saved before messages recorded their age gets a full window.
+        self.assertEqual(pending[1].alert.channel_id, 6)
+        self.assertGreater(pending[1].created_at, time.time() - 60)
+        self.assertIn("Imported 2 pending alerts", "\n".join(logs.output))
         self.assertTrue((self.storage / "notifications.json").exists())
 
     def test_import_runs_only_once(self):
