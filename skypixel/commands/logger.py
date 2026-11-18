@@ -1,11 +1,12 @@
 import logging
 import traceback
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 import disnake
 from disnake.ext import commands
 
 from skypixel import checks, constants, utils
+from skypixel.domain.types import JSON
 from skypixel.log_setup import redact
 from skypixel.storage.json_store import JsonWrapper
 
@@ -13,20 +14,28 @@ if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
 
-logger = logging.getLogger(__name__)
-DM_NOTICE = (
+logger: logging.Logger = logging.getLogger(__name__)
+DM_NOTICE: str = (
     "Messages you send to Skypixel are forwarded to its owner, @ragingenby. "
     "Use slash commands to use the bot."
 )
 
 
-def prettify_params(options: disnake.AppCmdInter | dict[str, Any]) -> list[str]:
+def is_option_group(value: object) -> TypeGuard[dict[str, Any]]:
+    """Return whether an option value holds a subcommand's own options."""
+    return isinstance(value, dict)
+
+
+def prettify_params(
+    options: disnake.AppCmdInter[disnake.Client] | dict[str, Any],
+) -> list[str]:
+    # disnake types option values as Any, since each option has its own type.
     values: dict[str, Any] = (
         options if isinstance(options, dict) else getattr(options, "options", {})
     )
     params: list[str] = []
     for name, value in values.items():
-        if isinstance(value, dict):
+        if is_option_group(value):
             params.append(name)
             params.extend(prettify_params(value))
         else:
@@ -34,11 +43,11 @@ def prettify_params(options: disnake.AppCmdInter | dict[str, Any]) -> list[str]:
     return params
 
 
-def prettify_command(inter: disnake.AppCmdInter) -> str:
+def prettify_command(inter: disnake.AppCmdInter[disnake.Client]) -> str:
     return f"/{inter.data.name} {' '.join(prettify_params(inter))}"
 
 
-def make_command_log_embed(inter: disnake.AppCmdInter) -> disnake.Embed:
+def make_command_log_embed(inter: disnake.AppCmdInter[disnake.Client]) -> disnake.Embed:
     embed = disnake.Embed(
         title=prettify_command(inter),
         color=constants.DEFAULT_EMBED_COLOR,
@@ -77,12 +86,16 @@ def check_error_embed(error: commands.CheckFailure) -> disnake.Embed:
 
 
 class LoggerCog(commands.Cog):
-    def __init__(self, bot: SkypixelBot):
-        self.bot = bot
-        self.dm_notices = JsonWrapper(bot.settings.storage_dir / "dmnotices.json")
+    def __init__(self, bot: SkypixelBot) -> None:
+        self.bot: SkypixelBot = bot
+        self.dm_notices: JsonWrapper[JSON] = JsonWrapper(
+            bot.settings.storage_dir / "dmnotices.json"
+        )
 
     @commands.Cog.listener()
-    async def on_slash_command(self, inter: disnake.AppCmdInter):
+    async def on_slash_command(
+        self, inter: disnake.AppCmdInter[disnake.Client]
+    ) -> None:
         logger.info("%s used %s", inter.author.name, prettify_command(inter))
         await utils.send_to_channel(
             self.bot, constants.COMMAND_LOG_CHANNEL, embed=make_command_log_embed(inter)
@@ -90,9 +103,9 @@ class LoggerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_slash_command_error(
-        self, inter: disnake.AppCmdInter, error: commands.CommandError
-    ):
-        original = getattr(error, "original", error)
+        self, inter: disnake.AppCmdInter[disnake.Client], error: commands.CommandError
+    ) -> None:
+        original: BaseException = getattr(error, "original", error)
         if isinstance(original, commands.CheckFailure):
             await utils.respond(inter, embed=check_error_embed(original))
             return
@@ -122,12 +135,14 @@ class LoggerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_command_error(
-        self, inter: disnake.MessageCommandInteraction, error: commands.CommandError
-    ):
+        self,
+        inter: disnake.MessageCommandInteraction[disnake.Client],
+        error: commands.CommandError,
+    ) -> None:
         await self.on_slash_command_error(inter, error)
 
     @commands.Cog.listener()
-    async def on_message(self, message: disnake.Message):
+    async def on_message(self, message: disnake.Message) -> None:
         if message.author.bot or message.guild:
             return
         if not message.content and not message.attachments:
