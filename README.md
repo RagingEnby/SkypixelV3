@@ -11,7 +11,7 @@ Skypixel needs [uv](https://docs.astral.sh/uv/), a Discord bot token, and a Mong
 
 The bot keeps its state and logs in `storage/`. Set `SKYPIXEL_STORAGE_DIR` to use another folder.
 
-The channel and role IDs in `skypixel/constants.py` belong to the live bot's servers. Change them before you run your own copy.
+The other channel and role IDs in `skypixel/constants.py` belong to the live bot's servers. Change them before you run your own copy.
 
 `config/subscriptions.toml` lists the channels that receive each alert and the ping sent with it. Edit it and restart the bot to add or remove a subscriber. Set `SKYPIXEL_SUBSCRIPTIONS` to read the list from another file. The bot refuses to start if an entry is malformed, and logs a warning at startup for each listed channel it cannot find or post embeds in.
 
