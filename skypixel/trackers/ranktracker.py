@@ -2,8 +2,8 @@ import asyncio
 import logging
 import time
 from collections import Counter
-from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any, Literal
+from collections.abc import Awaitable, Callable, Mapping
+from typing import TYPE_CHECKING, TypedDict, TypeGuard
 
 import disnake
 from curl_cffi.requests.exceptions import HTTPError, RequestException
@@ -12,7 +12,7 @@ from disnake.ext import commands
 from skypixel import constants, utils
 from skypixel.clients import http, mojang
 from skypixel.commands.rank_views import RankListView
-from skypixel.domain.types import SpecialRank
+from skypixel.domain.types import JSON, SpecialRank
 from skypixel.storage.json_store import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
@@ -20,22 +20,64 @@ if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
 
-logger = logging.getLogger(__name__)
+class RankPlayer(TypedDict):
+    """One player in a rank list from the rank API."""
+
+    id: str
+    name: str
+
+
+class PlayerRank(TypedDict):
+    """The rank and name of one player, keyed by UUID in ranks.json."""
+
+    rank: str
+    name: str
+
+
+class WatchedPlayer(TypedDict, total=False):
+    rankname: str | None
+    name: str
+    added_by: int
+
+
+# Entries saved before the watchlist recorded who added a player are the rank
+# name itself.
+type WatchEntry = str | WatchedPlayer
+type RankLists = dict[str, list[RankPlayer]]
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 URL: str = "https://api.ragingenby.dev/hypixel/ranks"
 RANK_URL: str = URL + "/{}"
 COUNTS_URL: str = RANK_URL.format("counts")
 RANKNAME_URL: str = "https://api.ragingenby.dev/hypixel/rank/{}"
-RANK_LIST_CACHE_TTL_SECONDS = 180
-RANK_LIST_CACHE: dict[str, list[dict[str, str]]] | None = None
-RANK_LIST_CACHE_TIME = 0.0
-RANK_LIST_CACHE_LOCK = asyncio.Lock()
-RANK_LIST_GENERATION = 0
+RANK_LIST_CACHE_TTL_SECONDS: int = 180
+RANK_LIST_CACHE: RankLists | None = None
+RANK_LIST_CACHE_TIME: float = 0.0
+RANK_LIST_CACHE_LOCK: asyncio.Lock = asyncio.Lock()
+RANK_LIST_GENERATION: int = 0
 POI_UUIDS: set[str] = set()
-WATCH_LIST_LIMIT = 25
+WATCH_LIST_LIMIT: int = 25
 
 
-def watched_rankname(entry: Any) -> str | None:
+def _is_player_list(players: JSON) -> TypeGuard[list[RankPlayer]]:
+    return isinstance(players, list) and not any(
+        not isinstance(player, dict)
+        or not isinstance(player.get("id"), str)
+        or not isinstance(player.get("name"), str)
+        for player in players
+    )
+
+
+def _is_rank_lists(data: JSON) -> TypeGuard[RankLists]:
+    return (
+        isinstance(data, dict)
+        and bool(data)
+        and all(_is_player_list(players) for players in data.values())
+    )
+
+
+def watched_rankname(entry: WatchEntry) -> str | None:
     """Return the rank name stored for a watched player.
 
     Entries saved before the watchlist recorded who added a player are the
@@ -47,8 +89,9 @@ def watched_rankname(entry: Any) -> str | None:
 def invalidate_rank_lists() -> None:
     """Refetch the player lists on the next read, even during a fetch."""
     global RANK_LIST_CACHE, RANK_LIST_GENERATION
-    RANK_LIST_CACHE = None
-    RANK_LIST_GENERATION += 1
+    # Tests patch these names, so they keep their uppercase spelling.
+    RANK_LIST_CACHE = None  # pyright: ignore[reportConstantRedefinition]
+    RANK_LIST_GENERATION += 1  # pyright: ignore[reportConstantRedefinition]
 
 
 async def get_rankname(identifier: str) -> str:
@@ -58,25 +101,32 @@ async def get_rankname(identifier: str) -> str:
     if response.status_code == 404:
         raise mojang.PlayerNotFound(identifier)
     response.raise_for_status()
-    data = response.json()
-    if not isinstance(data, dict) or not isinstance(data.get("rankname"), str):
+    data = http.read_json(response)
+    rankname = data.get("rankname") if isinstance(data, dict) else None
+    if not isinstance(rankname, str):
         raise ValueError("The rank API did not return a rank name.")
-    return data["rankname"]
+    return rankname
 
 
 async def get_rank_counts() -> dict[str, int]:
-    data: dict[str, int] = await http.get_json(COUNTS_URL)
-    logger.debug("rank counts: %s", data)
-    return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
+    data = await http.get_json(COUNTS_URL)
+    if not isinstance(data, dict) or not all(
+        isinstance(count, int) for count in data.values()
+    ):
+        raise ValueError("The rank API did not return rank counts.")
+    counts = {rank: count for rank, count in data.items() if isinstance(count, int)}
+    logger.debug("rank counts: %s", counts)
+    return dict(sorted(counts.items(), key=lambda item: item[1], reverse=True))
 
 
-async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
-    return await http.get_json(RANK_URL.format(rank))
+async def get_rank_list(rank: SpecialRank) -> list[RankPlayer]:
+    players = await http.get_json(RANK_URL.format(rank))
+    if not _is_player_list(players):
+        raise ValueError("The rank API did not return a player list.")
+    return players
 
 
-async def edit_stat_channels(
-    bot: SkypixelBot, rank_data: dict[str, list[dict[str, str]]]
-):
+async def edit_stat_channels(bot: SkypixelBot, rank_data: RankLists) -> None:
     rank_data = rank_data.copy()
     rank_data["special"] = [
         player
@@ -84,7 +134,7 @@ async def edit_stat_channels(
         if key not in constants.RANK_TRACKER_CHANNELS
         for player in players
     ]
-    tasks = []
+    tasks: list[Awaitable[disnake.TextChannel | None]] = []
     for rank in constants.RANK_TRACKER_CHANNELS:
         players = rank_data.get(rank, [])
         channels = constants.RANK_TRACKER_CHANNELS[rank]
@@ -105,7 +155,7 @@ async def edit_stat_channels(
             logger.error("Cannot rename a rank channel.", exc_info=result)
 
 
-async def get_rank_lists() -> dict[str, list[dict[str, str]]]:
+async def get_rank_lists() -> RankLists:
     global RANK_LIST_CACHE, RANK_LIST_CACHE_TIME
     async with RANK_LIST_CACHE_LOCK:
         if (
@@ -113,24 +163,11 @@ async def get_rank_lists() -> dict[str, list[dict[str, str]]]:
             or time.monotonic() - RANK_LIST_CACHE_TIME >= RANK_LIST_CACHE_TTL_SECONDS
         ):
             generation = RANK_LIST_GENERATION
-            data = await http.get_json(URL)
-            if (
-                not isinstance(data, dict)
-                or not data
-                or any(
-                    not isinstance(players, list)
-                    or any(
-                        not isinstance(player, dict)
-                        or not isinstance(player.get("id"), str)
-                        or not isinstance(player.get("name"), str)
-                        for player in players
-                    )
-                    for players in data.values()
-                )
-            ):
+            fetched = await http.get_json(URL)
+            if not _is_rank_lists(fetched):
                 raise ValueError("The rank API did not return player lists.")
-            RANK_LIST_CACHE = data
-            RANK_LIST_CACHE_TIME = (
+            RANK_LIST_CACHE = fetched  # pyright: ignore[reportConstantRedefinition]
+            RANK_LIST_CACHE_TIME = (  # pyright: ignore[reportConstantRedefinition]
                 time.monotonic()
                 if generation == RANK_LIST_GENERATION
                 else float("-inf")
@@ -146,7 +183,7 @@ async def get_rank_lists() -> dict[str, list[dict[str, str]]]:
     return data
 
 
-async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
+async def get_player_ranks() -> dict[str, PlayerRank]:
     data = await get_rank_lists()
     return {
         player["id"]: {"rank": rank, "name": player["name"]}
@@ -157,10 +194,10 @@ async def get_player_ranks() -> dict[str, dict[str, str | SpecialRank]]:
 
 async def send(
     bot: SkypixelBot,
-    rank: Literal["special"] | SpecialRank,
+    rank: str,
     embed: disnake.Embed,
     ping: bool = True,
-):
+) -> None:
     if rank not in constants.RANK_TRACKER_CHANNELS:
         rank = "special"
     await utils.broadcast(
@@ -169,7 +206,7 @@ async def send(
 
 
 def shrunken_ranks(
-    before: dict[str, dict[str, Any]], after: dict[str, dict[str, Any]]
+    before: Mapping[str, PlayerRank], after: Mapping[str, PlayerRank]
 ) -> list[str]:
     """Return ranks with at least five players that lost more than half."""
     old_counts = Counter(player["rank"] for player in before.values())
@@ -185,7 +222,7 @@ def format_rank(rank: str) -> str:
     return "[" + rank.replace("_plus", "+").replace("_", " ").upper() + "]"
 
 
-def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.Embed:
+def make_embed(uuid: str, name: str, rank: str, title: str) -> disnake.Embed:
     embed = utils.add_footer(
         disnake.Embed(
             title=title,
@@ -199,35 +236,44 @@ def make_embed(uuid: str, name: str, rank: SpecialRank, title: str) -> disnake.E
 
 
 class RankTrackerCog(PollingCog):
-    interval = 240
-    confirm_polls = 3
+    interval: float = 240
+    confirm_polls: int = 3
 
-    def __init__(self, bot: SkypixelBot):
+    def __init__(self, bot: SkypixelBot) -> None:
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "ranks.json")
-        self.watch_list = JsonWrapper(bot.settings.storage_dir / "rankwatchlist.json")
+        self.data: JsonWrapper[PlayerRank] = JsonWrapper(
+            bot.settings.storage_dir / "ranks.json"
+        )
+        self.watch_list: JsonWrapper[WatchEntry] = JsonWrapper(
+            bot.settings.storage_dir / "rankwatchlist.json"
+        )
         if not self.data.to_dict():
             logger.warning("ranks.json is empty")
         self.known_changes: set[tuple[str, ...]] = set()
-        self.shrunken_polls = 0
+        self.shrunken_polls: int = 0
         self.shrunken_changes: frozenset[tuple[str, str, str | None]] | None = None
 
-    async def update_stat_channels(self, player_ranks: dict[str, dict]) -> None:
-        ranks: dict[str, list[dict[str, str]]] = {}
+    async def update_stat_channels(
+        self, player_ranks: Mapping[str, PlayerRank]
+    ) -> None:
+        ranks: RankLists = {}
         for uuid, player in player_ranks.items():
             ranks.setdefault(player["rank"], []).append(
                 {"id": uuid, "name": player["name"]}
             )
         await edit_stat_channels(self.bot, ranks)
 
-    async def notify_change(
-        self, key: tuple[str, ...], notify: Callable[..., Awaitable[None]], *args: str
+    async def notify_change[*Args](
+        self,
+        key: tuple[str, ...],
+        notify: Callable[[*Args], Awaitable[None]],
+        *args: *Args,
     ) -> None:
         if key not in self.known_changes:
             await notify(*args)
             self.known_changes.add(key)
 
-    async def on_rank_add(self, uuid: str, name: str, rank: SpecialRank):
+    async def on_rank_add(self, uuid: str, name: str, rank: str) -> None:
         embed = make_embed(
             uuid,
             name,
@@ -238,8 +284,8 @@ class RankTrackerCog(PollingCog):
         await send(self.bot, rank, embed)
 
     async def on_rank_change(
-        self, uuid: str, name: str, before: SpecialRank, after: SpecialRank
-    ):
+        self, uuid: str, name: str, before: str, after: str
+    ) -> None:
         """Send one alert to every channel that follows the old or the new rank."""
         embed = make_embed(
             uuid,
@@ -255,7 +301,7 @@ class RankTrackerCog(PollingCog):
             channels.update(constants.RANK_TRACKER_CHANNELS[key])
         await utils.broadcast(self.bot, channels, embed=embed)
 
-    async def on_rank_remove(self, uuid: str, name: str, rank: SpecialRank):
+    async def on_rank_remove(self, uuid: str, name: str, rank: str) -> None:
         embed = make_embed(
             uuid,
             name,
@@ -266,8 +312,8 @@ class RankTrackerCog(PollingCog):
         await send(self.bot, rank, embed)
 
     async def on_name_change(
-        self, uuid: str, before: str, after: str, rank: SpecialRank
-    ):
+        self, uuid: str, before: str, after: str, rank: str
+    ) -> None:
         embed = make_embed(
             uuid,
             after,
@@ -277,7 +323,7 @@ class RankTrackerCog(PollingCog):
         logger.info("rank tracker alert: %s", embed.title)
         await send(self.bot, rank, embed, ping=False)
 
-    async def do_watchlist(self):
+    async def do_watchlist(self) -> None:
         for uuid, entry in list(self.watch_list.items()):
             last_rankname = watched_rankname(entry)
             try:
@@ -295,7 +341,10 @@ class RankTrackerCog(PollingCog):
                     invalidate_rank_lists()
                     await self.watch_list.remove_and_save(uuid)
             except HTTPError as error:
-                if error.response is not None and error.response.status_code == 429:
+                # curl_cffi leaves HTTPError.response untyped, so read it with getattr.
+                response: object = getattr(error, "response", None)
+                status_code: object = getattr(response, "status_code", None)
+                if status_code == 429:
                     logger.warning(
                         "The rank API rate limit stopped the watchlist scan."
                     )
@@ -310,13 +359,15 @@ class RankTrackerCog(PollingCog):
         install_types=disnake.ApplicationInstallTypes.all(),
         contexts=disnake.InteractionContextTypes.all(),
     )
-    async def ranks(self, inter: disnake.AppCmdInter):
+    async def ranks(self, inter: disnake.AppCmdInter[disnake.Client]) -> None:
         await inter.response.defer()
 
     @ranks.sub_command(
         name="update", description="Update a player's rank in my database"
     )
-    async def update(self, inter: disnake.AppCmdInter, player: str):
+    async def update(
+        self, inter: disnake.AppCmdInter[disnake.Client], player: str
+    ) -> None:
         """
         Parameters
         ----------
@@ -348,7 +399,9 @@ class RankTrackerCog(PollingCog):
     @ranks.sub_command(
         name="watch", description="Check a player for rank changes more often"
     )
-    async def watch(self, inter: disnake.AppCmdInter, player: str):
+    async def watch(
+        self, inter: disnake.AppCmdInter[disnake.Client], player: str
+    ) -> None:
         """
         Parameters
         ----------
@@ -393,7 +446,9 @@ class RankTrackerCog(PollingCog):
     @ranks.sub_command(
         name="unwatch", description="Remove a player you added from the watchlist"
     )
-    async def unwatch(self, inter: disnake.AppCmdInter, player: str):
+    async def unwatch(
+        self, inter: disnake.AppCmdInter[disnake.Client], player: str
+    ) -> None:
         """
         Parameters
         ----------
@@ -431,8 +486,8 @@ class RankTrackerCog(PollingCog):
         )
 
     @ranks.sub_command(name="watchlist", description="Show the watched players")
-    async def show_watchlist(self, inter: disnake.AppCmdInter):
-        lines = []
+    async def show_watchlist(self, inter: disnake.AppCmdInter[disnake.Client]) -> None:
+        lines: list[str] = []
         for uuid, entry in self.watch_list.items():
             if isinstance(entry, dict):
                 lines.append(
@@ -453,7 +508,7 @@ class RankTrackerCog(PollingCog):
     @ranks.sub_command(
         name="counts", description="Get the number of players with each rank"
     )
-    async def counts(self, inter: disnake.AppCmdInter):
+    async def counts(self, inter: disnake.AppCmdInter[disnake.Client]) -> None:
         counts = await get_rank_counts()
         counts.pop("normal", None)
         embed = utils.add_footer(
@@ -473,7 +528,9 @@ class RankTrackerCog(PollingCog):
     @ranks.sub_command(
         name="list", description="Get a list of players with a specific rank"
     )
-    async def list(self, inter: disnake.AppCmdInter, rank: SpecialRank):
+    async def list(
+        self, inter: disnake.AppCmdInter[disnake.Client], rank: SpecialRank
+    ) -> None:
         """
         Parameters
         ----------
@@ -513,7 +570,7 @@ class RankTrackerCog(PollingCog):
         view = RankListView(embeds, inter)
         await inter.send(embed=view.embeds[view.page], view=view)
 
-    async def poll(self):
+    async def poll(self) -> None:
         await self.do_watchlist()
         player_ranks = await get_player_ranks()
         if not self.data.to_dict():
@@ -522,10 +579,11 @@ class RankTrackerCog(PollingCog):
             logger.info("wrote rank data to empty ranks.json")
             return
         if shrunken := shrunken_ranks(self.data.to_dict(), player_ranks):
+            new_ranks = {uuid: player["rank"] for uuid, player in player_ranks.items()}
             changes = frozenset(
-                (uuid, old["rank"], player_ranks.get(uuid, {}).get("rank"))
+                (uuid, old["rank"], new_ranks.get(uuid))
                 for uuid, old in self.data.items()
-                if old["rank"] != player_ranks.get(uuid, {}).get("rank")
+                if old["rank"] != new_ranks.get(uuid)
             )
             self.shrunken_polls = (
                 self.shrunken_polls + 1 if changes == self.shrunken_changes else 1
@@ -545,7 +603,7 @@ class RankTrackerCog(PollingCog):
         self.shrunken_polls = 0
         self.shrunken_changes = None
         for uuid, data in player_ranks.items():
-            old_data: dict[str, Any] | None = self.data.get(uuid)
+            old_data = self.data.get(uuid)
             if not old_data:
                 await self.notify_change(
                     ("add", uuid, data["rank"]),
