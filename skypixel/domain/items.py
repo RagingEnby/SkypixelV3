@@ -1,14 +1,13 @@
 import logging
 import re
-from typing import Any
 
 from skypixel import constants, utils
-from skypixel.domain.types import PrefixRank
+from skypixel.domain.types import Document, PrefixRank, RegexQuery
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-def fix_item(item: dict[str, Any]) -> dict[str, Any]:
+def fix_item(item: Document) -> Document:
     """Repair old owner and timestamp fields before displaying an item."""
     item = item.copy()
     if not isinstance(item.get("previousOwners"), list):
@@ -26,7 +25,7 @@ def fix_item(item: dict[str, Any]) -> dict[str, Any]:
     return item
 
 
-def get_item_image(item: dict[str, Any]) -> str:
+def get_item_image(item: Document) -> str:
     return utils.get_item_image(
         item_id=item["itemId"],
         color=item.get("colour"),
@@ -34,7 +33,7 @@ def get_item_image(item: dict[str, Any]) -> str:
     )
 
 
-def get_item_color(item: dict[str, Any]) -> int:
+def get_item_color(item: Document) -> int:
     if item.get("colour"):
         return int(item["colour"], 16)
     soul_durability = item.get("extraAttributes", {}).get("soul_durability")
@@ -51,7 +50,7 @@ def make_playername_regex(playername: str) -> dict[str, str]:
     return {"$regex": f"(§7| ){escaped_name}{color_code_pattern}$", "$options": "i"}
 
 
-def make_rank_regex(rank: PrefixRank) -> dict:
+def make_rank_regex(rank: PrefixRank) -> RegexQuery:
     if rank == "NON":
         return {"$not": {"$regex": " "}}
     color_code_pattern = "(§[0-9a-fk-or])*"
@@ -62,7 +61,7 @@ def make_rank_regex(rank: PrefixRank) -> dict:
 
 def make_player_regex(
     rank: PrefixRank | None = None, playername: str | None = None
-) -> dict[str, Any]:
+) -> RegexQuery:
     if playername and rank:
         # The stored text is the rank, a space, and the name, with color codes
         # anywhere between. A player without a rank is stored as §7 and the name.
@@ -82,7 +81,7 @@ def make_player_regex(
     raise ValueError("Provide a player name or a rank.")
 
 
-def search_souls_query(query: dict) -> dict:
+def search_souls_query(query: Document) -> Document:
     query = {k: v for k, v in query.items() if v is not None}
     query["itemId"] = "CAKE_SOUL"
     if not query.get("extraAttributes.captured_player"):

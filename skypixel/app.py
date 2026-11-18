@@ -2,7 +2,7 @@ import asyncio
 import logging
 import signal
 from contextlib import suppress
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 import disnake
 from disnake.ext import commands
@@ -14,7 +14,7 @@ from skypixel.log_setup import configure_logging
 from skypixel.settings import ConfigurationError, Settings
 from skypixel.storage.notifications import NotificationOutbox
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -25,18 +25,19 @@ class ClosableCog(Protocol):
 
 
 class SkypixelBot(commands.InteractionBot):
-    def __init__(self, settings: Settings, **kwargs):
-        self.settings = settings
+    # disnake takes the other options as **options: Any, so these match it.
+    def __init__(self, settings: Settings, **kwargs: Any) -> None:  # noqa: ANN401
+        self.settings: Settings = settings
         intents = disnake.Intents.default()
         intents.members = True
         super().__init__(intents=intents, owner_id=constants.OWNER_ID, **kwargs)
-        self._close_lock = asyncio.Lock()
-        self._resources_closed = False
-        self.notifications = NotificationOutbox(
+        self._close_lock: asyncio.Lock = asyncio.Lock()
+        self._resources_closed: bool = False
+        self.notifications: NotificationOutbox = NotificationOutbox(
             self, settings.storage_dir / "notifications.json"
         )
-        self._notification_task: asyncio.Task | None = None
-        self._subscriptions_checked = False
+        self._notification_task: asyncio.Task[None] | None = None
+        self._subscriptions_checked: bool = False
 
     async def close(self) -> None:
         async with self._close_lock:
@@ -118,14 +119,15 @@ def load_cogs() -> list[type[commands.Cog]]:
     ]
 
 
-def create_bot(settings: Settings, **kwargs) -> SkypixelBot:
+def create_bot(settings: Settings, **kwargs: Any) -> SkypixelBot:  # noqa: ANN401
     bot = SkypixelBot(settings, **kwargs)
     for cog in load_cogs():
         bot.add_cog(cog(bot))
     owner.register(bot)
 
-    @bot.application_command_check()
-    async def patron_only_check(inter: disnake.Interaction):
+    # disnake leaves the interaction type in this decorator's signature open.
+    @bot.application_command_check()  # pyright: ignore[reportUnknownMemberType]
+    async def patron_only_check(inter: disnake.Interaction[disnake.Client]) -> bool:
         return await checks.patron_only_check(bot, inter)
 
     return bot
@@ -139,9 +141,9 @@ async def run() -> None:
         settings.storage_dir,
         secrets=(settings.bot_token, settings.mongodb_uri),
     )
-    bot = None
+    bot: SkypixelBot | None = None
     shutdown_task: asyncio.Task[None] | None = None
-    installed_signals = []
+    installed_signals: list[signal.Signals] = []
     loop = asyncio.get_running_loop()
     try:
         await hypixel.load_items(settings.storage_dir)

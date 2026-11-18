@@ -11,14 +11,15 @@ from skypixel.trackers.base import PollingCog
 
 if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
+    from skypixel.storage.mongo import Collection
 
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class StatusUpdaterCog(PollingCog):
-    interval = 20
-    rank_statuses = (
+    interval: float = 20
+    rank_statuses: tuple[str, ...] = (
         "staff",
         "youtube",
         "pig_plus_plus_plus",
@@ -27,7 +28,7 @@ class StatusUpdaterCog(PollingCog):
         "mojang",
         "mcp",
     )
-    item_count_statuses = (
+    item_count_statuses: tuple[str, ...] = (
         "CAKE_SOUL",
         "DUECES_BUILDER_CLAY",
         "POTATO_BASKET",
@@ -38,20 +39,20 @@ class StatusUpdaterCog(PollingCog):
     )
 
     # The item counts change slowly, so count each item twice an hour at most.
-    count_ttl = 30 * 60
+    count_ttl: int = 30 * 60
 
-    def __init__(self, bot: SkypixelBot):
+    def __init__(self, bot: SkypixelBot) -> None:
         super().__init__(bot)
-        self.index = 0
+        self.index: int = 0
         self._counts: dict[str, tuple[float, int]] = {}
 
-    async def change_presence(self, text: str):
+    async def change_presence(self, text: str) -> None:
         logger.debug("Changing status to '%s'", text)
         return await self.bot.change_presence(
             status=disnake.Status.online, activity=disnake.CustomActivity(name=text)
         )
 
-    async def _rank_status(self, rank: str):
+    async def _rank_status(self, rank: str) -> None:
         rank_lists = await ranktracker.get_rank_lists()
         return await self.change_presence(
             f"Tracking {utils.commaize(len(rank_lists.get(rank, [])))} "
@@ -62,14 +63,16 @@ class StatusUpdaterCog(PollingCog):
         cached = self._counts.get(item_id)
         if cached and time.monotonic() - cached[0] < self.count_ttl:
             return cached[1]
-        item_db = getattr(self.bot.get_cog("ItemDBCog"), "item_db", None)
+        item_db: Collection | None = getattr(
+            self.bot.get_cog("ItemDBCog"), "item_db", None
+        )
         if item_db is None:
             return 0
         count = await item_db.count_documents({"itemId": item_id})
         self._counts[item_id] = (time.monotonic(), count)
         return count
 
-    async def _item_count_status(self, item_id: str):
+    async def _item_count_status(self, item_id: str) -> None:
         try:
             name = hypixel.get_name(item_id)
         except (KeyError, ValueError):  # fmt: skip
@@ -79,7 +82,7 @@ class StatusUpdaterCog(PollingCog):
             f"Tracking {utils.commaize(count)} {name} items"
         )
 
-    async def change_status(self):
+    async def change_status(self) -> None:
         if self.index == 0:
             await self.change_presence(f"In {len(self.bot.guilds)} servers")
         elif self.index == 1:
@@ -91,7 +94,7 @@ class StatusUpdaterCog(PollingCog):
                 self.item_count_statuses[self.index - 2 - len(self.rank_statuses)]
             )
 
-    async def poll(self):
+    async def poll(self) -> None:
         try:
             await self.change_status()
         finally:

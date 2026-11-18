@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 import asyncio
 import os
 import subprocess
@@ -6,8 +7,10 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, Mock, patch
 
+import disnake
 from disnake.ext import commands
 
 import tests.support as support
@@ -16,12 +19,12 @@ from skypixel.clients import hypixel
 
 
 class SettingsTests(unittest.TestCase):
-    def test_test_settings_use_temporary_storage_and_fixture_credentials(self):
+    def test_test_settings_use_temporary_storage_and_fixture_credentials(self) -> None:
         self.assertEqual(support.SETTINGS.storage_dir, Path(support.TEST_STORAGE.name))
         self.assertEqual(support.SETTINGS.bot_token, "test-token")
         self.assertEqual(support.SETTINGS.mongodb_uri, "mongodb://localhost:27017")
 
-    def test_environment_overrides_legacy_credentials(self):
+    def test_environment_overrides_legacy_credentials(self) -> None:
         legacy = SimpleNamespace(
             BOT_TOKEN="old-token",
             MONGODB_URI="old-uri",
@@ -44,13 +47,13 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(loaded.storage_dir, Path("custom"))
         self.assertNotIn("new-token", repr(loaded))
 
-    def test_missing_credentials_get_a_configuration_error(self):
+    def test_missing_credentials_get_a_configuration_error(self) -> None:
         with self.assertRaises(settings.ConfigurationError) as error:
             settings.Settings().validate()
         self.assertIn("SKYPIXEL_BOT_TOKEN", str(error.exception))
         self.assertIn("SKYPIXEL_MONGODB_URI", str(error.exception))
 
-    def test_missing_secrets_module_allows_environment_only_setup(self):
+    def test_missing_secrets_module_allows_environment_only_setup(self) -> None:
         with (
             patch.dict(
                 os.environ,
@@ -64,7 +67,7 @@ class SettingsTests(unittest.TestCase):
             loaded = settings.Settings.load()
         loaded.validate()
 
-    def test_an_error_inside_the_secrets_module_is_not_hidden(self):
+    def test_an_error_inside_the_secrets_module_is_not_hidden(self) -> None:
         with patch.object(
             settings,
             "import_module",
@@ -75,7 +78,9 @@ class SettingsTests(unittest.TestCase):
 
 
 class AppTests(unittest.IsolatedAsyncioTestCase):
-    async def test_failed_player_client_close_does_not_skip_http_or_discord(self):
+    async def test_failed_player_client_close_does_not_skip_http_or_discord(
+        self,
+    ) -> None:
         bot = app.SkypixelBot(
             support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
         )
@@ -88,7 +93,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         close_http.assert_awaited_once()
         self.assertTrue(bot.is_closed())
 
-    async def test_the_bot_registers_all_existing_cogs_and_commands(self):
+    async def test_the_bot_registers_all_existing_cogs_and_commands(self) -> None:
         with patch.object(app.http, "close", new_callable=AsyncMock):
             bot = app.create_bot(
                 support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
@@ -111,13 +116,13 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await bot.close()
 
-    async def test_notification_retries_keep_one_task_and_stop_on_close(self):
+    async def test_notification_retries_keep_one_task_and_stop_on_close(self) -> None:
         bot = app.SkypixelBot(
             support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
         )
         started = asyncio.Event()
 
-        async def run():
+        async def run() -> None:
             started.set()
             await asyncio.Future()
 
@@ -132,22 +137,23 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             await bot.on_ready()
             self.assertIs(bot._notification_task, task)
             await bot.close()
+            assert task is not None
             self.assertTrue(task.cancelled())
             await bot.on_ready()
             self.assertIs(bot._notification_task, task)
 
-    async def test_one_failed_cog_close_does_not_skip_other_resources(self):
+    async def test_one_failed_cog_close_does_not_skip_other_resources(self) -> None:
         bot = app.SkypixelBot(
             support.SETTINGS, command_sync_flags=commands.CommandSyncFlags.none()
         )
         good_close = AsyncMock()
 
         class FailedCog(commands.Cog):
-            async def close(self):
+            async def close(self) -> None:
                 raise ValueError("close failed")
 
         class GoodCog(commands.Cog):
-            async def close(self):
+            async def close(self) -> None:
                 await good_close()
 
         bot.add_cog(FailedCog())
@@ -162,14 +168,14 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         close_http.assert_awaited_once()
         self.assertTrue(bot.is_closed())
 
-    async def test_startup_loads_items_before_registering_commands(self):
-        events = []
+    async def test_startup_loads_items_before_registering_commands(self) -> None:
+        events: list[str] = []
         bot = Mock(close=AsyncMock(), start=AsyncMock())
 
-        async def load_items(storage_dir):
+        async def load_items(storage_dir: Path) -> None:
             events.append("items")
 
-        def create_bot(settings):
+        def create_bot(settings: app.Settings) -> Mock:
             events.append("commands")
             return bot
 
@@ -192,7 +198,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         bot.start.assert_awaited_once_with("token")
         bot.close.assert_awaited_once()
 
-    async def test_startup_failure_closes_the_http_session(self):
+    async def test_startup_failure_closes_the_http_session(self) -> None:
         with (
             patch.object(
                 app.Settings,
@@ -216,15 +222,19 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                 await app.run()
         close.assert_awaited_once()
 
-    async def test_guild_installed_commands_do_not_need_a_patron_check(self):
+    async def test_guild_installed_commands_do_not_need_a_patron_check(self) -> None:
         inter = SimpleNamespace(
             authorizing_integration_owners=SimpleNamespace(user_id=None, guild_id=1)
         )
         bot = Mock()
-        self.assertTrue(await checks.patron_only_check(bot, inter))
+        self.assertTrue(
+            await checks.patron_only_check(
+                bot, cast(disnake.Interaction[disnake.Client], inter)
+            )
+        )
         bot.get_guild.assert_not_called()
 
-    async def test_user_installed_commands_keep_the_patron_role_check(self):
+    async def test_user_installed_commands_keep_the_patron_role_check(self) -> None:
         member = Mock(get_role=Mock(return_value=None))
         bot = Mock(
             get_guild=Mock(return_value=Mock(get_member=Mock(return_value=member)))
@@ -234,22 +244,32 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             author=SimpleNamespace(id=1),
         )
         with self.assertRaises(checks.UserNotAPatron):
-            await checks.patron_only_check(bot, inter)
+            await checks.patron_only_check(
+                bot, cast(disnake.Interaction[disnake.Client], inter)
+            )
         inter.authorizing_integration_owners.guild_id = 0
         with self.assertRaises(checks.UserNotAPatron):
-            await checks.patron_only_check(bot, inter)
+            await checks.patron_only_check(
+                bot, cast(disnake.Interaction[disnake.Client], inter)
+            )
 
-    async def test_server_install_authorizes_a_command_installed_both_ways(self):
+    async def test_server_install_authorizes_a_command_installed_both_ways(
+        self,
+    ) -> None:
         inter = SimpleNamespace(
             authorizing_integration_owners=SimpleNamespace(user_id=1, guild_id=2)
         )
         bot = Mock()
-        self.assertTrue(await checks.patron_only_check(bot, inter))
+        self.assertTrue(
+            await checks.patron_only_check(
+                bot, cast(disnake.Interaction[disnake.Client], inter)
+            )
+        )
         bot.get_guild.assert_not_called()
 
 
 class ImportTests(unittest.TestCase):
-    def test_imports_do_not_open_clients_or_start_the_bot(self):
+    def test_imports_do_not_open_clients_or_start_the_bot(self) -> None:
         source = """import importlib
 import pkgutil
 import sys

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from skypixel.app import SkypixelBot
 
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 async def get_motd() -> list[str]:
@@ -22,16 +22,18 @@ async def get_motd() -> list[str]:
     return [line.strip() for line in status.description.split("\n")]
 
 
-async def send(bot: SkypixelBot, embed: disnake.Embed, ping: bool = True):
+async def send(bot: SkypixelBot, embed: disnake.Embed, ping: bool = True) -> None:
     await utils.broadcast(bot, subscriptions.current().motd, embed=embed, ping=ping)
 
 
 class MotdTrackerCog(PollingCog):
-    interval = 240
+    interval: float = 240
 
-    def __init__(self, bot: SkypixelBot):
+    def __init__(self, bot: SkypixelBot) -> None:
         super().__init__(bot)
-        self.data = JsonWrapper(bot.settings.storage_dir / "motd.json")
+        self.data: JsonWrapper[list[str]] = JsonWrapper(
+            bot.settings.storage_dir / "motd.json"
+        )
         self._last_ping: datetime | None = None
 
     @property
@@ -42,7 +44,7 @@ class MotdTrackerCog(PollingCog):
             else timedelta.max
         )
 
-    async def on_motd_update(self, before: list[str], after: list[str]):
+    async def on_motd_update(self, before: list[str], after: list[str]) -> None:
         embed = utils.add_footer(
             disnake.Embed(
                 title="Hypixel MOTD update!", color=constants.DEFAULT_EMBED_COLOR
@@ -55,7 +57,7 @@ class MotdTrackerCog(PollingCog):
         if should_ping:
             self._last_ping = datetime.now(UTC)
 
-    async def poll(self):
+    async def poll(self) -> None:
         motd = await get_motd()
         if motd != self.data.get("motd"):
             logger.info("MOTD changed from %s to %s.", self.data.get("motd"), motd)
