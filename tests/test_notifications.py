@@ -319,3 +319,17 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         await self.bot.notifications.flush()
         self.channel.send.assert_awaited_once()
         self.assertEqual(self.channel.send.call_args.kwargs["embeds"][0].title, "Soul")
+
+    async def test_auction_poll_logs_a_database_error_from_the_cursor_save(self):
+        cog = auctionhouse.AuctionTrackerCog(self.bot)
+        cog.last_scanned_active = cog.last_scanned_ended = 1
+        with (
+            patch.object(cog, "active_scanner", AsyncMock(return_value=5.0)),
+            patch.object(cog, "ended_scanner", AsyncMock(return_value=7.0)),
+            patch.object(cog, "upload_queue", AsyncMock()),
+            patch.object(
+                self.bot.database, "_save", side_effect=sqlite3.OperationalError
+            ),
+            self.assertLogs(auctionhouse.logger, level="ERROR"),
+        ):
+            self.assertEqual(await cog.poll(), 5.0)

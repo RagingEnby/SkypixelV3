@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sqlite3
 import time
 from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Any
@@ -513,7 +514,7 @@ class AuctionTrackerCog(PollingCog):
             logger.exception("Cannot upload auction records.")
         try:
             await self.save_cursors()
-        except OSError:
+        except OSError, sqlite3.Error:
             logger.exception("Cannot save the auction scan cursors.")
         for delay in delays:
             if isinstance(delay, BaseException):
