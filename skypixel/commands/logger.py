@@ -6,10 +6,13 @@ from disnake.ext import commands
 
 from skypixel import checks, constants, utils
 from skypixel.logging import redact
+from skypixel.storage.json import JsonWrapper
 
 logger = logging.getLogger(__name__)
-# Discord's default upload limit for bots is 10 MiB per message.
-ATTACHMENT_BUDGET = 8 * 1024 * 1024
+DM_NOTICE = (
+    "Messages you send to Skypixel are forwarded to its owner, @ragingenby. "
+    "Use slash commands to use the bot."
+)
 
 
 def prettify_params(options: disnake.AppCmdInter | dict) -> list[str]:
@@ -70,6 +73,7 @@ def check_error_embed(error: commands.CheckFailure) -> disnake.Embed:
 class LoggerCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
+        self.dm_notices = JsonWrapper(bot.settings.storage_dir / "dmnotices.json")
 
     @commands.Cog.listener()
     async def on_slash_command(self, inter: disnake.AppCmdInter):
@@ -132,16 +136,25 @@ class LoggerCog(commands.Cog):
             name=f"{message.author.display_name} ({message.author.id})",
             icon_url=message.author.display_avatar,
         )
-        files, links, size = [], [], 0
-        for attachment in message.attachments:
-            # Large files would make the whole log message fail, so link them.
-            if size + attachment.size <= ATTACHMENT_BUDGET:
-                files.append(await attachment.to_file())
-                size += attachment.size
-            else:
-                links.append(attachment.url)
-        if links:
-            embed.add_field(name="Attachments", value="\n".join(links), inline=False)
-        await utils.send_to_channel(
-            self.bot, constants.DM_LOG_CHANNEL, embed=embed, files=files
-        )
+        # Link attachments instead of uploading copies. The links stay on
+        # Discord's servers, so the log never holds files the user deleted.
+        if message.attachments:
+            embed.add_field(
+                name="Attachments",
+                value="\n".join(attachment.url for attachment in message.attachments),
+                inline=False,
+            )
+        await utils.send_to_channel(self.bot, constants.DM_LOG_CHANNEL, embed=embed)
+        await self.send_dm_notice(message)
+
+    async def send_dm_notice(self, message: disnake.Message) -> None:
+        """Tell each user once that the bot's owner can read their DMs."""
+        key = str(message.author.id)
+        if key in self.dm_notices:
+            return
+        try:
+            await message.channel.send(DM_NOTICE)
+        except disnake.HTTPException:
+            logger.warning("Cannot send the DM notice to %s.", message.author.name)
+            return
+        await self.dm_notices.set_and_save(key, True)

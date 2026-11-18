@@ -13,7 +13,7 @@ import tests.support as support
 from skypixel import checks, constants, utils
 from skypixel.commands import owner
 from skypixel.commands.guild import GuildCog
-from skypixel.commands.logger import ATTACHMENT_BUDGET, LoggerCog
+from skypixel.commands.logger import DM_NOTICE, LoggerCog
 from skypixel.logging import RedactingFormatter, configure_logging
 
 
@@ -217,26 +217,32 @@ class LoggingTests(unittest.TestCase):
 
 
 class DirectMessageLogTests(unittest.IsolatedAsyncioTestCase):
-    def attachment(self, size, url):
-        return Mock(size=size, url=url, to_file=AsyncMock(return_value=url))
-
-    async def test_large_attachments_are_linked_instead_of_uploaded(self):
-        small = self.attachment(1024, "small")
-        large = self.attachment(ATTACHMENT_BUDGET, "large")
+    async def test_attachments_are_linked_and_the_notice_is_sent_once(self):
+        attachment = Mock(url="link", to_file=AsyncMock())
         message = Mock(
             content="",
             guild=None,
-            attachments=[small, large],
+            attachments=[attachment],
             created_at=None,
+            channel=Mock(send=AsyncMock()),
             author=Mock(
                 bot=False, display_name="User", id=1, color=None, display_avatar=None
             ),
         )
+        cog = LoggerCog(support.make_bot())
+        cog.dm_notices = Mock(__contains__=Mock(return_value=False))
+        cog.dm_notices.set_and_save = AsyncMock()
         with patch.object(utils, "send_to_channel", new_callable=AsyncMock) as send:
-            await LoggerCog(support.make_bot()).on_message(message)
-        large.to_file.assert_not_awaited()
-        self.assertEqual(send.await_args.kwargs["files"], ["small"])
-        self.assertEqual(send.await_args.kwargs["embed"].fields[0].value, "large")
+            await cog.on_message(message)
+        attachment.to_file.assert_not_awaited()
+        self.assertNotIn("files", send.await_args.kwargs)
+        self.assertEqual(send.await_args.kwargs["embed"].fields[0].value, "link")
+        message.channel.send.assert_awaited_once_with(DM_NOTICE)
+        cog.dm_notices.set_and_save.assert_awaited_once_with("1", True)
+        cog.dm_notices.__contains__.return_value = True
+        with patch.object(utils, "send_to_channel", new_callable=AsyncMock):
+            await cog.on_message(message)
+        message.channel.send.assert_awaited_once()
 
 
 class OldDateTests(unittest.TestCase):
