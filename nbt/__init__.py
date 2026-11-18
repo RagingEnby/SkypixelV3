@@ -1,8 +1,5 @@
-__all__ = ["nbt", "world", "region", "chunk"]
+__all__ = ["nbt"]
 from . import *
-
-# Documentation only automatically includes functions specified in __all__.
-# If you add more functions, please manually include them in doc/index.rst.
 
 VERSION = (1, 5, 1)
 """NBT version as tuple. Note that the major and minor revision number are 
