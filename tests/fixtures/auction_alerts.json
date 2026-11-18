@@ -1,0 +1,805 @@
+{
+  "admin_spawned": [
+    {
+      "channel_id": 1359366355819823334,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://sky.shiiyu.moe/api/item/TEST_HELMET"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Origin Tag",
+              "value": "ITEM_MENU"
+            }
+          ],
+          "color": 11141290,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "og_reforge": [
+    {
+      "channel_id": 1359367040091295854,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://sky.shiiyu.moe/api/item/TEST_HELMET"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Reforge",
+              "value": "forceful"
+            }
+          ],
+          "color": 11141290,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "semi_og_reforge": [
+    {
+      "channel_id": 1359367058009358536,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://sky.shiiyu.moe/api/item/TEST_HELMET"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Reforge",
+              "value": "rich"
+            }
+          ],
+          "color": 11141290,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "poi": [
+    {
+      "channel_id": 1359374618946699504,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://sky.shiiyu.moe/api/item/TEST_HELMET"
+          },
+          "author": {
+            "name": "[ADMIN] Special",
+            "icon_url": "https://cravatar.eu/helmavatar/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            }
+          ],
+          "color": 11141290,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "old_item": [
+    {
+      "channel_id": 1359377036111511732,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://sky.shiiyu.moe/api/item/TEST_HELMET"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "50M"
+            },
+            {
+              "inline": true,
+              "name": "Created At",
+              "value": "<t:1546362000>\n-# <t:1546362000:R>"
+            }
+          ],
+          "color": 11141290,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "seymour": [
+    {
+      "channel_id": 1360000687668334792,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://sky.shiiyu.moe/api/item/VELVET_TOP_HAT"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Hex Code",
+              "value": "#123456"
+            }
+          ],
+          "color": 1193046,
+          "type": "rich",
+          "description": "```\nGreat Spook #1B001F: 25.67\nCrystal #1F0030: 28.6\nTest Helmet: 31.33\nPure Black: 32.02\nFairy #330066: 48.01```",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "exotic_with_thread": [
+    {
+      "channel_id": 1362226845696917555,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/000000.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Hex Code",
+              "value": "#000000"
+            },
+            {
+              "inline": true,
+              "name": "Exotic Type",
+              "value": "Spook"
+            }
+          ],
+          "color": 0,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    },
+    {
+      "channel_id": 1425548644362354859,
+      "content": null,
+      "kwargs": {
+        "thread_id": 1425548968695435425,
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/000000.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Hex Code",
+              "value": "#000000"
+            },
+            {
+              "inline": true,
+              "name": "Exotic Type",
+              "value": "Spook"
+            }
+          ],
+          "color": 0,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "exotic_bleached": [
+    {
+      "channel_id": 1362226845696917555,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/FFFFFF.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Hex Code",
+              "value": "#FFFFFF"
+            },
+            {
+              "inline": true,
+              "name": "Exotic Type",
+              "value": "Exotic"
+            }
+          ],
+          "color": 16777215,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    },
+    {
+      "channel_id": 1425548644362354859,
+      "content": null,
+      "kwargs": {
+        "thread_id": 1425549071636107346,
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/FFFFFF.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Hex Code",
+              "value": "#FFFFFF"
+            },
+            {
+              "inline": true,
+              "name": "Exotic Type",
+              "value": "Exotic"
+            }
+          ],
+          "color": 16777215,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "cake_soul_cheap_red": [
+    {
+      "channel_id": 1365795200235999413,
+      "content": "<@&1366215277834014721> <@&1366217072346136688>",
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://github.com/RagingEnby/SkypixelRepo/blob/main/cakesouls/images/red.png?raw=true"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "4M"
+            },
+            {
+              "inline": true,
+              "name": "Cake Owner",
+              "value": "Owner"
+            }
+          ],
+          "color": 11546150,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Red Cake Soul"
+        }
+      }
+    }
+  ],
+  "cake_soul_auction_no_dye": [
+    {
+      "channel_id": 1365795200235999413,
+      "content": "",
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://sky.shiiyu.moe/api/item/CAKE_SOUL"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Starting Bid",
+              "value": "1"
+            },
+            {
+              "inline": true,
+              "name": "Auction End",
+              "value": "<t:1700000000:R>"
+            },
+            {
+              "inline": true,
+              "name": "Cake Owner",
+              "value": "None"
+            }
+          ],
+          "color": 11141290,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "editioned": [
+    {
+      "channel_id": 1366804475628486757,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://sky.shiiyu.moe/api/item/TEST_HELMET"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Edition",
+              "value": "#1,234"
+            },
+            {
+              "inline": true,
+              "name": "Recipient Name",
+              "value": "Some\\_Player"
+            },
+            {
+              "inline": true,
+              "name": "Created At",
+              "value": "<t:1600000000>\n-# <t:1600000000:R>"
+            }
+          ],
+          "color": 11141290,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "basket_edition": [
+    {
+      "channel_id": 1366804475628486757,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://sky.shiiyu.moe/api/item/TEST_HELMET"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "icon_url": "https://cravatar.eu/helmavatar/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "1K"
+            },
+            {
+              "inline": true,
+              "name": "Edition",
+              "value": "#7"
+            }
+          ],
+          "color": 11141290,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ],
+  "several_rules": [
+    {
+      "channel_id": 1359366355819823334,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/000000.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "icon_url": "https://cravatar.eu/helmavatar/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "10"
+            },
+            {
+              "inline": true,
+              "name": "Origin Tag",
+              "value": "ITEM_COMMAND"
+            }
+          ],
+          "color": 0,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    },
+    {
+      "channel_id": 1359367058009358536,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/000000.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "icon_url": "https://cravatar.eu/helmavatar/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "10"
+            },
+            {
+              "inline": true,
+              "name": "Reforge",
+              "value": "odd"
+            }
+          ],
+          "color": 0,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    },
+    {
+      "channel_id": 1359374618946699504,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/000000.png"
+          },
+          "author": {
+            "name": "[ADMIN] Special",
+            "icon_url": "https://cravatar.eu/helmavatar/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "10"
+            }
+          ],
+          "color": 0,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    },
+    {
+      "channel_id": 1359377036111511732,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/000000.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "icon_url": "https://cravatar.eu/helmavatar/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "10"
+            },
+            {
+              "inline": true,
+              "name": "Created At",
+              "value": "<t:1500000000>\n-# <t:1500000000:R>"
+            }
+          ],
+          "color": 0,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    },
+    {
+      "channel_id": 1362226845696917555,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/000000.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "icon_url": "https://cravatar.eu/helmavatar/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "10"
+            },
+            {
+              "inline": true,
+              "name": "Hex Code",
+              "value": "#000000"
+            },
+            {
+              "inline": true,
+              "name": "Exotic Type",
+              "value": "Spook"
+            }
+          ],
+          "color": 0,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    },
+    {
+      "channel_id": 1366804475628486757,
+      "content": null,
+      "kwargs": {
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/000000.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "icon_url": "https://cravatar.eu/helmavatar/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "10"
+            },
+            {
+              "inline": true,
+              "name": "Edition",
+              "value": "#2"
+            },
+            {
+              "inline": true,
+              "name": "Created At",
+              "value": "<t:1500000000>\n-# <t:1500000000:R>"
+            }
+          ],
+          "color": 0,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    },
+    {
+      "channel_id": 1425548644362354859,
+      "content": null,
+      "kwargs": {
+        "thread_id": 1425548968695435425,
+        "embed": {
+          "footer": {
+            "text": "/viewauction auction-uuid"
+          },
+          "thumbnail": {
+            "url": "https://api.ragingenby.dev/leather/helmet/000000.png"
+          },
+          "author": {
+            "name": "Seller",
+            "url": "https://sky.shiiyu.moe/stats/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "icon_url": "https://cravatar.eu/helmavatar/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/600.png"
+          },
+          "fields": [
+            {
+              "inline": true,
+              "name": "Price",
+              "value": "10"
+            },
+            {
+              "inline": true,
+              "name": "Hex Code",
+              "value": "#000000"
+            },
+            {
+              "inline": true,
+              "name": "Exotic Type",
+              "value": "Spook"
+            }
+          ],
+          "color": 0,
+          "type": "rich",
+          "url": "https://sky.coflnet.com/auction/auction-uuid",
+          "title": "Test Item"
+        }
+      }
+    }
+  ]
+}
