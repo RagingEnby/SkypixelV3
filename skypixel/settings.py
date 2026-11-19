@@ -13,6 +13,8 @@ class Settings:
     bot_token: str = field(default="", repr=False)
     mongodb_uri: str = field(default="", repr=False)
     storage_dir: Path = Path("storage")
+    error_inbox_webhook: str = field(default="", repr=False)
+    error_inbox_dir: Path = Path.home() / ".cache" / "skypixel-error-inbox"
 
     @classmethod
     def load(cls):
@@ -30,6 +32,16 @@ class Settings:
                 "SKYPIXEL_MONGODB_URI", getattr(legacy, "MONGODB_URI", "")
             ),
             storage_dir=Path(os.environ.get("SKYPIXEL_STORAGE_DIR", "storage")),
+            error_inbox_webhook=os.environ.get(
+                "SKYPIXEL_ERROR_INBOX_WEBHOOK",
+                getattr(legacy, "ERROR_INBOX_WEBHOOK", ""),
+            ),
+            error_inbox_dir=Path(
+                os.environ.get(
+                    "SKYPIXEL_ERROR_INBOX_DIR",
+                    Path.home() / ".cache" / "skypixel-error-inbox",
+                )
+            ),
         )
 
     def validate(self):

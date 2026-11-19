@@ -2,11 +2,12 @@ import asyncio
 import logging
 import signal
 from contextlib import suppress
+from typing import Any
 
 import disnake
 from disnake.ext import commands
 
-from skypixel import checks, constants
+from skypixel import checks, constants, error_inbox
 from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
 from skypixel.logging import configure_logging
@@ -59,6 +60,11 @@ class SkypixelBot(commands.InteractionBot):
             finally:
                 await super().close()
             logger.info("The bot has shut down.")
+
+    async def on_error(self, event_method: str, *args: Any, **kwargs: Any) -> None:
+        # disnake prints unhandled event errors to stderr. Logging them lets the
+        # log file and the error inbox see them.
+        logger.exception("The %s event failed.", event_method)
 
     async def on_ready(self) -> None:
         logger.info("Logged in as %s.", self.user)
@@ -122,9 +128,14 @@ def create_bot(settings: Settings, **kwargs) -> SkypixelBot:
 async def run() -> None:
     settings = Settings.load()
     settings.validate()
-    configure_logging(
-        settings.storage_dir,
-        secrets=(settings.bot_token, settings.mongodb_uri),
+    secrets: tuple[str, ...] = (
+        settings.bot_token,
+        settings.mongodb_uri,
+        settings.error_inbox_webhook,
+    )
+    configure_logging(settings.storage_dir, secrets=secrets)
+    error_inbox.install(
+        settings.error_inbox_webhook, settings.error_inbox_dir, secrets
     )
     bot = None
     shutdown_task = None
