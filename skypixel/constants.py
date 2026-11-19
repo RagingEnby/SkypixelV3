@@ -96,7 +96,7 @@ RANK_TRACKER_CHANNELS: dict[str, dict[int, str]] = {
 ITEM_IMAGE: str = "https://sky.shiiyu.moe/api/item/{}"
 LEATHER_IMAGE: str = "https://api.ragingenby.dev/leather/{}/{}.png"
 MC_HEAD_IMAGE: str = "https://cravatar.eu/helmavatar/{}/600.png"
-MC_TEXT_IMAGE: str = "https://api.ragingenby.dev/render.png?text={}"
+MC_TEXT_IMAGE: str = "https://api.ragingenby.dev/render.png?scale=4&text={}"
 AUCTION_URL: str = "https://sky.coflnet.com/auction/{}"
 STATS_URL: str = "https://sky.shiiyu.moe/stats/{}"
 PATREON_URL: str = "https://patreon.com/ragingenby"
