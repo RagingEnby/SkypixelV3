@@ -161,6 +161,23 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
             "https://example.com/path",
         )
 
+    async def test_session_uses_http_1_1(self):
+        created = Mock()
+        with (
+            patch.object(http, "SESSION", None),
+            patch.object(http, "CLOSED", False),
+            patch.object(
+                http.curl_cffi, "AsyncSession", return_value=created
+            ) as async_session,
+        ):
+            session = await http.get_session()
+        self.assertIs(session, created)
+        async_session.assert_called_once_with(
+            discard_cookies=True,
+            timeout=(10, 30),
+            http_version=http.CurlHttpVersion.V1_1,
+        )
+
 
 class HypixelTests(unittest.IsolatedAsyncioTestCase):
     async def test_failed_cache_write_keeps_the_loaded_items(self):

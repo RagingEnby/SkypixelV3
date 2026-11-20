@@ -5,6 +5,7 @@ from typing import Any, Literal
 from urllib.parse import urlsplit
 
 import curl_cffi
+from curl_cffi.const import CurlHttpVersion
 from curl_cffi.requests.exceptions import RequestException
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,13 @@ async def get_session() -> curl_cffi.AsyncSession:
     if CLOSED:
         raise RuntimeError("The HTTP client has shut down.")
     if SESSION is None:
-        SESSION = curl_cffi.AsyncSession(discard_cookies=True, timeout=(10, 30))
+        # Cloudflare resets multiplexed HTTP/2 streams on curl_cffi's default
+        # session, causing curl (55)/(56) errors on concurrent Hypixel polls.
+        SESSION = curl_cffi.AsyncSession(
+            discard_cookies=True,
+            timeout=(10, 30),
+            http_version=CurlHttpVersion.V1_1,
+        )
     return SESSION
 
 
