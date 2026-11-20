@@ -1,8 +1,10 @@
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
 import disnake
 from disnake.ext import commands
+from dns.exception import DNSException
 from mcstatus import JavaServer
 
 from skypixel import constants, utils
@@ -10,12 +12,27 @@ from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
+LOOKUP_TIMEOUT = 10
+STATUS_ATTEMPTS = 3
 
 
-async def get_motd() -> list[str]:
+async def get_motd(*, attempts: int = STATUS_ATTEMPTS) -> list[str]:
     logger.debug("getting mc.hypixel.net motd")
-    status = await (await JavaServer.async_lookup("mc.hypixel.net")).async_status()
-    return [line.strip() for line in status.description.split("\n")]
+    for attempt in range(attempts):
+        try:
+            server = await JavaServer.async_lookup(
+                "mc.hypixel.net", timeout=LOOKUP_TIMEOUT
+            )
+            status = await server.async_status()
+            return [line.strip() for line in status.description.split("\n")]
+        except (OSError, DNSException):
+            if attempt == attempts - 1:
+                raise
+            logger.warning(
+                "Hypixel MOTD lookup failed. Retrying attempt %s.", attempt + 2
+            )
+            await asyncio.sleep(min(2**attempt, 5))
+    raise RuntimeError("The MOTD lookup did not complete.")
 
 
 async def send(bot: commands.InteractionBot, embed: disnake.Embed, ping: bool = True):

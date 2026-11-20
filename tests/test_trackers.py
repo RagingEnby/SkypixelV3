@@ -5,15 +5,18 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 from curl_cffi.requests.exceptions import HTTPError
+from dns.resolver import LifetimeTimeout
 
 import tests.support as support
 from skypixel import app
 from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
+    alphatracker,
     auctionhouse,
     firesaletracker,
     jobtracker,
+    motdtracker,
     ranktracker,
 )
 from skypixel.trackers.base import PollingCog
@@ -702,3 +705,67 @@ class JobTrackerTests(unittest.IsolatedAsyncioTestCase):
                 with patch.object(cog, "make_fire_sale_embed") as make:
                     await cog.poll()
         make.assert_called_once()
+
+
+class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_motd_lookup_retries_transient_dns_and_socket_errors(self):
+        server = Mock(
+            async_status=AsyncMock(
+                side_effect=[
+                    OSError("Server did not respond with any information!"),
+                    Mock(description="  Line 1  \n  Line 2  "),
+                ]
+            )
+        )
+        with (
+            patch.object(
+                motdtracker.JavaServer,
+                "async_lookup",
+                new_callable=AsyncMock,
+                side_effect=[LifetimeTimeout(timeout=10, errors=[]), server, server],
+            ) as lookup,
+            patch.object(
+                motdtracker.asyncio, "sleep", new_callable=AsyncMock
+            ) as sleep,
+        ):
+            motd = await motdtracker.get_motd()
+        self.assertEqual(motd, ["Line 1", "Line 2"])
+        self.assertEqual(lookup.await_count, 3)
+        self.assertEqual([call.args[0] for call in sleep.await_args_list], [1, 2])
+        self.assertEqual(
+            lookup.await_args.kwargs, {"timeout": motdtracker.LOOKUP_TIMEOUT}
+        )
+
+    async def test_motd_lookup_raises_after_exhausting_retries(self):
+        with (
+            patch.object(
+                motdtracker.JavaServer,
+                "async_lookup",
+                new_callable=AsyncMock,
+                side_effect=LifetimeTimeout(timeout=10, errors=[]),
+            ) as lookup,
+            patch.object(motdtracker.asyncio, "sleep", new_callable=AsyncMock),
+        ):
+            with self.assertRaises(LifetimeTimeout):
+                await motdtracker.get_motd()
+        self.assertEqual(lookup.await_count, motdtracker.STATUS_ATTEMPTS)
+
+    async def test_alpha_lookup_retries_transient_errors(self):
+        raw = {
+            "version": {"name": "1.21", "protocol": 767},
+            "players": {"max": 500},
+            "description": "Alpha",
+        }
+        server = Mock(async_status=AsyncMock(return_value=Mock(raw=raw)))
+        with (
+            patch.object(
+                alphatracker.JavaServer,
+                "async_lookup",
+                new_callable=AsyncMock,
+                side_effect=[LifetimeTimeout(timeout=10, errors=[]), server],
+            ) as lookup,
+            patch.object(alphatracker.asyncio, "sleep", new_callable=AsyncMock),
+        ):
+            data = await alphatracker.get_alpha_data()
+        self.assertEqual(data["MOTD"], "Alpha")
+        self.assertEqual(lookup.await_count, 2)
