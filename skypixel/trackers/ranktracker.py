@@ -38,9 +38,35 @@ def invalidate_rank_lists() -> None:
     RANK_LIST_GENERATION += 1
 
 
+_rankname_inflight: dict[str, asyncio.Task[str]] = {}
+
+
+def _finish_rankname(key: str, task: asyncio.Task[str]) -> None:
+    if _rankname_inflight.get(key) is task:
+        _rankname_inflight.pop(key)
+    if not task.cancelled():
+        task.exception()
+
+
 async def get_rankname(identifier: str) -> str:
+    """Share one lookup between callers that ask for the same player at once.
+
+    Hypixel answers a second lookup of the same player within a short window
+    with a 429, which the API passes on.
+    """
     if not mojang.is_valid_identifier(identifier):
         raise mojang.PlayerNotFound(identifier)
+    key: str = mojang.normalize_identifier(identifier)
+    if key not in _rankname_inflight:
+        task: asyncio.Task[str] = asyncio.create_task(
+            _fetch_rankname(identifier), name=f"rankname-{key}"
+        )
+        _rankname_inflight[key] = task
+        task.add_done_callback(lambda finished: _finish_rankname(key, finished))
+    return await asyncio.shield(_rankname_inflight[key])
+
+
+async def _fetch_rankname(identifier: str) -> str:
     response = await http.get(RANKNAME_URL.format(identifier))
     if response.status_code == 404:
         raise mojang.PlayerNotFound(identifier)
