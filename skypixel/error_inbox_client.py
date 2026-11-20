@@ -57,7 +57,7 @@ def inbox_root() -> Path:
 
 def _git_head(root: Path) -> str:
     try:
-        result = subprocess.run(
+        result: subprocess.CompletedProcess[str] = subprocess.run(
             ["git", "-C", str(root), "log", "-1", "--format=%h %s"],
             capture_output=True,
             text=True,
@@ -171,8 +171,10 @@ def _install_hooks() -> None:
     if _state.get("hooked"):
         return
     _state["hooked"] = True
-    previous_sys = sys.excepthook
-    previous_thread = threading.excepthook
+    previous_sys: Callable[
+        [type[BaseException], BaseException, TracebackType | None], Any
+    ] = sys.excepthook
+    previous_thread: Callable[[threading.ExceptHookArgs], Any] = threading.excepthook
 
     def sys_hook(
         kind: type[BaseException], value: BaseException, tb: TracebackType | None
@@ -227,7 +229,7 @@ def install(
     _install_hooks()
     if not capture_logs:
         return None
-    handler = ErrorInboxHandler(logging.ERROR)
+    handler: ErrorInboxHandler = ErrorInboxHandler(logging.ERROR)
     for name in loggers:
         target: logging.Logger = logging.getLogger(name)
         for old in [h for h in target.handlers if isinstance(h, ErrorInboxHandler)]:
