@@ -1,8 +1,10 @@
+import asyncio
 import logging
 from typing import Any
 
 import disnake
 from disnake.ext import commands
+from dns.exception import DNSException
 from mcstatus import JavaServer
 
 from skypixel import constants, utils
@@ -10,6 +12,8 @@ from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
+LOOKUP_TIMEOUT = 10
+STATUS_ATTEMPTS = 3
 
 
 def flatten_status(status: dict[str, Any]) -> dict[str, Any]:
@@ -21,9 +25,22 @@ def flatten_status(status: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def get_alpha_data() -> dict[str, Any]:
-    status = await (await JavaServer.async_lookup("alpha.hypixel.net")).async_status()
-    return flatten_status(status.raw)
+async def get_alpha_data(*, attempts: int = STATUS_ATTEMPTS) -> dict[str, Any]:
+    for attempt in range(attempts):
+        try:
+            server = await JavaServer.async_lookup(
+                "alpha.hypixel.net", timeout=LOOKUP_TIMEOUT
+            )
+            status = await server.async_status()
+            return flatten_status(status.raw)
+        except (OSError, DNSException):
+            if attempt == attempts - 1:
+                raise
+            logger.warning(
+                "Hypixel alpha lookup failed. Retrying attempt %s.", attempt + 2
+            )
+            await asyncio.sleep(min(2**attempt, 5))
+    raise RuntimeError("The alpha status lookup did not complete.")
 
 
 async def send(bot: commands.InteractionBot, embed: disnake.Embed):
