@@ -75,18 +75,20 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status_code, 503)
         self.assertEqual(session.request.await_count, 3)
 
-    async def test_api_passes_upstream_rate_limits_without_retrying(self):
+    async def test_api_retries_a_passed_on_rate_limit(self):
+        # Hypixel's "looked up too recently" 429 passes through the API at
+        # once, and the API serves its saved response on the next attempt.
         limited = response(429)
         limited.headers = {}
-        session = Mock(request=AsyncMock(return_value=limited))
+        session = Mock(request=AsyncMock(side_effect=[limited, response()]))
         with (
             patch.object(http, "SESSION", session),
             patch.object(http, "CLOSED", False),
             patch.object(http.asyncio, "sleep", new_callable=AsyncMock),
         ):
             result = await http.get(http.API_URL + "/hypixel/rank/Player")
-        self.assertEqual(result.status_code, 429)
-        session.request.assert_awaited_once()
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(session.request.await_count, 2)
 
     async def test_api_requests_share_a_concurrency_limit(self):
         active = 0

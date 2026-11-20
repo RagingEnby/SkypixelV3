@@ -80,10 +80,6 @@ async def request(
             ):
                 return response
             retry_after = response.headers.get("Retry-After")
-            if api and response.status_code == 429 and not retry_after:
-                # The API already retried Mojang or Hypixel before passing
-                # their 429 on, so another attempt only adds upstream load.
-                return response
             if isinstance(retry_after, str) and retry_after.isdigit():
                 delay = max(delay, min(int(retry_after), MAX_RETRY_AFTER))
         await asyncio.sleep(delay)

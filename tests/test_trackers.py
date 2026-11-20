@@ -150,6 +150,19 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await ranktracker.get_rankname("Player"), "[ADMIN] Player")
             self.assertEqual(ranktracker.RANK_LIST_CACHE, {"staff": []})
 
+    async def test_concurrent_rank_lookups_share_one_request(self):
+        response = Mock(
+            status_code=200, json=Mock(return_value={"rankname": "[MVP+] Player"})
+        )
+        with patch.object(
+            ranktracker.http, "get", new_callable=AsyncMock, return_value=response
+        ) as fetch:
+            names = await asyncio.gather(
+                ranktracker.get_rankname("a" * 32), ranktracker.get_rankname("A" * 32)
+            )
+        self.assertEqual(names, ["[MVP+] Player", "[MVP+] Player"])
+        fetch.assert_awaited_once()
+
     async def test_unchanged_watchlist_keeps_the_player_lists(self):
         state = JsonWrapper(support.TEST_STORAGE.name + "/watch-same.json")
         state.data = {"a": "same"}
