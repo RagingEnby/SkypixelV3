@@ -18,10 +18,10 @@ from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
 
-URL: str = "https://api.ragingenby.dev/ranks"
+URL: str = http.API_URL + "/hypixel/ranks"
 RANK_URL: str = URL + "/{}"
 COUNTS_URL: str = RANK_URL.format("counts")
-RANKNAME_URL: str = "https://api.ragingenby.dev/rankname/{}"
+RANKNAME_URL: str = http.API_URL + "/hypixel/rank/{}"
 RANK_LIST_CACHE_TTL_SECONDS = 180
 RANK_LIST_CACHE: dict[str, list[dict[str, str]]] | None = None
 RANK_LIST_CACHE_TIME = 0.0

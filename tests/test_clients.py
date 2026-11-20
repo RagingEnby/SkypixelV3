@@ -75,6 +75,42 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status_code, 503)
         self.assertEqual(session.request.await_count, 3)
 
+    async def test_api_passes_upstream_rate_limits_without_retrying(self):
+        limited = response(429)
+        limited.headers = {}
+        session = Mock(request=AsyncMock(return_value=limited))
+        with (
+            patch.object(http, "SESSION", session),
+            patch.object(http, "CLOSED", False),
+            patch.object(http.asyncio, "sleep", new_callable=AsyncMock),
+        ):
+            result = await http.get(http.API_URL + "/hypixel/rank/Player")
+        self.assertEqual(result.status_code, 429)
+        session.request.assert_awaited_once()
+
+    async def test_api_requests_share_a_concurrency_limit(self):
+        active = 0
+        peak = 0
+
+        async def slow_request(*args, **kwargs):
+            nonlocal active, peak
+            active += 1
+            peak = max(peak, active)
+            await asyncio.sleep(0)
+            active -= 1
+            return response()
+
+        session = Mock(request=slow_request)
+        with (
+            patch.object(http, "SESSION", session),
+            patch.object(http, "CLOSED", False),
+            patch.object(http, "_api_slots", asyncio.Semaphore(2)),
+        ):
+            await asyncio.gather(
+                *(http.get(http.API_URL + "/hypixel/ranks") for _ in range(6))
+            )
+        self.assertEqual(peak, 2)
+
     async def test_post_does_not_retry(self):
         session = Mock(request=AsyncMock(return_value=response(503)))
         with (
@@ -261,6 +297,23 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             players = await mojang.bulk(["a" * 32, "PLAYER", "PLAYER"])
         self.assertEqual(set(players), {"a" * 32, "player"})
         fetch.assert_awaited_once()
+        self.assertEqual(fetch.await_args.kwargs["json"], ["a" * 32, "player"])
+
+    async def test_bulk_splits_large_lookups_and_skips_invalid_identifiers(self):
+        names = [f"p{index}" for index in range(mojang.BULK_LIMIT + 1)]
+        with patch.object(
+            mojang.http,
+            "post",
+            new_callable=AsyncMock,
+            return_value=response(data={"failed": [], "players": []}),
+        ) as fetch:
+            await mojang.bulk([*names, "../ranks", "a" * 17])
+        self.assertEqual(
+            [len(call.kwargs["json"]) for call in fetch.await_args_list],
+            [mojang.BULK_LIMIT, 1],
+        )
+        sent = [key for call in fetch.await_args_list for key in call.kwargs["json"]]
+        self.assertNotIn("../ranks", sent)
 
     async def test_empty_bulk_does_not_fetch(self):
         with patch.object(mojang.http, "post", new_callable=AsyncMock) as fetch:

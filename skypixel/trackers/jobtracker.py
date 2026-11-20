@@ -11,7 +11,7 @@ from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
 
-URL: str = "https://api.ragingenby.dev/forums/jobs?cache=false"
+URL: str = http.API_URL + "/forums/jobs"
 
 
 class Job:
@@ -76,7 +76,7 @@ class Job:
 
 
 async def get_jobs() -> list[Job]:
-    logger.debug("getting job openings from api.ragingenby.dev")
+    logger.debug("getting job openings from the RagingEnby API")
     data = await http.get_json(URL)
     if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
         raise ValueError("The job API did not return a jobs list.")
