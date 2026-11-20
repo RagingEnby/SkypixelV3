@@ -5,6 +5,7 @@ from collections.abc import Coroutine
 from typing import Any
 
 import disnake
+from curl_cffi.requests.exceptions import RequestException
 from disnake.ext import commands
 
 from skypixel import constants, utils
@@ -99,6 +100,22 @@ async def make_auction_embed(
     return embed
 
 
+async def poi_author_name(uuid: str) -> str:
+    """Return the seller's rank name, or their plain username if that fails.
+
+    A failed rank lookup should not drop the auction alert.
+    """
+    try:
+        return utils.remove_color_codes(await ranktracker.get_rankname(uuid))
+    except (RequestException, ValueError, mojang.PlayerNotFound):  # fmt: skip
+        logger.warning("Cannot load the rank name of %s. Using the username.", uuid)
+    try:
+        return (await mojang.get(uuid)).name
+    except (RequestException, ValueError, mojang.PlayerNotFound):  # fmt: skip
+        logger.warning("Cannot load the username of %s. Using the UUID.", uuid)
+    return uuid
+
+
 class AHListener:
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
@@ -143,9 +160,7 @@ class AHListener:
         )
 
     async def on_poi_auction(self, auction: dict[str, Any], item: dict[str, Any]):
-        rankname = utils.remove_color_codes(
-            await ranktracker.get_rankname(auction["auctioneer"])
-        )
+        rankname: str = await poi_author_name(auction["auctioneer"])
         embed = await make_auction_embed(auction, item)
         embed.set_author(
             name=rankname,

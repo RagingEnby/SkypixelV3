@@ -5,6 +5,26 @@ import tests.support as support
 from skypixel.trackers import auctionhouse
 
 
+class PoiAuthorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_rank_lookup_falls_back_to_the_username(self):
+        error = auctionhouse.RequestException("HTTP Error 429")
+        player = Mock()
+        player.name = "Player"
+        with (
+            patch.object(auctionhouse.ranktracker, "get_rankname", side_effect=error),
+            patch.object(auctionhouse.mojang, "get", return_value=player),
+        ):
+            self.assertEqual(await auctionhouse.poi_author_name("a" * 32), "Player")
+
+    async def test_failed_username_lookup_falls_back_to_the_uuid(self):
+        error = auctionhouse.RequestException("down")
+        with (
+            patch.object(auctionhouse.ranktracker, "get_rankname", side_effect=error),
+            patch.object(auctionhouse.mojang, "get", side_effect=error),
+        ):
+            self.assertEqual(await auctionhouse.poi_author_name("a" * 32), "a" * 32)
+
+
 class AuctionScanningTests(unittest.IsolatedAsyncioTestCase):
     async def test_black_armor_keeps_its_color_thumbnail_and_exotic_alert(self):
         cog = self.cog()
