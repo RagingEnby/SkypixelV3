@@ -2,12 +2,13 @@ import asyncio
 import logging
 import signal
 from contextlib import suppress
+from pathlib import Path
 from typing import Any
 
 import disnake
 from disnake.ext import commands
 
-from skypixel import checks, constants, error_inbox
+from skypixel import checks, constants, error_inbox_client
 from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
 from skypixel.logging import configure_logging
@@ -15,6 +16,7 @@ from skypixel.settings import ConfigurationError, Settings
 from skypixel.storage.notifications import NotificationOutbox
 
 logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class SkypixelBot(commands.InteractionBot):
@@ -128,14 +130,14 @@ def create_bot(settings: Settings, **kwargs) -> SkypixelBot:
 async def run() -> None:
     settings = Settings.load()
     settings.validate()
-    secrets: tuple[str, ...] = (
-        settings.bot_token,
-        settings.mongodb_uri,
-        settings.error_inbox_webhook,
-    )
+    secrets: tuple[str, ...] = (settings.bot_token, settings.mongodb_uri)
     configure_logging(settings.storage_dir, secrets=secrets)
-    error_inbox.install(
-        settings.error_inbox_webhook, settings.error_inbox_dir, secrets
+    # Send every ERROR log to the shared T3 error inbox (~/error-inbox).
+    error_inbox_client.install(
+        "skypixel",
+        project_root=PROJECT_ROOT,
+        secrets=secrets,
+        loggers=("", "disnake"),
     )
     bot = None
     shutdown_task = None
