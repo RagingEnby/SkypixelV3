@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
@@ -11,6 +12,16 @@ SESSION: curl_cffi.AsyncSession | None = None
 CLOSED = False
 RETRY_STATUSES = {429, 500, 502, 503, 504}
 MAX_RETRY_AFTER = 30
+# The bot runs on the same host as api.ragingenby.dev. Calling it directly
+# skips Cloudflare, so its limits and bot checks never apply to the bot.
+API_URL: str = os.environ.get("SKYPIXEL_API_URL", "http://127.0.0.1:8001").rstrip("/")
+# The API rejects requests past 200 in flight across all clients.
+API_CONCURRENCY: int = 16
+_api_slots: asyncio.Semaphore = asyncio.Semaphore(API_CONCURRENCY)
+
+
+def is_api_url(url: str) -> bool:
+    return url.startswith(API_URL + "/")
 
 
 def safe_url(url: str) -> str:
@@ -44,10 +55,16 @@ async def request(
     if not isinstance(attempts, int) or attempts < 1:
         raise ValueError("The request attempt count must be a positive integer.")
     session = await get_session()
+    url: Any = args[0] if args else kwargs.get("url", "")
+    api: bool = isinstance(url, str) and is_api_url(url)
     for attempt in range(attempts):
         delay = min(2**attempt, 5)
         try:
-            response = await session.request(method, *args, **kwargs)
+            if api:
+                async with _api_slots:
+                    response = await session.request(method, *args, **kwargs)
+            else:
+                response = await session.request(method, *args, **kwargs)
         except RequestException:
             if attempt == attempts - 1:
                 raise
@@ -63,6 +80,10 @@ async def request(
             ):
                 return response
             retry_after = response.headers.get("Retry-After")
+            if api and response.status_code == 429 and not retry_after:
+                # The API already retried Mojang or Hypixel before passing
+                # their 429 on, so another attempt only adds upstream load.
+                return response
             if isinstance(retry_after, str) and retry_after.isdigit():
                 delay = max(delay, min(int(retry_after), MAX_RETRY_AFTER))
         await asyncio.sleep(delay)
