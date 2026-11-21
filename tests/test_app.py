@@ -103,6 +103,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                     {"itemdb", "ranks", "Execute"},
                 )
                 self.assertTrue(bot.intents.members)
+                self.assertFalse(bot._connection._chunk_guilds)
                 for cog in bot.cogs.values():
                     if hasattr(cog, "poll"):
                         self.assertIn(
