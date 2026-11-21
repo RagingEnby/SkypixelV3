@@ -31,6 +31,12 @@ POI_UUIDS: set[str] = set()
 WATCH_LIST_LIMIT = 25
 
 
+def _fresh_rank_lists() -> dict[str, list[dict[str, str]]] | None:
+    if time.monotonic() - RANK_LIST_CACHE_TIME >= RANK_LIST_CACHE_TTL_SECONDS:
+        return None
+    return RANK_LIST_CACHE
+
+
 def invalidate_rank_lists() -> None:
     """Refetch the player lists on the next read, even during a fetch."""
     global RANK_LIST_CACHE, RANK_LIST_GENERATION
@@ -83,6 +89,13 @@ async def get_rank_counts() -> dict[str, int]:
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
 
+def get_cached_rank_count(rank: str) -> int | None:
+    rank_lists = _fresh_rank_lists()
+    if rank_lists is None:
+        return None
+    return len(rank_lists.get(rank, []))
+
+
 async def get_rank_list(rank: SpecialRank) -> list[dict[str, str]]:
     return await http.get_json(RANK_URL.format(rank))
 
@@ -121,10 +134,8 @@ async def edit_stat_channels(
 async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
     global RANK_LIST_CACHE, RANK_LIST_CACHE_TIME
     async with RANK_LIST_CACHE_LOCK:
-        if (
-            RANK_LIST_CACHE is None
-            or time.monotonic() - RANK_LIST_CACHE_TIME >= RANK_LIST_CACHE_TTL_SECONDS
-        ):
+        rank_lists = _fresh_rank_lists()
+        if rank_lists is None:
             generation = RANK_LIST_GENERATION
             data = await http.get_json(URL)
             if (
@@ -142,7 +153,7 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
                 )
             ):
                 raise ValueError("The rank API did not return player lists.")
-            RANK_LIST_CACHE = data
+            rank_lists = RANK_LIST_CACHE = data
             RANK_LIST_CACHE_TIME = (
                 time.monotonic()
                 if generation == RANK_LIST_GENERATION
@@ -150,7 +161,7 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
             )
         data = {
             rank: [player.copy() for player in players]
-            for rank, players in RANK_LIST_CACHE.items()
+            for rank, players in rank_lists.items()
         }
         POI_UUIDS.clear()
         POI_UUIDS.update(

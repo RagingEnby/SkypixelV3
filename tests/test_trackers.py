@@ -1,10 +1,11 @@
 import asyncio
 import threading
+import time
 import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-from curl_cffi.requests.exceptions import HTTPError, Timeout
+from curl_cffi.requests.exceptions import HTTPError
 from dns.resolver import LifetimeTimeout
 
 import tests.support as support
@@ -34,9 +35,8 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         cog = StatusUpdaterCog(bot)
         players = [{"id": "one", "name": "One"}, {"id": "two", "name": "Two"}]
         with (
-            patch.object(
-                ranktracker, "get_rank_lists", return_value={"staff": players}
-            ),
+            patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": players}),
+            patch.object(ranktracker, "RANK_LIST_CACHE_TIME", time.monotonic()),
             patch.object(
                 ranktracker, "get_rank_counts", new_callable=AsyncMock
             ) as counts,
@@ -49,42 +49,49 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
     async def test_rank_status_handles_an_empty_special_rank(self):
         bot = Mock(change_presence=AsyncMock(), guilds=[])
         cog = StatusUpdaterCog(bot)
-        with patch.object(ranktracker, "get_rank_lists", return_value={"staff": []}):
-            await cog._rank_status("youtube")
-        activity = bot.change_presence.await_args.kwargs["activity"]
-        self.assertEqual(activity.name, "0 [YOUTUBE] ranks")
-
-    async def test_rank_status_uses_counts_when_the_rank_list_is_unavailable(self):
-        for error in (
-            HTTPError("Bad Gateway", response=Mock(status_code=502)),
-            Timeout("Timed out"),
-        ):
-            with self.subTest(error=type(error).__name__):
-                bot = Mock(change_presence=AsyncMock())
-                cog = StatusUpdaterCog(bot)
-                with (
-                    patch.object(ranktracker, "get_rank_lists", side_effect=error),
-                    patch.object(
-                        ranktracker, "get_rank_counts", return_value={"staff": 3}
-                    ),
-                    self.assertLogs("skypixel.trackers.status", level="WARNING"),
-                ):
-                    await cog._rank_status("staff")
-                activity = bot.change_presence.await_args.kwargs["activity"]
-                self.assertEqual(activity.name, "3 [ዞ] ranks")
-
-    async def test_rank_status_reports_unexpected_rank_list_errors(self):
-        cog = StatusUpdaterCog(Mock())
-        error = HTTPError("Unauthorized", response=Mock(status_code=401))
         with (
-            patch.object(ranktracker, "get_rank_lists", side_effect=error),
+            patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": []}),
+            patch.object(ranktracker, "RANK_LIST_CACHE_TIME", time.monotonic()),
             patch.object(
                 ranktracker, "get_rank_counts", new_callable=AsyncMock
             ) as counts,
-            self.assertRaises(HTTPError),
+        ):
+            await cog._rank_status("youtube")
+        counts.assert_not_awaited()
+        activity = bot.change_presence.await_args.kwargs["activity"]
+        self.assertEqual(activity.name, "0 [YOUTUBE] ranks")
+
+    async def test_rank_status_uses_counts_without_a_fresh_rank_list(self):
+        for rank_lists in (None, {"staff": []}):
+            with self.subTest(cache=rank_lists):
+                bot = Mock(change_presence=AsyncMock())
+                cog = StatusUpdaterCog(bot)
+                with (
+                    patch.object(ranktracker, "RANK_LIST_CACHE", rank_lists),
+                    patch.object(ranktracker, "RANK_LIST_CACHE_TIME", float("-inf")),
+                    patch.object(
+                        ranktracker, "get_rank_lists", new_callable=AsyncMock
+                    ) as lists,
+                    patch.object(
+                        ranktracker, "get_rank_counts", return_value={"staff": 3}
+                    ) as counts,
+                ):
+                    await cog._rank_status("staff")
+                lists.assert_not_awaited()
+                counts.assert_awaited_once_with()
+                activity = bot.change_presence.await_args.kwargs["activity"]
+                self.assertEqual(activity.name, "3 [ዞ] ranks")
+
+    async def test_rank_status_reports_rank_count_errors(self):
+        cog = StatusUpdaterCog(Mock())
+        with (
+            patch.object(ranktracker, "RANK_LIST_CACHE", None),
+            patch.object(
+                ranktracker, "get_rank_counts", side_effect=HTTPError("Timed out")
+            ),
+            self.assertRaisesRegex(HTTPError, "Timed out"),
         ):
             await cog._rank_status("staff")
-        counts.assert_not_awaited()
 
     async def test_status_failure_does_not_stop_the_rotation(self):
         bot = Mock(change_presence=AsyncMock(), guilds=[])
