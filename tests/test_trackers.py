@@ -4,7 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-from curl_cffi.requests.exceptions import HTTPError
+from curl_cffi.requests.exceptions import HTTPError, Timeout
 from dns.resolver import LifetimeTimeout
 
 import tests.support as support
@@ -53,6 +53,38 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
             await cog._rank_status("youtube")
         activity = bot.change_presence.await_args.kwargs["activity"]
         self.assertEqual(activity.name, "0 [YOUTUBE] ranks")
+
+    async def test_rank_status_uses_counts_when_the_rank_list_is_unavailable(self):
+        for error in (
+            HTTPError("Bad Gateway", response=Mock(status_code=502)),
+            Timeout("Timed out"),
+        ):
+            with self.subTest(error=type(error).__name__):
+                bot = Mock(change_presence=AsyncMock())
+                cog = StatusUpdaterCog(bot)
+                with (
+                    patch.object(ranktracker, "get_rank_lists", side_effect=error),
+                    patch.object(
+                        ranktracker, "get_rank_counts", return_value={"staff": 3}
+                    ),
+                    self.assertLogs("skypixel.trackers.status", level="WARNING"),
+                ):
+                    await cog._rank_status("staff")
+                activity = bot.change_presence.await_args.kwargs["activity"]
+                self.assertEqual(activity.name, "3 [ዞ] ranks")
+
+    async def test_rank_status_reports_unexpected_rank_list_errors(self):
+        cog = StatusUpdaterCog(Mock())
+        error = HTTPError("Unauthorized", response=Mock(status_code=401))
+        with (
+            patch.object(ranktracker, "get_rank_lists", side_effect=error),
+            patch.object(
+                ranktracker, "get_rank_counts", new_callable=AsyncMock
+            ) as counts,
+            self.assertRaises(HTTPError),
+        ):
+            await cog._rank_status("staff")
+        counts.assert_not_awaited()
 
     async def test_status_failure_does_not_stop_the_rotation(self):
         bot = Mock(change_presence=AsyncMock(), guilds=[])
