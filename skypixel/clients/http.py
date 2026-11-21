@@ -59,6 +59,7 @@ async def request(
     method: Literal["GET", "POST"], *args, **kwargs
 ) -> curl_cffi.Response:
     attempts = kwargs.pop("attempts", 3 if method == "GET" else 1)
+    retry_statuses = kwargs.pop("retry_statuses", RETRY_STATUSES)
     if not isinstance(attempts, int) or attempts < 1:
         raise ValueError("The request attempt count must be a positive integer.")
     session = await get_session()
@@ -82,7 +83,7 @@ async def request(
             )
             if (
                 method != "GET"
-                or response.status_code not in RETRY_STATUSES
+                or response.status_code not in retry_statuses
                 or attempt == attempts - 1
             ):
                 return response
