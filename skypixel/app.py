@@ -24,6 +24,7 @@ class SkypixelBot(commands.InteractionBot):
         self.settings = settings
         intents = disnake.Intents.default()
         intents.members = True
+        kwargs.setdefault("chunk_guilds_at_startup", False)
         super().__init__(intents=intents, owner_id=constants.OWNER_ID, **kwargs)
         self._close_lock = asyncio.Lock()
         self._resources_closed = False
