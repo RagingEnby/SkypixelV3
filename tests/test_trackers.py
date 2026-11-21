@@ -235,7 +235,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
     async def test_invalidation_during_a_fetch_expires_the_fetched_lists(self):
         data = {"staff": [{"id": "abc", "name": "Player"}]}
 
-        async def fetch(url):
+        async def fetch(url, **_kwargs):
             ranktracker.invalidate_rank_lists()
             return data
 
@@ -333,6 +333,89 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             await cog.do_watchlist()
         self.assertEqual(state.to_dict(), {})
         self.assertEqual(state.remove_and_save.await_count, 2)
+
+    async def test_rank_poll_falls_back_to_raw_uuids_on_429(self):
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        before = {
+            "u1": {"name": "Alice", "rank": "youtube"},
+            "u2": {"name": "Bob", "rank": "staff"},
+        }
+        cog.data.data = before
+        rate_limit = ranktracker.HTTPError(
+            "429", response=Mock(status_code=429)
+        )
+        raw = {"staff": ["u1", "u3", "u4"]}
+        with (
+            patch.object(cog, "do_watchlist", new_callable=AsyncMock),
+            patch.object(
+                ranktracker, "get_player_ranks", side_effect=rate_limit
+            ),
+            patch.object(
+                ranktracker.http,
+                "get_json",
+                new_callable=AsyncMock,
+                return_value=raw,
+            ) as get_raw,
+            patch.object(
+                ranktracker.mojang,
+                "get",
+                new_callable=AsyncMock,
+                side_effect=[
+                    SimpleNamespace(id="u3", name="Charlie"),
+                    rate_limit,
+                ],
+            ) as mojang_get,
+            patch.object(cog, "on_rank_add", new_callable=AsyncMock) as add,
+            patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
+            patch.object(cog, "on_name_change", new_callable=AsyncMock) as rename,
+            patch.object(cog, "update_stat_channels", new_callable=AsyncMock) as stats,
+            patch("skypixel.storage.json.write_json", new_callable=AsyncMock),
+            patch.object(ranktracker, "POI_UUIDS", set()),
+            self.assertLogs(ranktracker.logger, level="WARNING"),
+        ):
+            await cog.poll()
+            self.assertEqual(ranktracker.POI_UUIDS, {"u1", "u3", "u4"})
+        get_raw.assert_awaited_once_with(ranktracker.RAW_URL)
+        self.assertEqual(mojang_get.await_count, 2)
+        add.assert_any_await("u1", "Alice", "staff")
+        add.assert_any_await("u3", "Charlie", "staff")
+        remove.assert_any_await("u1", "Alice", "youtube")
+        remove.assert_any_await("u2", "Bob", "staff")
+        rename.assert_not_awaited()
+        stats.assert_awaited_once()
+        self.assertEqual(
+            cog.data.to_dict(),
+            {
+                "u1": {"name": "Alice", "rank": "staff"},
+                "u3": {"name": "Charlie", "rank": "staff"},
+            },
+        )
+
+    async def test_rank_poll_reraises_429_when_local_ranks_are_empty(self):
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        cog.data.data = {}
+        rate_limit = ranktracker.HTTPError(
+            "429", response=Mock(status_code=429)
+        )
+        with (
+            patch.object(cog, "do_watchlist", new_callable=AsyncMock),
+            patch.object(ranktracker, "get_player_ranks", side_effect=rate_limit),
+        ):
+            with self.assertRaises(ranktracker.HTTPError):
+                await cog.poll()
+
+    async def test_rank_poll_reraises_non_429_http_errors(self):
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        cog.data.data = {"u1": {"name": "Alice", "rank": "youtube"}}
+        server_error = ranktracker.HTTPError(
+            "502", response=Mock(status_code=502)
+        )
+        with (
+            patch.object(cog, "do_watchlist", new_callable=AsyncMock),
+            patch.object(ranktracker, "get_player_ranks", side_effect=server_error),
+        ):
+            with self.assertRaises(ranktracker.HTTPError):
+                await cog.poll()
 
 
 class TrackerStateTests(unittest.IsolatedAsyncioTestCase):

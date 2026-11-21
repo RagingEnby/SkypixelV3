@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 URL: str = http.API_URL + "/hypixel/ranks"
 RANK_URL: str = URL + "/{}"
 COUNTS_URL: str = RANK_URL.format("counts")
+RAW_URL: str = RANK_URL.format("raw")
 RANKNAME_URL: str = http.API_URL + "/hypixel/rank/{}"
 RANK_LIST_CACHE_TTL_SECONDS = 180
 RANK_LIST_CACHE: dict[str, list[dict[str, str]]] | None = None
@@ -137,7 +138,9 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
         rank_lists = _fresh_rank_lists()
         if rank_lists is None:
             generation = RANK_LIST_GENERATION
-            data = await http.get_json(URL)
+            data = await http.get_json(
+                URL, retry_statuses=http.RETRY_STATUSES - {429}
+            )
             if (
                 not isinstance(data, dict)
                 or not data
@@ -167,6 +170,23 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
         POI_UUIDS.update(
             player["id"] for players in data.values() for player in players
         )
+    return data
+
+
+async def get_raw_rank_lists() -> dict[SpecialRank, list[str]]:
+    data = await http.get_json(RAW_URL)
+    if (
+        not isinstance(data, dict)
+        or not data
+        or any(
+            not isinstance(uuids, list)
+            or any(not isinstance(uuid, str) for uuid in uuids)
+            for uuids in data.values()
+        )
+    ):
+        raise ValueError("The raw rank API did not return UUID lists.")
+    POI_UUIDS.clear()
+    POI_UUIDS.update(uuid for uuids in data.values() for uuid in uuids)
     return data
 
 
@@ -232,7 +252,9 @@ class RankTrackerCog(PollingCog):
         super().__init__(bot)
         self.data = JsonWrapper(bot.settings.storage_dir / "ranks.json")
         self.watch_list = JsonWrapper(bot.settings.storage_dir / "rankwatchlist.json")
-        if not self.data.to_dict():
+        if stored := self.data.to_dict():
+            POI_UUIDS.update(stored)
+        else:
             logger.warning("ranks.json is empty")
         self.known_changes: set[tuple[str, ...]] = set()
         self.shrunken_polls = 0
@@ -443,9 +465,61 @@ class RankTrackerCog(PollingCog):
         view = RankListView(embeds, inter)
         await inter.send(embed=view.embeds[view.page], view=view)
 
+    async def _get_raw_player_ranks(
+        self,
+    ) -> dict[str, dict[str, str | SpecialRank]] | None:
+        existing = self.data.to_dict()
+        if not existing:
+            return None
+        raw_lists = await get_raw_rank_lists()
+        player_ranks: dict[str, dict[str, str | SpecialRank]] = {}
+        mojang_limited = False
+        skipped = 0
+        for rank, uuids in raw_lists.items():
+            for uuid in uuids:
+                old_data = existing.get(uuid)
+                if old_data is not None:
+                    player_ranks[uuid] = {"rank": rank, "name": old_data["name"]}
+                    continue
+                if mojang_limited:
+                    skipped += 1
+                    continue
+                try:
+                    player = await mojang.get(uuid)
+                except HTTPError as error:
+                    skipped += 1
+                    if error.response is not None and error.response.status_code == 429:
+                        mojang_limited = True
+                    else:
+                        logger.warning(
+                            "Cannot resolve new ranked player %s during raw rank fallback.",
+                            uuid,
+                        )
+                except (mojang.PlayerNotFound, RequestException, KeyError, ValueError):
+                    skipped += 1
+                    logger.warning(
+                        "Cannot resolve new ranked player %s during raw rank fallback.",
+                        uuid,
+                    )
+                else:
+                    player_ranks[uuid] = {"rank": rank, "name": player.name}
+        logger.warning(
+            "The rank list API returned 429. Used raw rank UUIDs; name changes are paused until it recovers%s.",
+            f" ({skipped} new player lookups deferred)" if skipped else "",
+        )
+        return player_ranks
+
     async def poll(self):
         await self.do_watchlist()
-        player_ranks = await get_player_ranks()
+        try:
+            player_ranks = await get_player_ranks()
+        except HTTPError as error:
+            if error.response is None or error.response.status_code != 429:
+                raise
+            fallback = await self._get_raw_player_ranks()
+            if fallback is None:
+                raise
+            player_ranks = fallback
         if not self.data.to_dict():
             await self.data.replace(player_ranks)
             await self.update_stat_channels(player_ranks)
