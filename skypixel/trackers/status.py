@@ -1,7 +1,6 @@
 import logging
 
 import disnake
-from curl_cffi.requests.exceptions import HTTPError, Timeout
 from disnake.ext import commands
 
 from skypixel import utils
@@ -45,28 +44,19 @@ class StatusUpdaterCog(PollingCog):
         )
 
     async def _rank_status(self, rank: str):
-        fallback_error: HTTPError | Timeout | None = None
-        try:
-            rank_lists = await ranktracker.get_rank_lists()
-        except (HTTPError, Timeout) as error:
-            if isinstance(error, HTTPError) and (
-                error.response is None
-                or error.response.status_code not in {502, 503, 504}
-            ):
-                raise
+        count = ranktracker.get_cached_rank_count(rank)
+        if count is None:
             rank_counts = await ranktracker.get_rank_counts()
-            count = rank_counts[rank]
-            fallback_error = error
-        else:
-            count = len(rank_lists.get(rank, []))
+            await self._show_rank_count(rank, rank_counts[rank])
+            logger.debug("Updated the rank status using the counts endpoint.")
+            return
+        await self._show_rank_count(rank, count)
+
+    async def _show_rank_count(self, rank: str, count: int) -> None:
         await self.change_presence(
             activity_type=disnake.ActivityType.listening,
             name=f"{utils.commaize(count)} {ranktracker.format_rank(rank)} ranks",
         )
-        if fallback_error is not None:
-            logger.warning(
-                "Updated the rank status using rank counts (%s).", fallback_error
-            )
 
     async def _item_count_status(self, item_id: str):
         try:
