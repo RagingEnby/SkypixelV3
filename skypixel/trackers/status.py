@@ -37,11 +37,27 @@ class StatusUpdaterCog(PollingCog):
         self.index = 0
 
     async def change_presence(self, activity_type: disnake.ActivityType, name: str):
+        ws = getattr(self.bot, "ws", None)
+        if (
+            getattr(ws, "open", None) is False
+            or getattr(getattr(ws, "socket", None), "closed", None) is True
+        ):
+            logger.warning(
+                "Skipping status update while the Discord gateway is reconnecting."
+            )
+            return None
         logger.debug("Changing status to %s '%s'", activity_type, name)
-        return await self.bot.change_presence(
-            status=disnake.Status.online,
-            activity=disnake.Activity(type=activity_type, name=name),
-        )
+        try:
+            return await self.bot.change_presence(
+                status=disnake.Status.online,
+                activity=disnake.Activity(type=activity_type, name=name),
+            )
+        except (ConnectionResetError, disnake.ConnectionClosed) as exc:
+            logger.warning(
+                "Skipping status update while the Discord gateway is reconnecting: %s",
+                exc,
+            )
+            return None
 
     async def _rank_status(self, rank: str):
         count = ranktracker.get_cached_rank_count(rank)
@@ -75,11 +91,9 @@ class StatusUpdaterCog(PollingCog):
 
     async def change_status(self):
         if self.index == 0:
-            await self.bot.change_presence(
-                activity=disnake.Activity(
-                    type=disnake.ActivityType.listening,
-                    name=f"{len(self.bot.guilds)} servers",
-                )
+            await self.change_presence(
+                activity_type=disnake.ActivityType.listening,
+                name=f"{len(self.bot.guilds)} servers",
             )
         elif self.index == 1:
             await self.change_presence(

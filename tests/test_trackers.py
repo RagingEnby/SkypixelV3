@@ -111,6 +111,38 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         await cog.poll()
         bot.change_presence.assert_awaited_once()
 
+    async def test_status_update_skips_when_gateway_transport_is_closing(self):
+        from aiohttp import ClientConnectionResetError
+
+        bot = Mock(
+            change_presence=AsyncMock(
+                side_effect=ClientConnectionResetError(
+                    "Cannot write to closing transport"
+                )
+            ),
+            guilds=[],
+            ws=SimpleNamespace(open=True, socket=SimpleNamespace(closed=False)),
+        )
+        cog = StatusUpdaterCog(bot)
+        with self.assertLogs("skypixel.trackers.status", level="WARNING") as logs:
+            await cog.poll()
+        bot.change_presence.assert_awaited_once()
+        self.assertEqual(cog.index, 1)
+        self.assertIn("reconnecting", logs.output[0])
+
+    async def test_status_update_skips_when_gateway_socket_is_closed(self):
+        bot = Mock(
+            change_presence=AsyncMock(),
+            guilds=[],
+            ws=SimpleNamespace(open=False, socket=SimpleNamespace(closed=True)),
+        )
+        cog = StatusUpdaterCog(bot)
+        with self.assertLogs("skypixel.trackers.status", level="WARNING") as logs:
+            await cog.poll()
+        bot.change_presence.assert_not_awaited()
+        self.assertEqual(cog.index, 1)
+        self.assertIn("reconnecting", logs.output[0])
+
     async def test_reconnect_keeps_one_task(self):
         cog = ProbeCog(support.make_bot())
         await cog.on_ready()
