@@ -1,12 +1,13 @@
 import asyncio
 import logging
-import os
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
 import curl_cffi
 from curl_cffi.const import CurlHttpVersion
 from curl_cffi.requests.exceptions import RequestException
+
+from skypixel.settings import load_api_url
 
 logger = logging.getLogger(__name__)
 SESSION: curl_cffi.AsyncSession | None = None
@@ -15,7 +16,7 @@ RETRY_STATUSES = {429, 500, 502, 503, 504}
 MAX_RETRY_AFTER = 30
 # The bot runs on the same host as api.ragingenby.dev. Calling it directly
 # skips Cloudflare, so its limits and bot checks never apply to the bot.
-API_URL: str = os.environ.get("SKYPIXEL_API_URL", "http://127.0.0.1:8001").rstrip("/")
+API_URL: str = load_api_url()
 # The API rejects requests past 200 in flight across all clients.
 API_CONCURRENCY: int = 16
 _api_slots: asyncio.Semaphore = asyncio.Semaphore(API_CONCURRENCY)
