@@ -8,7 +8,7 @@ from skypixel.clients import http
 from skypixel.storage.json import read_json, write_json
 
 logger = logging.getLogger(__name__)
-ITEMS_URL: str = http.API_URL + "/skyblock/items"
+ITEMS_URL: str = http.API_URL + "/hypixel/skyblock/items"
 FALLBACK_URL = "https://api.hypixel.net/v2/resources/skyblock/items"
 ITEMS: list[dict[str, Any]] = []
 MEMENTOS: list[str] = []
