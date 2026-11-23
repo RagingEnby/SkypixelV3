@@ -1,4 +1,3 @@
-import asyncio
 import re
 import time
 from datetime import UTC, datetime, timedelta
@@ -6,6 +5,7 @@ from typing import ClassVar, TypedDict
 
 from skypixel import constants
 from skypixel.clients import http
+from skypixel.clients.shared import SharedRequests
 
 PLAYER_URL: str = http.API_URL + "/mojang/player/{}"
 PLAYERS_URL: str = http.API_URL + "/mojang/players"
@@ -122,22 +122,11 @@ class MojangPlayer:
         return cls(uuid=uuid, name=name, last_updated=last_updated)
 
 
-_inflight: dict[str, asyncio.Task[MojangPlayer]] = {}
-
-
-def _finish_fetch(key: str, task: asyncio.Task[MojangPlayer]) -> None:
-    if _inflight.get(key) is task:
-        _inflight.pop(key)
-    if not task.cancelled():
-        task.exception()
+_inflight: SharedRequests[MojangPlayer] = SharedRequests("player")
 
 
 async def close() -> None:
-    tasks = list(_inflight.values())
-    for task in tasks:
-        task.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)
-    _inflight.clear()
+    await _inflight.close()
 
 
 async def _fetch(identifier: str) -> MojangPlayer:
@@ -156,12 +145,9 @@ async def get(identifier: str) -> MojangPlayer:
         raise PlayerNotFound(identifier)
     if cached := Cache.get(identifier):
         return cached
-    key = normalize_identifier(identifier)
-    if key not in _inflight:
-        task = asyncio.create_task(_fetch(identifier), name=f"player-{key}")
-        _inflight[key] = task
-        task.add_done_callback(lambda finished: _finish_fetch(key, finished))
-    return await asyncio.shield(_inflight[key])
+    return await _inflight.run(
+        normalize_identifier(identifier), lambda: _fetch(identifier)
+    )
 
 
 async def bulk(identifiers: list[str]) -> dict[str, MojangPlayer]:

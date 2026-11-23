@@ -11,6 +11,7 @@ from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http, mojang
+from skypixel.clients.shared import SharedRequests
 from skypixel.commands.rank_views import RankListView
 from skypixel.domain.types import SpecialRank
 from skypixel.storage.json import JsonWrapper
@@ -45,14 +46,7 @@ def invalidate_rank_lists() -> None:
     RANK_LIST_GENERATION += 1
 
 
-_rankname_inflight: dict[str, asyncio.Task[str]] = {}
-
-
-def _finish_rankname(key: str, task: asyncio.Task[str]) -> None:
-    if _rankname_inflight.get(key) is task:
-        _rankname_inflight.pop(key)
-    if not task.cancelled():
-        task.exception()
+_rankname_inflight: SharedRequests[str] = SharedRequests("rankname")
 
 
 async def get_rankname(identifier: str) -> str:
@@ -63,14 +57,9 @@ async def get_rankname(identifier: str) -> str:
     """
     if not mojang.is_valid_identifier(identifier):
         raise mojang.PlayerNotFound(identifier)
-    key: str = mojang.normalize_identifier(identifier)
-    if key not in _rankname_inflight:
-        task: asyncio.Task[str] = asyncio.create_task(
-            _fetch_rankname(identifier), name=f"rankname-{key}"
-        )
-        _rankname_inflight[key] = task
-        task.add_done_callback(lambda finished: _finish_rankname(key, finished))
-    return await asyncio.shield(_rankname_inflight[key])
+    return await _rankname_inflight.run(
+        mojang.normalize_identifier(identifier), lambda: _fetch_rankname(identifier)
+    )
 
 
 async def _fetch_rankname(identifier: str) -> str:
