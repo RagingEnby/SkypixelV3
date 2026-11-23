@@ -411,13 +411,10 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             ) as get_raw,
             patch.object(
                 ranktracker.mojang,
-                "get",
+                "bulk",
                 new_callable=AsyncMock,
-                side_effect=[
-                    SimpleNamespace(id="u3", name="Charlie"),
-                    rate_limit,
-                ],
-            ) as mojang_get,
+                return_value={"u3": SimpleNamespace(id="u3", name="Charlie")},
+            ) as mojang_bulk,
             patch.object(cog, "on_rank_add", new_callable=AsyncMock) as add,
             patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
             patch.object(cog, "on_name_change", new_callable=AsyncMock) as rename,
@@ -429,7 +426,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             await cog.poll()
             self.assertEqual(ranktracker.POI_UUIDS, {"u1", "u3", "u4"})
         get_raw.assert_awaited_once_with(ranktracker.RAW_URL)
-        self.assertEqual(mojang_get.await_count, 2)
+        mojang_bulk.assert_awaited_once_with(["u3", "u4"])
         add.assert_any_await("u1", "Alice", "staff")
         add.assert_any_await("u3", "Charlie", "staff")
         remove.assert_any_await("u1", "Alice", "youtube")
@@ -443,6 +440,26 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
                 "u3": {"name": "Charlie", "rank": "staff"},
             },
         )
+
+    async def test_raw_rank_fallback_defers_new_players_when_bulk_fails(self):
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        cog.data.data = {"u1": {"name": "Alice", "rank": "youtube"}}
+        rate_limit = ranktracker.HTTPError("429", response=Mock(status_code=429))
+        with (
+            patch.object(
+                ranktracker.http,
+                "get_json",
+                new_callable=AsyncMock,
+                return_value={"staff": ["u1", "u3"]},
+            ),
+            patch.object(
+                ranktracker.mojang, "bulk", new_callable=AsyncMock, side_effect=rate_limit
+            ),
+            patch.object(ranktracker, "POI_UUIDS", set()),
+            self.assertLogs(ranktracker.logger, level="WARNING"),
+        ):
+            player_ranks = await cog._get_raw_player_ranks()
+        self.assertEqual(player_ranks, {"u1": {"name": "Alice", "rank": "staff"}})
 
     async def test_rank_poll_reraises_429_when_local_ranks_are_empty(self):
         cog = ranktracker.RankTrackerCog(support.make_bot())

@@ -473,41 +473,39 @@ class RankTrackerCog(PollingCog):
     async def _get_raw_player_ranks(
         self,
     ) -> dict[str, dict[str, str | SpecialRank]] | None:
-        existing = self.data.to_dict()
+        existing: dict[str, Any] = self.data.to_dict()
         if not existing:
             return None
-        raw_lists = await get_raw_rank_lists()
+        raw_lists: dict[SpecialRank, list[str]] = await get_raw_rank_lists()
+        new_uuids: list[str] = [
+            uuid
+            for uuids in raw_lists.values()
+            for uuid in uuids
+            if uuid not in existing
+        ]
+        names: dict[str, str] = {}
+        if new_uuids:
+            try:
+                players: dict[str, mojang.MojangPlayer] = await mojang.bulk(new_uuids)
+            except (RequestException, ValueError):  # fmt: skip
+                logger.warning(
+                    "Cannot resolve %s new ranked players during the raw rank fallback.",
+                    len(new_uuids),
+                )
+            else:
+                names = {uuid: player.name for uuid, player in players.items()}
         player_ranks: dict[str, dict[str, str | SpecialRank]] = {}
-        mojang_limited = False
-        skipped = 0
+        skipped: int = 0
         for rank, uuids in raw_lists.items():
             for uuid in uuids:
-                old_data = existing.get(uuid)
-                if old_data is not None:
-                    player_ranks[uuid] = {"rank": rank, "name": old_data["name"]}
-                    continue
-                if mojang_limited:
+                old_data: dict[str, Any] | None = existing.get(uuid)
+                name: str | None = (
+                    old_data["name"] if old_data is not None else names.get(uuid)
+                )
+                if name is None:
                     skipped += 1
                     continue
-                try:
-                    player = await mojang.get(uuid)
-                except HTTPError as error:
-                    skipped += 1
-                    if error.response is not None and error.response.status_code == 429:
-                        mojang_limited = True
-                    else:
-                        logger.warning(
-                            "Cannot resolve new ranked player %s during raw rank fallback.",
-                            uuid,
-                        )
-                except (mojang.PlayerNotFound, RequestException, KeyError, ValueError):
-                    skipped += 1
-                    logger.warning(
-                        "Cannot resolve new ranked player %s during raw rank fallback.",
-                        uuid,
-                    )
-                else:
-                    player_ranks[uuid] = {"rank": rank, "name": player.name}
+                player_ranks[uuid] = {"rank": rank, "name": name}
         logger.warning(
             "The rank list API returned 429. Used raw rank UUIDs; name changes are paused until it recovers%s.",
             f" ({skipped} new player lookups deferred)" if skipped else "",
