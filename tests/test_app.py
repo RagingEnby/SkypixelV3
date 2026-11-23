@@ -50,6 +50,16 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("SKYPIXEL_BOT_TOKEN", str(error.exception))
         self.assertIn("SKYPIXEL_MONGODB_URI", str(error.exception))
 
+    def test_api_url_loads_from_the_environment_and_is_validated(self):
+        with patch.dict(
+            os.environ, {"SKYPIXEL_API_URL": "http://api.local:9000/"}, clear=True
+        ):
+            self.assertEqual(settings.Settings.load().api_url, "http://api.local:9000")
+        with self.assertRaises(settings.ConfigurationError):
+            settings.Settings(
+                bot_token="token", mongodb_uri="uri", api_url="api.local"
+            ).validate()
+
     def test_missing_secrets_module_allows_environment_only_setup(self):
         with (
             patch.dict(

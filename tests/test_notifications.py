@@ -223,26 +223,24 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.last_scanned_active, 200_000)
         self.channel.send.assert_awaited_once()
 
-    async def test_muted_flag_suppresses_channel_sends_and_outbox_delivery(self):
+    async def test_muted_flag_queues_alerts_until_unmuted(self):
         mute_file = self.bot.settings.storage_dir / "muted"
         mute_file.touch()
         with self.assertLogs(utils.logger, level="WARNING"):
             self.assertIsNone(await utils.send_to_channel(self.bot, 1, "direct"))
-        with self.assertLogs(level="WARNING"):
-            self.assertIsNone(
-                await utils.notify_to_channel(
-                    self.bot, 1, "alert", embed=disnake.Embed(title="Alert")
-                )
+        self.assertIsNone(
+            await utils.notify_to_channel(
+                self.bot, 1, "alert", embed=disnake.Embed(title="Alert")
             )
+        )
         await self.bot.notifications.flush()
         self.channel.send.assert_not_awaited()
+        self.assertEqual(len(self.bot.notifications.pending), 1)
+        mute_file.unlink()
+        await self.bot.notifications.flush()
+        self.channel.send.assert_awaited_once()
         self.assertFalse(self.bot.notifications.pending)
         self.assertFalse(self.bot.notifications.events)
-        mute_file.unlink()
-        await utils.notify_to_channel(
-            self.bot, 1, "alert", embed=disnake.Embed(title="Alert")
-        )
-        self.channel.send.assert_awaited_once()
 
     async def test_permanent_forbidden_drops_pending_alert_without_retrying(self):
         self.channel.guild = SimpleNamespace(id=1348544168263422012)
@@ -256,10 +254,28 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
                     self.bot, 1, "alert", embed=disnake.Embed(title="Alert")
                 )
             )
-        self.assertTrue(
-            all(record.levelno == 30 for record in captured.records)
-        )
+        self.assertTrue(all(record.levelno == 30 for record in captured.records))
         self.assertFalse(self.bot.notifications.pending)
         self.assertFalse(self.bot.notifications.events)
         await self.bot.notifications.flush()
         self.channel.send.assert_awaited_once()
+
+    async def test_forbidden_in_the_dev_server_keeps_the_alert_for_retry(self):
+        self.channel.guild = SimpleNamespace(id=constants.DEV_SERVER_ID)
+        self.channel.send.side_effect = [
+            disnake.Forbidden(
+                Mock(status=403, reason="Forbidden"),
+                {"code": 50013, "message": "Missing Permissions"},
+            ),
+            Mock(),
+        ]
+        with self.assertLogs(utils.logger, level="ERROR"):
+            self.assertIsNone(
+                await utils.notify_to_channel(
+                    self.bot, 1, "alert", embed=disnake.Embed(title="Alert")
+                )
+            )
+        self.assertEqual(len(self.bot.notifications.pending), 1)
+        await self.bot.notifications.flush()
+        self.assertEqual(self.channel.send.await_count, 2)
+        self.assertFalse(self.bot.notifications.pending)

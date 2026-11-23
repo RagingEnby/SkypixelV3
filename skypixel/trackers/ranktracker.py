@@ -11,6 +11,7 @@ from disnake.ext import commands
 
 from skypixel import constants, utils
 from skypixel.clients import http, mojang
+from skypixel.clients.shared import SharedRequests
 from skypixel.commands.rank_views import RankListView
 from skypixel.domain.types import SpecialRank
 from skypixel.storage.json import JsonWrapper
@@ -23,7 +24,11 @@ RANK_URL: str = URL + "/{}"
 COUNTS_URL: str = RANK_URL.format("counts")
 RAW_URL: str = RANK_URL.format("raw")
 RANKNAME_URL: str = http.API_URL + "/hypixel/rank/{}"
+# Keep this below the rank tracker's poll interval so every poll refetches.
 RANK_LIST_CACHE_TTL_SECONDS = 180
+# The bot status only shows a count, so it accepts lists up to two polls old
+# instead of calling the counts endpoint between polls.
+RANK_STATUS_MAX_AGE_SECONDS: int = 600
 RANK_LIST_CACHE: dict[str, list[dict[str, str]]] | None = None
 RANK_LIST_CACHE_TIME = 0.0
 RANK_LIST_CACHE_LOCK = asyncio.Lock()
@@ -32,8 +37,10 @@ POI_UUIDS: set[str] = set()
 WATCH_LIST_LIMIT = 25
 
 
-def _fresh_rank_lists() -> dict[str, list[dict[str, str]]] | None:
-    if time.monotonic() - RANK_LIST_CACHE_TIME >= RANK_LIST_CACHE_TTL_SECONDS:
+def _fresh_rank_lists(
+    max_age: float = RANK_LIST_CACHE_TTL_SECONDS,
+) -> dict[str, list[dict[str, str]]] | None:
+    if time.monotonic() - RANK_LIST_CACHE_TIME >= max_age:
         return None
     return RANK_LIST_CACHE
 
@@ -45,14 +52,7 @@ def invalidate_rank_lists() -> None:
     RANK_LIST_GENERATION += 1
 
 
-_rankname_inflight: dict[str, asyncio.Task[str]] = {}
-
-
-def _finish_rankname(key: str, task: asyncio.Task[str]) -> None:
-    if _rankname_inflight.get(key) is task:
-        _rankname_inflight.pop(key)
-    if not task.cancelled():
-        task.exception()
+_rankname_inflight: SharedRequests[str] = SharedRequests("rankname")
 
 
 async def get_rankname(identifier: str) -> str:
@@ -63,14 +63,9 @@ async def get_rankname(identifier: str) -> str:
     """
     if not mojang.is_valid_identifier(identifier):
         raise mojang.PlayerNotFound(identifier)
-    key: str = mojang.normalize_identifier(identifier)
-    if key not in _rankname_inflight:
-        task: asyncio.Task[str] = asyncio.create_task(
-            _fetch_rankname(identifier), name=f"rankname-{key}"
-        )
-        _rankname_inflight[key] = task
-        task.add_done_callback(lambda finished: _finish_rankname(key, finished))
-    return await asyncio.shield(_rankname_inflight[key])
+    return await _rankname_inflight.run(
+        mojang.normalize_identifier(identifier), lambda: _fetch_rankname(identifier)
+    )
 
 
 async def _fetch_rankname(identifier: str) -> str:
@@ -85,13 +80,20 @@ async def _fetch_rankname(identifier: str) -> str:
 
 
 async def get_rank_counts() -> dict[str, int]:
-    data: dict[str, int] = await http.get_json(COUNTS_URL)
+    data: Any = await http.get_json(COUNTS_URL)
+    if not isinstance(data, dict) or any(
+        not isinstance(rank, str) or not isinstance(count, int)
+        for rank, count in data.items()
+    ):
+        raise ValueError("The rank API did not return rank counts.")
     logger.debug("rank counts: %s", data)
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
 
 def get_cached_rank_count(rank: str) -> int | None:
-    rank_lists = _fresh_rank_lists()
+    rank_lists: dict[str, list[dict[str, str]]] | None = _fresh_rank_lists(
+        RANK_STATUS_MAX_AGE_SECONDS
+    )
     if rank_lists is None:
         return None
     return len(rank_lists.get(rank, []))
@@ -138,9 +140,7 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
         rank_lists = _fresh_rank_lists()
         if rank_lists is None:
             generation = RANK_LIST_GENERATION
-            data = await http.get_json(
-                URL, retry_statuses=http.RETRY_STATUSES - {429}
-            )
+            data = await http.get_json(URL, retry_statuses=http.RETRY_STATUSES - {429})
             if (
                 not isinstance(data, dict)
                 or not data
@@ -468,41 +468,39 @@ class RankTrackerCog(PollingCog):
     async def _get_raw_player_ranks(
         self,
     ) -> dict[str, dict[str, str | SpecialRank]] | None:
-        existing = self.data.to_dict()
+        existing: dict[str, Any] = self.data.to_dict()
         if not existing:
             return None
-        raw_lists = await get_raw_rank_lists()
+        raw_lists: dict[SpecialRank, list[str]] = await get_raw_rank_lists()
+        new_uuids: list[str] = [
+            uuid
+            for uuids in raw_lists.values()
+            for uuid in uuids
+            if uuid not in existing
+        ]
+        names: dict[str, str] = {}
+        if new_uuids:
+            try:
+                players: dict[str, mojang.MojangPlayer] = await mojang.bulk(new_uuids)
+            except (RequestException, ValueError):  # fmt: skip
+                logger.warning(
+                    "Cannot resolve %s new ranked players during the raw rank fallback.",
+                    len(new_uuids),
+                )
+            else:
+                names = {uuid: player.name for uuid, player in players.items()}
         player_ranks: dict[str, dict[str, str | SpecialRank]] = {}
-        mojang_limited = False
-        skipped = 0
+        skipped: int = 0
         for rank, uuids in raw_lists.items():
             for uuid in uuids:
-                old_data = existing.get(uuid)
-                if old_data is not None:
-                    player_ranks[uuid] = {"rank": rank, "name": old_data["name"]}
-                    continue
-                if mojang_limited:
+                old_data: dict[str, Any] | None = existing.get(uuid)
+                name: str | None = (
+                    old_data["name"] if old_data is not None else names.get(uuid)
+                )
+                if name is None:
                     skipped += 1
                     continue
-                try:
-                    player = await mojang.get(uuid)
-                except HTTPError as error:
-                    skipped += 1
-                    if error.response is not None and error.response.status_code == 429:
-                        mojang_limited = True
-                    else:
-                        logger.warning(
-                            "Cannot resolve new ranked player %s during raw rank fallback.",
-                            uuid,
-                        )
-                except (mojang.PlayerNotFound, RequestException, KeyError, ValueError):
-                    skipped += 1
-                    logger.warning(
-                        "Cannot resolve new ranked player %s during raw rank fallback.",
-                        uuid,
-                    )
-                else:
-                    player_ranks[uuid] = {"rank": rank, "name": player.name}
+                player_ranks[uuid] = {"rank": rank, "name": name}
         logger.warning(
             "The rank list API returned 429. Used raw rank UUIDs; name changes are paused until it recovers%s.",
             f" ({skipped} new player lookups deferred)" if skipped else "",

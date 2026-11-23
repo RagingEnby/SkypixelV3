@@ -37,11 +37,10 @@ class StatusUpdaterCog(PollingCog):
         self.index = 0
 
     async def change_presence(self, activity_type: disnake.ActivityType, name: str):
-        ws = getattr(self.bot, "ws", None)
-        if (
-            getattr(ws, "open", None) is False
-            or getattr(getattr(ws, "socket", None), "closed", None) is True
-        ):
+        # bot.ws is None between gateway connections. ws.open is False once
+        # its socket has closed.
+        ws: disnake.gateway.DiscordWebSocket | None = self.bot.ws
+        if ws is None or not ws.open:
             logger.warning(
                 "Skipping status update while the Discord gateway is reconnecting."
             )
@@ -60,12 +59,12 @@ class StatusUpdaterCog(PollingCog):
             return None
 
     async def _rank_status(self, rank: str):
-        count = ranktracker.get_cached_rank_count(rank)
+        count: int | None = ranktracker.get_cached_rank_count(rank)
         if count is None:
-            rank_counts = await ranktracker.get_rank_counts()
-            await self._show_rank_count(rank, rank_counts[rank])
+            rank_counts: dict[str, int] = await ranktracker.get_rank_counts()
+            # A rank with no players can be missing from the counts response.
+            count = rank_counts.get(rank, 0)
             logger.debug("Updated the rank status using the counts endpoint.")
-            return
         await self._show_rank_count(rank, count)
 
     async def _show_rank_count(self, rank: str, count: int) -> None:

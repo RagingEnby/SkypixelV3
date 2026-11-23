@@ -10,6 +10,7 @@ from dns.resolver import LifetimeTimeout
 
 import tests.support as support
 from skypixel import app
+from skypixel.clients import http, minecraft
 from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
@@ -81,6 +82,43 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
                 counts.assert_awaited_once_with()
                 activity = bot.change_presence.await_args.kwargs["activity"]
                 self.assertEqual(activity.name, "3 [ዞ] ranks")
+
+    async def test_rank_status_uses_lists_older_than_the_tracker_ttl(self):
+        bot = Mock(change_presence=AsyncMock())
+        cog = StatusUpdaterCog(bot)
+        age = ranktracker.RANK_LIST_CACHE_TTL_SECONDS + 60
+        with (
+            patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": [{}, {}]}),
+            patch.object(ranktracker, "RANK_LIST_CACHE_TIME", time.monotonic() - age),
+            patch.object(
+                ranktracker, "get_rank_counts", new_callable=AsyncMock
+            ) as counts,
+        ):
+            self.assertIsNone(ranktracker._fresh_rank_lists())
+            await cog._rank_status("staff")
+        counts.assert_not_awaited()
+        activity = bot.change_presence.await_args.kwargs["activity"]
+        self.assertEqual(activity.name, "2 [ዞ] ranks")
+
+    async def test_rank_status_shows_zero_for_a_rank_missing_from_counts(self):
+        bot = Mock(change_presence=AsyncMock())
+        cog = StatusUpdaterCog(bot)
+        with (
+            patch.object(ranktracker, "RANK_LIST_CACHE", None),
+            patch.object(ranktracker, "get_rank_counts", return_value={"staff": 3}),
+        ):
+            await cog._rank_status("youtube")
+        activity = bot.change_presence.await_args.kwargs["activity"]
+        self.assertEqual(activity.name, "0 [YOUTUBE] ranks")
+
+    async def test_rank_counts_reject_a_malformed_response(self):
+        for data in ([], {"staff": "3"}):
+            with self.subTest(data=data):
+                with (
+                    patch.object(http, "get_json", return_value=data),
+                    self.assertRaises(ValueError),
+                ):
+                    await ranktracker.get_rank_counts()
 
     async def test_rank_status_reports_rank_count_errors(self):
         cog = StatusUpdaterCog(Mock())
@@ -373,15 +411,11 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             "u2": {"name": "Bob", "rank": "staff"},
         }
         cog.data.data = before
-        rate_limit = ranktracker.HTTPError(
-            "429", response=Mock(status_code=429)
-        )
+        rate_limit = ranktracker.HTTPError("429", response=Mock(status_code=429))
         raw = {"staff": ["u1", "u3", "u4"]}
         with (
             patch.object(cog, "do_watchlist", new_callable=AsyncMock),
-            patch.object(
-                ranktracker, "get_player_ranks", side_effect=rate_limit
-            ),
+            patch.object(ranktracker, "get_player_ranks", side_effect=rate_limit),
             patch.object(
                 ranktracker.http,
                 "get_json",
@@ -390,13 +424,10 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             ) as get_raw,
             patch.object(
                 ranktracker.mojang,
-                "get",
+                "bulk",
                 new_callable=AsyncMock,
-                side_effect=[
-                    SimpleNamespace(id="u3", name="Charlie"),
-                    rate_limit,
-                ],
-            ) as mojang_get,
+                return_value={"u3": SimpleNamespace(id="u3", name="Charlie")},
+            ) as mojang_bulk,
             patch.object(cog, "on_rank_add", new_callable=AsyncMock) as add,
             patch.object(cog, "on_rank_remove", new_callable=AsyncMock) as remove,
             patch.object(cog, "on_name_change", new_callable=AsyncMock) as rename,
@@ -408,7 +439,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             await cog.poll()
             self.assertEqual(ranktracker.POI_UUIDS, {"u1", "u3", "u4"})
         get_raw.assert_awaited_once_with(ranktracker.RAW_URL)
-        self.assertEqual(mojang_get.await_count, 2)
+        mojang_bulk.assert_awaited_once_with(["u3", "u4"])
         add.assert_any_await("u1", "Alice", "staff")
         add.assert_any_await("u3", "Charlie", "staff")
         remove.assert_any_await("u1", "Alice", "youtube")
@@ -423,12 +454,33 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             },
         )
 
+    async def test_raw_rank_fallback_defers_new_players_when_bulk_fails(self):
+        cog = ranktracker.RankTrackerCog(support.make_bot())
+        cog.data.data = {"u1": {"name": "Alice", "rank": "youtube"}}
+        rate_limit = ranktracker.HTTPError("429", response=Mock(status_code=429))
+        with (
+            patch.object(
+                ranktracker.http,
+                "get_json",
+                new_callable=AsyncMock,
+                return_value={"staff": ["u1", "u3"]},
+            ),
+            patch.object(
+                ranktracker.mojang,
+                "bulk",
+                new_callable=AsyncMock,
+                side_effect=rate_limit,
+            ),
+            patch.object(ranktracker, "POI_UUIDS", set()),
+            self.assertLogs(ranktracker.logger, level="WARNING"),
+        ):
+            player_ranks = await cog._get_raw_player_ranks()
+        self.assertEqual(player_ranks, {"u1": {"name": "Alice", "rank": "staff"}})
+
     async def test_rank_poll_reraises_429_when_local_ranks_are_empty(self):
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.data.data = {}
-        rate_limit = ranktracker.HTTPError(
-            "429", response=Mock(status_code=429)
-        )
+        rate_limit = ranktracker.HTTPError("429", response=Mock(status_code=429))
         with (
             patch.object(cog, "do_watchlist", new_callable=AsyncMock),
             patch.object(ranktracker, "get_player_ranks", side_effect=rate_limit),
@@ -439,9 +491,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
     async def test_rank_poll_reraises_non_429_http_errors(self):
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.data.data = {"u1": {"name": "Alice", "rank": "youtube"}}
-        server_error = ranktracker.HTTPError(
-            "502", response=Mock(status_code=502)
-        )
+        server_error = ranktracker.HTTPError("502", response=Mock(status_code=502))
         with (
             patch.object(cog, "do_watchlist", new_callable=AsyncMock),
             patch.object(ranktracker, "get_player_ranks", side_effect=server_error),
@@ -873,27 +923,25 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
         )
         with (
             patch.object(
-                motdtracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 side_effect=[LifetimeTimeout(timeout=10, errors=[]), server, server],
             ) as lookup,
-            patch.object(
-                motdtracker.asyncio, "sleep", new_callable=AsyncMock
-            ) as sleep,
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock) as sleep,
         ):
             motd = await motdtracker.get_motd()
         self.assertEqual(motd, ["Line 1", "Line 2"])
         self.assertEqual(lookup.await_count, 3)
         self.assertEqual([call.args[0] for call in sleep.await_args_list], [1, 2])
         self.assertEqual(
-            lookup.await_args.kwargs, {"timeout": motdtracker.LOOKUP_TIMEOUT}
+            lookup.await_args.kwargs, {"timeout": minecraft.LOOKUP_TIMEOUT}
         )
 
     async def test_motd_lookup_raises_after_exhausting_retries(self):
         with (
             patch.object(
-                motdtracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 side_effect=LifetimeTimeout(timeout=10, errors=[]),
@@ -904,11 +952,11 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
                 new_callable=AsyncMock,
                 return_value={"online": False},
             ) as fallback,
-            patch.object(motdtracker.asyncio, "sleep", new_callable=AsyncMock),
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock),
         ):
             with self.assertRaises(LifetimeTimeout):
                 await motdtracker.get_motd()
-        self.assertEqual(lookup.await_count, motdtracker.STATUS_ATTEMPTS)
+        self.assertEqual(lookup.await_count, minecraft.STATUS_ATTEMPTS)
         fallback.assert_awaited_once_with(motdtracker.MCSTATUS_API_URL)
 
     async def test_motd_lookup_falls_back_to_mcstatus_api_when_direct_fails(self):
@@ -919,7 +967,7 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
         )
         with (
             patch.object(
-                motdtracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 return_value=server,
@@ -933,11 +981,11 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
                     "motd": {"raw": "  Line 1  \n  Line 2  "},
                 },
             ) as fallback,
-            patch.object(motdtracker.asyncio, "sleep", new_callable=AsyncMock),
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock),
         ):
             motd = await motdtracker.get_motd()
         self.assertEqual(motd, ["Line 1", "Line 2"])
-        self.assertEqual(lookup.await_count, motdtracker.STATUS_ATTEMPTS)
+        self.assertEqual(lookup.await_count, minecraft.STATUS_ATTEMPTS)
         fallback.assert_awaited_once_with(motdtracker.MCSTATUS_API_URL)
 
     async def test_motd_lookup_raises_direct_error_when_fallback_request_fails(self):
@@ -948,7 +996,7 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
         )
         with (
             patch.object(
-                motdtracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 return_value=server,
@@ -959,7 +1007,7 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
                 new_callable=AsyncMock,
                 side_effect=HTTPError("fallback failed"),
             ) as fallback,
-            patch.object(motdtracker.asyncio, "sleep", new_callable=AsyncMock),
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock),
         ):
             with self.assertRaises(OSError):
                 await motdtracker.get_motd()
@@ -974,12 +1022,12 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
         server = Mock(async_status=AsyncMock(return_value=Mock(raw=raw)))
         with (
             patch.object(
-                alphatracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 side_effect=[LifetimeTimeout(timeout=10, errors=[]), server],
             ) as lookup,
-            patch.object(alphatracker.asyncio, "sleep", new_callable=AsyncMock),
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock),
         ):
             data = await alphatracker.get_alpha_data()
         self.assertEqual(data["MOTD"], "Alpha")

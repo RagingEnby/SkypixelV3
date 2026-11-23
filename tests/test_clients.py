@@ -176,22 +176,16 @@ class HttpTests(unittest.IsolatedAsyncioTestCase):
             "https://example.com/path",
         )
 
-    async def test_session_uses_http_1_1(self):
-        created = Mock()
-        with (
-            patch.object(http, "SESSION", None),
-            patch.object(http, "CLOSED", False),
-            patch.object(
-                http.curl_cffi, "AsyncSession", return_value=created
-            ) as async_session,
-        ):
-            session = await http.get_session()
-        self.assertIs(session, created)
-        async_session.assert_called_once_with(
-            discard_cookies=True,
-            timeout=(10, 30),
-            http_version=http.CurlHttpVersion.V1_1,
+    async def test_only_hypixel_requests_use_http_1_1(self):
+        session = Mock(request=AsyncMock(return_value=Mock(status_code=200, url="")))
+        with patch.object(http, "get_session", return_value=session):
+            await http.get("https://api.hypixel.net/v2/skyblock/auctions?page=0")
+            await http.get("https://api.mcstatus.io/v2/status/java/mc.hypixel.net")
+        hypixel_call, other_call = session.request.await_args_list
+        self.assertEqual(
+            hypixel_call.kwargs, {"http_version": http.CurlHttpVersion.V1_1}
         )
+        self.assertEqual(other_call.kwargs, {})
 
 
 class HypixelTests(unittest.IsolatedAsyncioTestCase):
@@ -290,7 +284,7 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             await mojang.close()
             await mojang.close()
         self.assertTrue(stopped.is_set())
-        self.assertEqual(mojang._inflight, {})
+        self.assertEqual(mojang._inflight.tasks, {})
 
     async def test_old_api_timestamp_does_not_expire_the_cache(self):
         player = mojang.MojangPlayer(
