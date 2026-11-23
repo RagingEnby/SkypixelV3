@@ -95,6 +95,14 @@ class NotificationOutbox:
     ) -> disnake.Message | None:
         from skypixel import utils
 
+        if utils.is_discord_muted(self.bot):
+            logger.warning(
+                "Discord output is muted; suppressed notification to channel %s (thread %s).",
+                channel_id,
+                thread_id,
+            )
+            return None
+
         messages = (
             embeds if embeds is not None else [embed] if embed is not None else []
         )
@@ -175,6 +183,10 @@ class NotificationOutbox:
             await self.events.remove_and_save(key)
 
     async def flush(self) -> None:
+        from skypixel import utils
+
+        if utils.is_discord_muted(self.bot):
+            return
         async with self._delivery_lock:
             for key in list(self.pending):
                 await self._deliver(key)
