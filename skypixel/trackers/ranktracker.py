@@ -85,7 +85,12 @@ async def _fetch_rankname(identifier: str) -> str:
 
 
 async def get_rank_counts() -> dict[str, int]:
-    data: dict[str, int] = await http.get_json(COUNTS_URL)
+    data: Any = await http.get_json(COUNTS_URL)
+    if not isinstance(data, dict) or any(
+        not isinstance(rank, str) or not isinstance(count, int)
+        for rank, count in data.items()
+    ):
+        raise ValueError("The rank API did not return rank counts.")
     logger.debug("rank counts: %s", data)
     return dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
 
