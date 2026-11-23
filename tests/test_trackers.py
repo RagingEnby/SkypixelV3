@@ -10,7 +10,7 @@ from dns.resolver import LifetimeTimeout
 
 import tests.support as support
 from skypixel import app
-from skypixel.clients import http
+from skypixel.clients import http, minecraft
 from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
@@ -911,13 +911,13 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
         )
         with (
             patch.object(
-                motdtracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 side_effect=[LifetimeTimeout(timeout=10, errors=[]), server, server],
             ) as lookup,
             patch.object(
-                motdtracker.asyncio, "sleep", new_callable=AsyncMock
+                minecraft.asyncio, "sleep", new_callable=AsyncMock
             ) as sleep,
         ):
             motd = await motdtracker.get_motd()
@@ -925,13 +925,13 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(lookup.await_count, 3)
         self.assertEqual([call.args[0] for call in sleep.await_args_list], [1, 2])
         self.assertEqual(
-            lookup.await_args.kwargs, {"timeout": motdtracker.LOOKUP_TIMEOUT}
+            lookup.await_args.kwargs, {"timeout": minecraft.LOOKUP_TIMEOUT}
         )
 
     async def test_motd_lookup_raises_after_exhausting_retries(self):
         with (
             patch.object(
-                motdtracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 side_effect=LifetimeTimeout(timeout=10, errors=[]),
@@ -942,11 +942,11 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
                 new_callable=AsyncMock,
                 return_value={"online": False},
             ) as fallback,
-            patch.object(motdtracker.asyncio, "sleep", new_callable=AsyncMock),
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock),
         ):
             with self.assertRaises(LifetimeTimeout):
                 await motdtracker.get_motd()
-        self.assertEqual(lookup.await_count, motdtracker.STATUS_ATTEMPTS)
+        self.assertEqual(lookup.await_count, minecraft.STATUS_ATTEMPTS)
         fallback.assert_awaited_once_with(motdtracker.MCSTATUS_API_URL)
 
     async def test_motd_lookup_falls_back_to_mcstatus_api_when_direct_fails(self):
@@ -957,7 +957,7 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
         )
         with (
             patch.object(
-                motdtracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 return_value=server,
@@ -971,11 +971,11 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
                     "motd": {"raw": "  Line 1  \n  Line 2  "},
                 },
             ) as fallback,
-            patch.object(motdtracker.asyncio, "sleep", new_callable=AsyncMock),
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock),
         ):
             motd = await motdtracker.get_motd()
         self.assertEqual(motd, ["Line 1", "Line 2"])
-        self.assertEqual(lookup.await_count, motdtracker.STATUS_ATTEMPTS)
+        self.assertEqual(lookup.await_count, minecraft.STATUS_ATTEMPTS)
         fallback.assert_awaited_once_with(motdtracker.MCSTATUS_API_URL)
 
     async def test_motd_lookup_raises_direct_error_when_fallback_request_fails(self):
@@ -986,7 +986,7 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
         )
         with (
             patch.object(
-                motdtracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 return_value=server,
@@ -997,7 +997,7 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
                 new_callable=AsyncMock,
                 side_effect=HTTPError("fallback failed"),
             ) as fallback,
-            patch.object(motdtracker.asyncio, "sleep", new_callable=AsyncMock),
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock),
         ):
             with self.assertRaises(OSError):
                 await motdtracker.get_motd()
@@ -1012,12 +1012,12 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
         server = Mock(async_status=AsyncMock(return_value=Mock(raw=raw)))
         with (
             patch.object(
-                alphatracker.JavaServer,
+                minecraft.JavaServer,
                 "async_lookup",
                 new_callable=AsyncMock,
                 side_effect=[LifetimeTimeout(timeout=10, errors=[]), server],
             ) as lookup,
-            patch.object(alphatracker.asyncio, "sleep", new_callable=AsyncMock),
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock),
         ):
             data = await alphatracker.get_alpha_data()
         self.assertEqual(data["MOTD"], "Alpha")
