@@ -60,12 +60,12 @@ class StatusUpdaterCog(PollingCog):
             return None
 
     async def _rank_status(self, rank: str):
-        count = ranktracker.get_cached_rank_count(rank)
+        count: int | None = ranktracker.get_cached_rank_count(rank)
         if count is None:
-            rank_counts = await ranktracker.get_rank_counts()
-            await self._show_rank_count(rank, rank_counts[rank])
+            rank_counts: dict[str, int] = await ranktracker.get_rank_counts()
+            # A rank with no players can be missing from the counts response.
+            count = rank_counts.get(rank, 0)
             logger.debug("Updated the rank status using the counts endpoint.")
-            return
         await self._show_rank_count(rank, count)
 
     async def _show_rank_count(self, rank: str, count: int) -> None:

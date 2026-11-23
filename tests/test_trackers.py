@@ -10,6 +10,7 @@ from dns.resolver import LifetimeTimeout
 
 import tests.support as support
 from skypixel import app
+from skypixel.clients import http
 from skypixel.storage.json import JsonWrapper
 from skypixel.storage.mongo import flush_queue
 from skypixel.trackers import (
@@ -81,6 +82,26 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
                 counts.assert_awaited_once_with()
                 activity = bot.change_presence.await_args.kwargs["activity"]
                 self.assertEqual(activity.name, "3 [ዞ] ranks")
+
+    async def test_rank_status_shows_zero_for_a_rank_missing_from_counts(self):
+        bot = Mock(change_presence=AsyncMock())
+        cog = StatusUpdaterCog(bot)
+        with (
+            patch.object(ranktracker, "RANK_LIST_CACHE", None),
+            patch.object(ranktracker, "get_rank_counts", return_value={"staff": 3}),
+        ):
+            await cog._rank_status("youtube")
+        activity = bot.change_presence.await_args.kwargs["activity"]
+        self.assertEqual(activity.name, "0 [YOUTUBE] ranks")
+
+    async def test_rank_counts_reject_a_malformed_response(self):
+        for data in ([], {"staff": "3"}):
+            with self.subTest(data=data):
+                with (
+                    patch.object(http, "get_json", return_value=data),
+                    self.assertRaises(ValueError),
+                ):
+                    await ranktracker.get_rank_counts()
 
     async def test_rank_status_reports_rank_count_errors(self):
         cog = StatusUpdaterCog(Mock())
