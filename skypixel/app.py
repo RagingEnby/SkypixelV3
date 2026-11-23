@@ -3,17 +3,26 @@ import logging
 import signal
 from contextlib import suppress
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import disnake
 from disnake.ext import commands
 
-from skypixel import checks, constants, error_inbox_client
+from skypixel import checks, constants
 from skypixel.clients import http, hypixel, mojang
 from skypixel.commands import owner
 from skypixel.logging import configure_logging
 from skypixel.settings import ConfigurationError, Settings
 from skypixel.storage.notifications import NotificationOutbox
+
+# Optional host-local error reporting hook. The module is gitignored and only
+# exists on the deploy host.
+error_inbox_client: ModuleType | None
+try:
+    from skypixel import error_inbox_client
+except ImportError:
+    error_inbox_client = None
 
 logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -133,13 +142,13 @@ async def run() -> None:
     settings.validate()
     secrets: tuple[str, ...] = (settings.bot_token, settings.mongodb_uri)
     configure_logging(settings.storage_dir, secrets=secrets)
-    # Send every ERROR log to the shared T3 error inbox (~/error-inbox).
-    error_inbox_client.install(
-        "skypixel",
-        project_root=PROJECT_ROOT,
-        secrets=secrets,
-        loggers=("", "disnake"),
-    )
+    if error_inbox_client is not None:
+        error_inbox_client.install(
+            "skypixel",
+            project_root=PROJECT_ROOT,
+            secrets=secrets,
+            loggers=("", "disnake"),
+        )
     bot = None
     shutdown_task = None
     installed_signals = []

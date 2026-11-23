@@ -83,3 +83,6 @@ attached_assets/*
 storage/*.json
 storage/*.log*
 .ruff_cache/
+
+# Host-local error reporting hook, copied in by ~/error-inbox sync.
+skypixel/error_inbox_client.py

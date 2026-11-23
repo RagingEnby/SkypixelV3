@@ -185,7 +185,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                 ),
             ),
             patch.object(app, "configure_logging"),
-            patch.object(app.error_inbox_client, "install"),
+            patch.object(app, "error_inbox_client", None),
             patch.object(hypixel, "load_items", side_effect=load_items),
             patch.object(app, "create_bot", side_effect=create_bot),
         ):
@@ -206,7 +206,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                 ),
             ),
             patch.object(app, "configure_logging"),
-            patch.object(app.error_inbox_client, "install"),
+            patch.object(app, "error_inbox_client", None),
             patch.object(
                 hypixel,
                 "load_items",
