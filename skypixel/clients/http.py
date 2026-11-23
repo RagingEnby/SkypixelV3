@@ -20,6 +20,9 @@ API_URL: str = load_api_url()
 # The API rejects requests past 200 in flight across all clients.
 API_CONCURRENCY: int = 16
 _api_slots: asyncio.Semaphore = asyncio.Semaphore(API_CONCURRENCY)
+# Cloudflare resets multiplexed HTTP/2 streams from these hosts, causing curl
+# (55)/(56) errors on concurrent Hypixel polls. Other hosts keep HTTP/2.
+HTTP1_HOSTS: frozenset[str] = frozenset({"api.hypixel.net"})
 
 
 def is_api_url(url: str) -> bool:
@@ -46,13 +49,7 @@ async def get_session() -> curl_cffi.AsyncSession:
     if CLOSED:
         raise RuntimeError("The HTTP client has shut down.")
     if SESSION is None:
-        # Cloudflare resets multiplexed HTTP/2 streams on curl_cffi's default
-        # session, causing curl (55)/(56) errors on concurrent Hypixel polls.
-        SESSION = curl_cffi.AsyncSession(
-            discard_cookies=True,
-            timeout=(10, 30),
-            http_version=CurlHttpVersion.V1_1,
-        )
+        SESSION = curl_cffi.AsyncSession(discard_cookies=True, timeout=(10, 30))
     return SESSION
 
 
@@ -66,6 +63,8 @@ async def request(
     session = await get_session()
     url: Any = args[0] if args else kwargs.get("url", "")
     api: bool = isinstance(url, str) and is_api_url(url)
+    if isinstance(url, str) and urlsplit(url).hostname in HTTP1_HOSTS:
+        kwargs.setdefault("http_version", CurlHttpVersion.V1_1)
     for attempt in range(attempts):
         delay = min(2**attempt, 5)
         try:
