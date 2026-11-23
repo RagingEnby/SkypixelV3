@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -6,16 +5,14 @@ import disnake
 from curl_cffi.requests.exceptions import RequestException
 from disnake.ext import commands
 from dns.exception import DNSException
-from mcstatus import JavaServer
+from mcstatus.responses import JavaStatusResponse
 
 from skypixel import constants, utils
-from skypixel.clients import http
+from skypixel.clients import http, minecraft
 from skypixel.storage.json import JsonWrapper
 from skypixel.trackers.base import PollingCog
 
 logger = logging.getLogger(__name__)
-LOOKUP_TIMEOUT = 10
-STATUS_ATTEMPTS = 3
 MCSTATUS_API_URL = "https://api.mcstatus.io/v2/status/java/mc.hypixel.net"
 
 
@@ -30,36 +27,23 @@ async def _get_motd_from_api() -> list[str] | None:
     return [line.strip() for line in raw.split("\n")]
 
 
-async def get_motd(*, attempts: int = STATUS_ATTEMPTS) -> list[str]:
+async def get_motd() -> list[str]:
     logger.debug("getting mc.hypixel.net motd")
-    for attempt in range(attempts):
+    try:
+        status: JavaStatusResponse = await minecraft.get_status("mc.hypixel.net")
+    except (OSError, DNSException) as direct_error:
         try:
-            server = await JavaServer.async_lookup(
-                "mc.hypixel.net", timeout=LOOKUP_TIMEOUT
-            )
-            status = await server.async_status()
-            return [line.strip() for line in status.description.split("\n")]
-        except (OSError, DNSException):
-            if attempt < attempts - 1:
-                logger.warning(
-                    "Hypixel MOTD lookup failed. Retrying attempt %s.", attempt + 2
-                )
-                await asyncio.sleep(min(2**attempt, 5))
-                continue
-            try:
-                fallback_motd = await _get_motd_from_api()
-            except (RequestException, ValueError):
-                logger.warning(
-                    "Hypixel MOTD fallback lookup via api.mcstatus.io failed."
-                )
-                fallback_motd = None
-            if fallback_motd is not None:
-                logger.warning(
-                    "Direct Hypixel MOTD lookup failed; using api.mcstatus.io fallback."
-                )
-                return fallback_motd
-            raise
-    raise RuntimeError("The MOTD lookup did not complete.")
+            fallback_motd: list[str] | None = await _get_motd_from_api()
+        except (RequestException, ValueError):  # fmt: skip
+            logger.warning("Hypixel MOTD fallback lookup via api.mcstatus.io failed.")
+            fallback_motd = None
+        if fallback_motd is None:
+            raise direct_error from None
+        logger.warning(
+            "Direct Hypixel MOTD lookup failed; using api.mcstatus.io fallback."
+        )
+        return fallback_motd
+    return [line.strip() for line in status.description.split("\n")]
 
 
 async def send(bot: commands.InteractionBot, embed: disnake.Embed, ping: bool = True):
