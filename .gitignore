@@ -78,7 +78,8 @@ cython_debug/
 .replit
 generated-icon.png
 attached_assets/*
-scrts.py
+.env.*
+!.env.example
 storage/*.json
 storage/*.log*
 .ruff_cache/

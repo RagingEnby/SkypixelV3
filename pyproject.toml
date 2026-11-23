@@ -10,10 +10,11 @@ dependencies = [
     "mcstatus>=11.1.1,<15",
     "mutf8>=1.0.6,<2",
     "pymongo>=4.13,<5",
+    "python-dotenv>=1.1,<2",
 ]
 
 [project.scripts]
-skypixel = "skypixel.app:main"
+skypixel = "skypixel.__main__:run"
 
 [build-system]
 requires = ["hatchling>=1.27"]

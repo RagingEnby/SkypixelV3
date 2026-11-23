@@ -1,13 +1,25 @@
 import os
 from dataclasses import dataclass, field
-from importlib import import_module
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 DEFAULT_API_URL: str = "http://127.0.0.1:8001"
+ENV_FILE: Path = Path(".env")
 
 
 class ConfigurationError(ValueError):
     pass
+
+
+def load_env_file(path: Path = ENV_FILE) -> None:
+    """Copy variables from the .env file into the environment.
+
+    Variables that are already set keep their value. Call this before
+    importing skypixel.app, because the HTTP client reads SKYPIXEL_API_URL
+    at import time. A missing file is not an error.
+    """
+    load_dotenv(path, override=False)
 
 
 def load_api_url() -> str:
@@ -27,33 +39,24 @@ class Settings:
     api_url: str = DEFAULT_API_URL
 
     @classmethod
-    def load(cls):
-        try:
-            legacy = import_module("scrts")
-        except ModuleNotFoundError as error:
-            if error.name != "scrts":
-                raise
-            legacy = None
+    def load(cls) -> Settings:
         return cls(
-            bot_token=os.environ.get(
-                "SKYPIXEL_BOT_TOKEN", getattr(legacy, "BOT_TOKEN", "")
-            ),
-            mongodb_uri=os.environ.get(
-                "SKYPIXEL_MONGODB_URI", getattr(legacy, "MONGODB_URI", "")
-            ),
+            bot_token=os.environ.get("SKYPIXEL_BOT_TOKEN", ""),
+            mongodb_uri=os.environ.get("SKYPIXEL_MONGODB_URI", ""),
             storage_dir=Path(os.environ.get("SKYPIXEL_STORAGE_DIR", "storage")),
             api_url=load_api_url(),
         )
 
-    def validate(self):
-        missing = []
+    def validate(self) -> None:
+        missing: list[str] = []
         if not self.bot_token:
-            missing.append("SKYPIXEL_BOT_TOKEN or scrts.BOT_TOKEN")
+            missing.append("SKYPIXEL_BOT_TOKEN")
         if not self.mongodb_uri:
-            missing.append("SKYPIXEL_MONGODB_URI or scrts.MONGODB_URI")
+            missing.append("SKYPIXEL_MONGODB_URI")
         if missing:
             raise ConfigurationError(
-                "Set the required credentials: " + ", ".join(missing)
+                "Set the required credentials in the environment or .env: "
+                + ", ".join(missing)
             )
         if not self.api_url.startswith(("http://", "https://")):
             raise ConfigurationError(

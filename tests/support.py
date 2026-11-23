@@ -1,19 +1,14 @@
 import atexit
 import os
-import sys
 import tempfile
-import types
 from contextlib import nullcontext
 from unittest.mock import Mock, patch
 
 TEST_STORAGE = tempfile.TemporaryDirectory(prefix="skypixel-tests-")
 atexit.register(TEST_STORAGE.cleanup)
 os.environ["SKYPIXEL_STORAGE_DIR"] = TEST_STORAGE.name
-
-secrets = types.ModuleType("scrts")
-secrets.BOT_TOKEN = "test-token"
-secrets.MONGODB_URI = "mongodb://localhost:27017"
-sys.modules["scrts"] = secrets
+os.environ["SKYPIXEL_BOT_TOKEN"] = "test-token"
+os.environ["SKYPIXEL_MONGODB_URI"] = "mongodb://localhost:27017"
 
 ITEMS = [
     {

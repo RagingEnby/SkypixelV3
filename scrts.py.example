@@ -1,2 +1,0 @@
-BOT_TOKEN: str = "your-discord-bot-token"
-MONGODB_URI: str = "mongodb://username:password@localhost:27017/"

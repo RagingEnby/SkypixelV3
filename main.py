@@ -1,4 +1,4 @@
-from skypixel.app import main
+from skypixel.__main__ import run
 
 if __name__ == "__main__":
-    main()
+    run()

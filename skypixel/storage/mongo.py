@@ -44,7 +44,7 @@ class Collection:
             raise RuntimeError("The database collection has shut down.")
         if self._client is None:
             if not self.uri:
-                raise ValueError("Set SKYPIXEL_MONGODB_URI or scrts.MONGODB_URI.")
+                raise ValueError("Set SKYPIXEL_MONGODB_URI.")
             self._client = AsyncMongoClient(self.uri, serverSelectionTimeoutMS=10000)
         return self._client
 

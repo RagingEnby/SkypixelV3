@@ -21,28 +21,42 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(support.SETTINGS.bot_token, "test-token")
         self.assertEqual(support.SETTINGS.mongodb_uri, "mongodb://localhost:27017")
 
-    def test_environment_overrides_legacy_credentials(self):
-        legacy = SimpleNamespace(
-            BOT_TOKEN="old-token",
-            MONGODB_URI="old-uri",
-        )
-        with (
-            patch.dict(
-                os.environ,
-                {
-                    "SKYPIXEL_BOT_TOKEN": "new-token",
-                    "SKYPIXEL_MONGODB_URI": "new-uri",
-                    "SKYPIXEL_STORAGE_DIR": "custom",
-                },
-                clear=True,
-            ),
-            patch.object(settings, "import_module", return_value=legacy),
+    def test_settings_load_from_the_environment(self):
+        with patch.dict(
+            os.environ,
+            {
+                "SKYPIXEL_BOT_TOKEN": "new-token",
+                "SKYPIXEL_MONGODB_URI": "new-uri",
+                "SKYPIXEL_STORAGE_DIR": "custom",
+            },
+            clear=True,
         ):
             loaded = settings.Settings.load()
+        loaded.validate()
         self.assertEqual(loaded.bot_token, "new-token")
         self.assertEqual(loaded.mongodb_uri, "new-uri")
         self.assertEqual(loaded.storage_dir, Path("custom"))
         self.assertNotIn("new-token", repr(loaded))
+
+    def test_env_file_fills_unset_variables_without_overriding_set_ones(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = Path(directory) / ".env"
+            env_file.write_text(
+                "SKYPIXEL_BOT_TOKEN=file-token\nSKYPIXEL_MONGODB_URI=file-uri\n"
+            )
+            with patch.dict(
+                os.environ, {"SKYPIXEL_BOT_TOKEN": "shell-token"}, clear=True
+            ):
+                settings.load_env_file(env_file)
+                loaded = settings.Settings.load()
+        self.assertEqual(loaded.bot_token, "shell-token")
+        self.assertEqual(loaded.mongodb_uri, "file-uri")
+
+    def test_missing_env_file_is_not_an_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(os.environ, {}, clear=True):
+                settings.load_env_file(Path(directory) / ".env")
+                self.assertNotIn("SKYPIXEL_BOT_TOKEN", os.environ)
 
     def test_missing_credentials_get_a_configuration_error(self):
         with self.assertRaises(settings.ConfigurationError) as error:
@@ -59,29 +73,6 @@ class SettingsTests(unittest.TestCase):
             settings.Settings(
                 bot_token="token", mongodb_uri="uri", api_url="api.local"
             ).validate()
-
-    def test_missing_secrets_module_allows_environment_only_setup(self):
-        with (
-            patch.dict(
-                os.environ,
-                {"SKYPIXEL_BOT_TOKEN": "token", "SKYPIXEL_MONGODB_URI": "uri"},
-                clear=True,
-            ),
-            patch.object(
-                settings, "import_module", side_effect=ModuleNotFoundError(name="scrts")
-            ),
-        ):
-            loaded = settings.Settings.load()
-        loaded.validate()
-
-    def test_an_error_inside_the_secrets_module_is_not_hidden(self):
-        with patch.object(
-            settings,
-            "import_module",
-            side_effect=ModuleNotFoundError(name="missing-helper"),
-        ):
-            with self.assertRaises(ModuleNotFoundError):
-                settings.Settings.load()
 
 
 class AppTests(unittest.IsolatedAsyncioTestCase):
@@ -264,11 +255,7 @@ class ImportTests(unittest.TestCase):
     def test_imports_do_not_open_clients_or_start_the_bot(self):
         source = """import importlib
 import pkgutil
-import sys
-import types
 from unittest.mock import patch
-secrets = types.ModuleType("scrts")
-sys.modules["scrts"] = secrets
 with patch("curl_cffi.AsyncSession", side_effect=AssertionError("HTTP session opened")), patch("pymongo.AsyncMongoClient", side_effect=AssertionError("MongoDB client opened")):
     import main
     import skypixel

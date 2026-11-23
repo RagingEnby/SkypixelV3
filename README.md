@@ -4,8 +4,8 @@ Skypixel is a Discord bot I have worked on and off on for a couple years now. It
 Originally, Skypixel was made as a frontend to search through spreadsheets from [iTEM](https://tem.cx/) in the same style as [TEMBot](https://discord.com/users/937105508320546896)'s `/spook-search` command. However, over time it evolved into much more.
 
 # Configuration
-The bot reads these environment variables:
-- `SKYPIXEL_BOT_TOKEN` and `SKYPIXEL_MONGODB_URI` are required. A `scrts.py` file with `BOT_TOKEN` and `MONGODB_URI` also works (see `scrts.py.example`).
+The bot reads its settings from environment variables. On startup it also loads a `.env` file from the working directory, if one exists. Copy `.env.example` to `.env`, fill it in, and run `chmod 600 .env`. Git ignores `.env`. Variables already set in the shell take priority over the file.
+- `SKYPIXEL_BOT_TOKEN` and `SKYPIXEL_MONGODB_URI` are required.
 - `SKYPIXEL_STORAGE_DIR` is the data folder. The default is `storage`.
 - `SKYPIXEL_API_URL` is the RagingEnby API. The default is `http://127.0.0.1:8001`, which skips Cloudflare when the bot runs on the same host as the API.
 
