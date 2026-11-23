@@ -290,7 +290,7 @@ class MojangTests(unittest.IsolatedAsyncioTestCase):
             await mojang.close()
             await mojang.close()
         self.assertTrue(stopped.is_set())
-        self.assertEqual(mojang._inflight, {})
+        self.assertEqual(mojang._inflight.tasks, {})
 
     async def test_old_api_timestamp_does_not_expire_the_cache(self):
         player = mojang.MojangPlayer(
