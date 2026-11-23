@@ -37,11 +37,10 @@ class StatusUpdaterCog(PollingCog):
         self.index = 0
 
     async def change_presence(self, activity_type: disnake.ActivityType, name: str):
-        ws = getattr(self.bot, "ws", None)
-        if (
-            getattr(ws, "open", None) is False
-            or getattr(getattr(ws, "socket", None), "closed", None) is True
-        ):
+        # bot.ws is None between gateway connections. ws.open is False once
+        # its socket has closed.
+        ws: disnake.gateway.DiscordWebSocket | None = self.bot.ws
+        if ws is None or not ws.open:
             logger.warning(
                 "Skipping status update while the Discord gateway is reconnecting."
             )
