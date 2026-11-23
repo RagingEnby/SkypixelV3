@@ -261,3 +261,23 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.bot.notifications.events)
         await self.bot.notifications.flush()
         self.channel.send.assert_awaited_once()
+
+    async def test_forbidden_in_the_dev_server_keeps_the_alert_for_retry(self):
+        self.channel.guild = SimpleNamespace(id=constants.DEV_SERVER_ID)
+        self.channel.send.side_effect = [
+            disnake.Forbidden(
+                Mock(status=403, reason="Forbidden"),
+                {"code": 50013, "message": "Missing Permissions"},
+            ),
+            Mock(),
+        ]
+        with self.assertLogs(utils.logger, level="ERROR"):
+            self.assertIsNone(
+                await utils.notify_to_channel(
+                    self.bot, 1, "alert", embed=disnake.Embed(title="Alert")
+                )
+            )
+        self.assertEqual(len(self.bot.notifications.pending), 1)
+        await self.bot.notifications.flush()
+        self.assertEqual(self.channel.send.await_count, 2)
+        self.assertFalse(self.bot.notifications.pending)

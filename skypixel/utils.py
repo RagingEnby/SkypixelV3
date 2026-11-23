@@ -200,17 +200,19 @@ async def send_to_channel(
     try:
         return await target.send(*args, **kwargs)
     except (disnake.Forbidden, disnake.NotFound) as error:
-        if _is_external_guild(target):
-            logger.warning(
-                "Cannot send to external channel %s or thread %s: %s",
-                channel_id,
-                thread_id,
-                error,
-            )
-        else:
+        if not _is_external_guild(target):
+            # A permission mistake in the bot's own server can be fixed, so
+            # the outbox keeps the alert and retries it.
             logger.exception(
                 "Cannot send to channel %s or thread %s.", channel_id, thread_id
             )
+            return None
+        logger.warning(
+            "Cannot send to external channel %s or thread %s: %s",
+            channel_id,
+            thread_id,
+            error,
+        )
         if raise_permanent:
             raise PermanentDeliveryError(str(error)) from error
         return None
