@@ -156,14 +156,21 @@ class NotificationOutbox:
             return None
         if message is None:
             return None
-        result = await utils.send_to_channel(
-            self.bot,
-            message["channel_id"],
-            message["content"],
-            thread_id=message["thread_id"],
-            embeds=[disnake.Embed.from_dict(embed) for embed in message["embeds"]],
-        )
-        if result is not None:
+        try:
+            result = await utils.send_to_channel(
+                self.bot,
+                message["channel_id"],
+                message["content"],
+                thread_id=message["thread_id"],
+                embeds=[disnake.Embed.from_dict(embed) for embed in message["embeds"]],
+                raise_permanent=True,
+            )
+        except utils.PermanentDeliveryError:
+            result = None
+            permanent_failure = True
+        else:
+            permanent_failure = False
+        if result is not None or permanent_failure:
             if event_id is not None:
                 event = self.events[event_id]
                 self.events.data = {
