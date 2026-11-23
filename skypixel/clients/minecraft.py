@@ -26,7 +26,7 @@ async def get_status(
                 host, timeout=LOOKUP_TIMEOUT
             )
             return await server.async_status()
-        except (OSError, DNSException):
+        except OSError, DNSException:
             attempt += 1
             if attempt == attempts:
                 raise
