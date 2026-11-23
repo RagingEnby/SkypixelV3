@@ -32,6 +32,8 @@ from typing import Any
 # seconds. The daemon does the real grouping. This only keeps a tight error
 # loop from filling the disk.
 THROTTLE_SECONDS: float = 60
+# Expired throttle entries are dropped once this many keys are stored.
+RECENT_MAX: int = 256
 TRACEBACK_CHARS: int = 8000
 MESSAGE_CHARS: int = 2000
 # Pass as `extra=SKIP` on a log call whose error the app also sends with
@@ -112,6 +114,11 @@ def report(
             last: float | None = _recent.get(key)
             if last is not None and now - last < THROTTLE_SECONDS:
                 return
+            if len(_recent) >= RECENT_MAX:
+                # Messages often hold IDs or URLs, so keys rarely repeat. Drop
+                # the expired ones so a long-running app does not keep them all.
+                for old in [k for k, seen in _recent.items() if now - seen >= THROTTLE_SECONDS]:
+                    del _recent[old]
             _recent[key] = now
         event: dict[str, Any] = {
             "app": app,
