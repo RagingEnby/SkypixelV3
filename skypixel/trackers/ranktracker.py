@@ -24,7 +24,11 @@ RANK_URL: str = URL + "/{}"
 COUNTS_URL: str = RANK_URL.format("counts")
 RAW_URL: str = RANK_URL.format("raw")
 RANKNAME_URL: str = http.API_URL + "/hypixel/rank/{}"
+# Keep this below the rank tracker's poll interval so every poll refetches.
 RANK_LIST_CACHE_TTL_SECONDS = 180
+# The bot status only shows a count, so it accepts lists up to two polls old
+# instead of calling the counts endpoint between polls.
+RANK_STATUS_MAX_AGE_SECONDS: int = 600
 RANK_LIST_CACHE: dict[str, list[dict[str, str]]] | None = None
 RANK_LIST_CACHE_TIME = 0.0
 RANK_LIST_CACHE_LOCK = asyncio.Lock()
@@ -33,8 +37,10 @@ POI_UUIDS: set[str] = set()
 WATCH_LIST_LIMIT = 25
 
 
-def _fresh_rank_lists() -> dict[str, list[dict[str, str]]] | None:
-    if time.monotonic() - RANK_LIST_CACHE_TIME >= RANK_LIST_CACHE_TTL_SECONDS:
+def _fresh_rank_lists(
+    max_age: float = RANK_LIST_CACHE_TTL_SECONDS,
+) -> dict[str, list[dict[str, str]]] | None:
+    if time.monotonic() - RANK_LIST_CACHE_TIME >= max_age:
         return None
     return RANK_LIST_CACHE
 
@@ -85,7 +91,9 @@ async def get_rank_counts() -> dict[str, int]:
 
 
 def get_cached_rank_count(rank: str) -> int | None:
-    rank_lists = _fresh_rank_lists()
+    rank_lists: dict[str, list[dict[str, str]]] | None = _fresh_rank_lists(
+        RANK_STATUS_MAX_AGE_SECONDS
+    )
     if rank_lists is None:
         return None
     return len(rank_lists.get(rank, []))

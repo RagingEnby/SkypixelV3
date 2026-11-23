@@ -83,6 +83,25 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
                 activity = bot.change_presence.await_args.kwargs["activity"]
                 self.assertEqual(activity.name, "3 [ዞ] ranks")
 
+    async def test_rank_status_uses_lists_older_than_the_tracker_ttl(self):
+        bot = Mock(change_presence=AsyncMock())
+        cog = StatusUpdaterCog(bot)
+        age = ranktracker.RANK_LIST_CACHE_TTL_SECONDS + 60
+        with (
+            patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": [{}, {}]}),
+            patch.object(
+                ranktracker, "RANK_LIST_CACHE_TIME", time.monotonic() - age
+            ),
+            patch.object(
+                ranktracker, "get_rank_counts", new_callable=AsyncMock
+            ) as counts,
+        ):
+            self.assertIsNone(ranktracker._fresh_rank_lists())
+            await cog._rank_status("staff")
+        counts.assert_not_awaited()
+        activity = bot.change_presence.await_args.kwargs["activity"]
+        self.assertEqual(activity.name, "2 [ዞ] ranks")
+
     async def test_rank_status_shows_zero_for_a_rank_missing_from_counts(self):
         bot = Mock(change_presence=AsyncMock())
         cog = StatusUpdaterCog(bot)
