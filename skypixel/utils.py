@@ -157,11 +157,22 @@ def is_discord_muted(bot: disnake.Client) -> bool:
     return (storage_dir / "muted").exists()
 
 
+class PermanentDeliveryError(Exception):
+    """Raised when Discord permanently rejects a channel send."""
+
+
+def _is_external_guild(target: disnake.abc.Messageable) -> bool:
+    guild = getattr(target, "guild", None)
+    guild_id = getattr(guild, "id", None)
+    return isinstance(guild_id, int) and guild_id != constants.DEV_SERVER_ID
+
+
 async def send_to_channel(
     bot: disnake.Client,
     channel_id: int,
     *args,
     thread_id: int | None = None,
+    raise_permanent: bool = False,
     **kwargs,
 ) -> disnake.Message | None:
     if is_discord_muted(bot):
@@ -188,6 +199,21 @@ async def send_to_channel(
         kwargs["embeds"] = fit_embeds(kwargs["embeds"])
     try:
         return await target.send(*args, **kwargs)
+    except (disnake.Forbidden, disnake.NotFound) as error:
+        if _is_external_guild(target):
+            logger.warning(
+                "Cannot send to external channel %s or thread %s: %s",
+                channel_id,
+                thread_id,
+                error,
+            )
+        else:
+            logger.exception(
+                "Cannot send to channel %s or thread %s.", channel_id, thread_id
+            )
+        if raise_permanent:
+            raise PermanentDeliveryError(str(error)) from error
+        return None
     except disnake.HTTPException:
         logger.exception(
             "Cannot send to channel %s or thread %s.", channel_id, thread_id

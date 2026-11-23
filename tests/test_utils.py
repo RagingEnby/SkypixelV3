@@ -55,6 +55,27 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
                 await utils.send_to_channel(bot, 1, thread_id=2, content="test")
             )
 
+    async def test_external_guild_forbidden_logs_warning_and_signals_permanent_error(
+        self,
+    ):
+        channel = Mock(spec=disnake.TextChannel)
+        channel.guild = SimpleNamespace(id=999999999999999999)
+        channel.send = AsyncMock(
+            side_effect=disnake.Forbidden(
+                Mock(status=403, reason="Forbidden"),
+                {"code": 50013, "message": "Missing Permissions"},
+            )
+        )
+        bot = Mock(get_channel=Mock(return_value=channel))
+        with self.assertLogs(utils.logger, level="WARNING") as captured:
+            with self.assertRaises(utils.PermanentDeliveryError):
+                await utils.send_to_channel(
+                    bot, 1, content="test", raise_permanent=True
+                )
+        self.assertTrue(
+            all(record.levelno == logging.WARNING for record in captured.records)
+        )
+
     async def test_broadcast_obeys_the_ten_embed_limit(self):
         embeds = [disnake.Embed(title=str(index)) for index in range(23)]
         with patch.object(utils, "notify_to_channel", new_callable=AsyncMock) as send:
