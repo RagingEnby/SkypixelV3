@@ -89,9 +89,7 @@ class PollingTests(unittest.IsolatedAsyncioTestCase):
         age = ranktracker.RANK_LIST_CACHE_TTL_SECONDS + 60
         with (
             patch.object(ranktracker, "RANK_LIST_CACHE", {"staff": [{}, {}]}),
-            patch.object(
-                ranktracker, "RANK_LIST_CACHE_TIME", time.monotonic() - age
-            ),
+            patch.object(ranktracker, "RANK_LIST_CACHE_TIME", time.monotonic() - age),
             patch.object(
                 ranktracker, "get_rank_counts", new_callable=AsyncMock
             ) as counts,
@@ -413,15 +411,11 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
             "u2": {"name": "Bob", "rank": "staff"},
         }
         cog.data.data = before
-        rate_limit = ranktracker.HTTPError(
-            "429", response=Mock(status_code=429)
-        )
+        rate_limit = ranktracker.HTTPError("429", response=Mock(status_code=429))
         raw = {"staff": ["u1", "u3", "u4"]}
         with (
             patch.object(cog, "do_watchlist", new_callable=AsyncMock),
-            patch.object(
-                ranktracker, "get_player_ranks", side_effect=rate_limit
-            ),
+            patch.object(ranktracker, "get_player_ranks", side_effect=rate_limit),
             patch.object(
                 ranktracker.http,
                 "get_json",
@@ -472,7 +466,10 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
                 return_value={"staff": ["u1", "u3"]},
             ),
             patch.object(
-                ranktracker.mojang, "bulk", new_callable=AsyncMock, side_effect=rate_limit
+                ranktracker.mojang,
+                "bulk",
+                new_callable=AsyncMock,
+                side_effect=rate_limit,
             ),
             patch.object(ranktracker, "POI_UUIDS", set()),
             self.assertLogs(ranktracker.logger, level="WARNING"),
@@ -483,9 +480,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
     async def test_rank_poll_reraises_429_when_local_ranks_are_empty(self):
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.data.data = {}
-        rate_limit = ranktracker.HTTPError(
-            "429", response=Mock(status_code=429)
-        )
+        rate_limit = ranktracker.HTTPError("429", response=Mock(status_code=429))
         with (
             patch.object(cog, "do_watchlist", new_callable=AsyncMock),
             patch.object(ranktracker, "get_player_ranks", side_effect=rate_limit),
@@ -496,9 +491,7 @@ class RankCacheTests(unittest.IsolatedAsyncioTestCase):
     async def test_rank_poll_reraises_non_429_http_errors(self):
         cog = ranktracker.RankTrackerCog(support.make_bot())
         cog.data.data = {"u1": {"name": "Alice", "rank": "youtube"}}
-        server_error = ranktracker.HTTPError(
-            "502", response=Mock(status_code=502)
-        )
+        server_error = ranktracker.HTTPError("502", response=Mock(status_code=502))
         with (
             patch.object(cog, "do_watchlist", new_callable=AsyncMock),
             patch.object(ranktracker, "get_player_ranks", side_effect=server_error),
@@ -935,9 +928,7 @@ class ServerStatusLookupTests(unittest.IsolatedAsyncioTestCase):
                 new_callable=AsyncMock,
                 side_effect=[LifetimeTimeout(timeout=10, errors=[]), server, server],
             ) as lookup,
-            patch.object(
-                minecraft.asyncio, "sleep", new_callable=AsyncMock
-            ) as sleep,
+            patch.object(minecraft.asyncio, "sleep", new_callable=AsyncMock) as sleep,
         ):
             motd = await motdtracker.get_motd()
         self.assertEqual(motd, ["Line 1", "Line 2"])

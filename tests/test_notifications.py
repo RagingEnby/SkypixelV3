@@ -254,9 +254,7 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
                     self.bot, 1, "alert", embed=disnake.Embed(title="Alert")
                 )
             )
-        self.assertTrue(
-            all(record.levelno == 30 for record in captured.records)
-        )
+        self.assertTrue(all(record.levelno == 30 for record in captured.records))
         self.assertFalse(self.bot.notifications.pending)
         self.assertFalse(self.bot.notifications.events)
         await self.bot.notifications.flush()

@@ -140,9 +140,7 @@ async def get_rank_lists() -> dict[SpecialRank, list[dict[str, str]]]:
         rank_lists = _fresh_rank_lists()
         if rank_lists is None:
             generation = RANK_LIST_GENERATION
-            data = await http.get_json(
-                URL, retry_statuses=http.RETRY_STATUSES - {429}
-            )
+            data = await http.get_json(URL, retry_statuses=http.RETRY_STATUSES - {429})
             if (
                 not isinstance(data, dict)
                 or not data
