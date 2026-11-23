@@ -222,3 +222,24 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             await cog.active_scanner()
         self.assertEqual(cog.last_scanned_active, 200_000)
         self.channel.send.assert_awaited_once()
+
+    async def test_muted_flag_suppresses_channel_sends_and_outbox_delivery(self):
+        mute_file = self.bot.settings.storage_dir / "muted"
+        mute_file.touch()
+        with self.assertLogs(utils.logger, level="WARNING"):
+            self.assertIsNone(await utils.send_to_channel(self.bot, 1, "direct"))
+        with self.assertLogs(level="WARNING"):
+            self.assertIsNone(
+                await utils.notify_to_channel(
+                    self.bot, 1, "alert", embed=disnake.Embed(title="Alert")
+                )
+            )
+        await self.bot.notifications.flush()
+        self.channel.send.assert_not_awaited()
+        self.assertFalse(self.bot.notifications.pending)
+        self.assertFalse(self.bot.notifications.events)
+        mute_file.unlink()
+        await utils.notify_to_channel(
+            self.bot, 1, "alert", embed=disnake.Embed(title="Alert")
+        )
+        self.channel.send.assert_awaited_once()

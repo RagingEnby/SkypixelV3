@@ -4,6 +4,7 @@ import logging
 import random
 import re
 from copy import deepcopy
+from pathlib import Path
 from urllib.parse import quote
 
 import disnake
@@ -148,6 +149,14 @@ def add_footer(embed: disnake.Embed) -> disnake.Embed:
     )
 
 
+def is_discord_muted(bot: disnake.Client) -> bool:
+    settings = getattr(bot, "settings", None)
+    storage_dir = getattr(settings, "storage_dir", None)
+    if not isinstance(storage_dir, Path):
+        return False
+    return (storage_dir / "muted").exists()
+
+
 async def send_to_channel(
     bot: disnake.Client,
     channel_id: int,
@@ -155,6 +164,13 @@ async def send_to_channel(
     thread_id: int | None = None,
     **kwargs,
 ) -> disnake.Message | None:
+    if is_discord_muted(bot):
+        logger.warning(
+            "Discord output is muted; suppressed message to channel %s (thread %s).",
+            channel_id,
+            thread_id,
+        )
+        return None
     channel = bot.get_channel(channel_id)
     if thread_id is not None:
         if not isinstance(channel, (disnake.TextChannel, disnake.ForumChannel)):
